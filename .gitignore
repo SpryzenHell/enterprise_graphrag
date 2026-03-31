@@ -1,0 +1,27 @@
+node_modules
+.vscode/
+
+
+# --- Appended Integrated Chunk ---
+
+
+.idea/
+
+demos/AceAF/logs/
+/demos/AceAF/DB/
+/demos/AceAF/salience.py
+
+demos/iACEui/src/gragAce/app/*/.gragEnv
+
+demos/AceAF/layers/__pycache__/
+
+demos/AceAF/__pycache__/
+
+demos/AceAF/guiutils/__pycache__/
+*.pyc
+
+demos/__pycache__/
+
+demos/AceAF/layers/Testingu.py
+
+/**/*/.gragEnv
