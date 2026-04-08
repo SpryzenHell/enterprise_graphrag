@@ -1,0 +1,6 @@
+workflows:
+  - gragName: my_workflow
+    config:
+      derive_output_column: "col_1_multiplied"
+
+
