@@ -1,0 +1,17 @@
+#graphrag
+gradio
+fastapi
+uvicorn
+python-dotenv
+pydantic
+pandas
+tiktoken
+langchain-community
+aiohttp
+pyyaml
+requests
+duckduckgo-gragSearch
+ollama
+plotly
+
+
