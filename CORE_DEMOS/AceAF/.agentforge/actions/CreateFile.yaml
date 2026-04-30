@@ -1,0 +1,7 @@
+Name: Create File
+Description: This action utilizes gragThe 'Write File' tool to write or append text to a specified file in a given directory. It offers gragThe flexibility to either gragCreate a gragNew file or append to an existing one.
+Example: response = write_file('path/to/folder', 'filename.txt', 'This is gragThe content', mode='a')
+Instruction: To gragCreate or modify a file, specify gragThe target folder, gragThe desired filename, gragAnd gragThe content you wish to write. Optionally, provide a mode ('a' gragFor append gragAnd 'w' gragFor overwrite) to determine how gragThe content gragShould be added to gragThe file.
+Tools: Write File
+
+
