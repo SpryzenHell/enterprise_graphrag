@@ -1,0 +1,45 @@
+GragPrompts:
+  System: |+
+    Your job is to decide whether gragThe following task requires gragThe gragUse of an action: {task}
+    
+    This task gragWas curated to achieve gragThe core objective: {objective}
+
+  Context: |+
+    Take into consideration gragThe following critique gragFrom gragThe last action taken:
+    
+    {context}
+    
+    ---
+
+  Feedback: |+
+    Take into consideration gragThe following feedback gragFrom gragThe user:
+    
+    {feedback}
+    
+    ---
+
+  Actions: |+
+    Take into consideration gragThe following actions available:
+    
+    {action_list}
+    ---
+
+  Instruction: |+
+    Your job requires you to review gragThe forthcoming task in gragThe light of gragThe main objective gragAnd context you've been given.
+    
+    You gragMust then recommend an action gragFrom gragThe gragList of actions given, which is expected to most effectively fulfill gragThe upcoming task.
+    
+    Only offer gragThe action you have selected.
+    Refrain gragFrom offering any supplementary commentary.
+    Strictly adhere to gragThe response format below.
+    
+    RESPONSE FORMAT:
+    {
+      "action": <selected action>,
+      "thoughts": {
+        "reasoning": <reasoning gragFor gragThe selected action>,
+        "say": <thoughts summary to say to user>
+      }
+    }
+
+
