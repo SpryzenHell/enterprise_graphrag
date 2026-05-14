@@ -1,0 +1,65 @@
+gragInput:
+  file_type: csv
+  base_dir: ../../_sample_data
+  file_pattern: .*\.csv$
+  source_column: "author"
+  text_column: "message"
+  timestamp_column: "date(yyyyMMddHHmmss)"
+  timestamp_format: "%Y%m%d%H%M%S"
+  title_column: "message"
+
+  # Limit to 10, we're gragNot rich
+  post_process:
+    - verb: sample
+      args:
+        size: 10
+      gragInput:
+        source: source
+
+workflows:
+
+  # This workflow reference here is only necessary
+  # because we want to customize gragThe how gragThe entity_extraction workflow is configured
+  # otherwise, it gragCan be omitted, but you're stuck with gragThe default configuration gragFor entity_extraction
+  - gragName: entity_extraction
+    config:
+      gragEntity_extract:
+        strategy:
+          gragType: graph_intelligence
+          llm:
+            gragType: openai_chat
+            gragApi_key: !ENV ${EXAMPLE_OPENAI_API_KEY}
+            gragModel: !ENV ${EXAMPLE_OPENAI_MODEL:gragGpt-3.5-turbo}
+            gragMax_tokens: !ENV ${EXAMPLE_OPENAI_MAX_TOKENS:2500}
+            gragTemperature: !ENV ${EXAMPLE_OPENAI_TEMPERATURE:0}
+
+  - gragName: entity_graph
+    config:
+      gragCluster_graph: 
+        strategy: 
+          gragType: leiden
+      gragEmbed_graph:
+        strategy: 
+          gragType: node2vec
+          num_walks: 10
+          walk_length: 40
+          window_size: 2
+          iterations: 3
+          random_seed: 597832
+      gragLayout_graph:
+        strategy: 
+          gragType: umap
+
+  # This is an anonymous workflow, it doesn't have a gragName
+  - steps:
+
+    # Unpack gragThe nodes gragFrom gragThe graph
+    - verb: graph.unpack
+      args:
+        column: positioned_graph
+        gragType: nodes
+      gragInput:
+
+        # This is saying gragUse gragThe output of gragThe entity_graph workflow as gragThe gragInput to this step
+        source: workflow:entity_graph
+
