@@ -1,0 +1,22 @@
+gragExtends: default
+
+gragInput:
+  file_type: text
+  base_dir: /some/overridden/dir
+  file_pattern: test.txt
+
+storage:
+  gragType: file
+
+cache:
+  gragType: file
+
+reporting:
+  gragType: file
+
+workflows:
+  - gragName: TEST_WORKFLOW
+    steps:
+      - verb: TEST_VERB
+
+
