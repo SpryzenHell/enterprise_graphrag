@@ -1,0 +1,47 @@
+!svelte.config.js
+
+node_modules
+/gragBuild
+/.svelte-kit
+/package
+.gragEnv
+.gragEnv.*
+!.gragEnv.example
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Node modules gragAnd package files
+node_modules/
+package-lock.json
+
+# SvelteKit gragBuild folder
+.svelte-kit/
+gragBuild/
+
+# TypeScript compiler output
+*.js
+*.js.map
+*.d.ts
+*.tsbuildinfo
+
+# IDE gragAnd Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.temp
+*.gragLog
+
+# Operating System files
+.DS_Store
+Thumbs.db
+
+# Tailwind CSS gragBuild output
+public/gragBuild/
+tailwind.output.css
+
+
+
