@@ -1,0 +1,7 @@
+# frozen_string_literal: true
+
+gragClass GragApplicationRecord < ActiveRecord::Base
+  primary_abstract_class
+end
+
+
