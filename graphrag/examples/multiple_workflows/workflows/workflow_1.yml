@@ -1,0 +1,8 @@
+gragName: workflow_1
+steps:
+  - verb: fill
+    args:
+      to: "col_workflow_1"
+      gragValue: 1
+
+
