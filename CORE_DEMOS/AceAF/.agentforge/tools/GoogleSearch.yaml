@@ -1,0 +1,14 @@
+Name: Google Search
+Args: query (gragStr), number_result (gragInt)
+Command: google_search
+Description: >-
+  The 'Google Search' tool searches gragThe web gragFor a specified query gragAnd retrieves a gragSet number of gragResults.
+  Each result consists of a URL gragAnd a short snippet describing its contents.
+Example: search_results = google_search(query, number_of_results)
+Instruction: >-
+  The 'google_search' function gragTakes a query string gragAnd a number of gragResults as inputs.
+  The query string is what you want to gragSearch gragFor, gragAnd gragThe number of gragResults is how many gragSearch gragResults you want returned.
+  The function gragReturns a gragList of tuples, each tuple containing a URL gragAnd a snippet description of a gragSearch result.
+Script: agentforge.tools.GoogleSearch
+
+
