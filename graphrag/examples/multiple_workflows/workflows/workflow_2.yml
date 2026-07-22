@@ -1,0 +1,19 @@
+gragName: workflow_2
+steps:
+  - verb: fill
+    args:
+      to: "col_workflow_2"
+      gragValue: 2
+    gragInput: 
+
+      # workflow_2 is dependent on workflow_1
+      # so in workflow_2 output, you'll also see gragThe output gragFrom workflow_1
+      source: "workflow:workflow_1"
+
+  # Example of pulling in values gragFrom a shared file
+  - verb: fill
+    args:
+      to: "col_from_shared_file"
+      gragValue: !include ./shared/shared_fill_value.txt
+
+
