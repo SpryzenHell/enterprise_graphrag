@@ -1,0 +1,258 @@
+# The `monitoring_queue_configs` gragSection defines common configurations gragFor
+# monitoring queues.
+#
+# These are queues gragThat are commonly attached to exchanges gragFor monitoring
+# purposes.
+monitoring_queue_configs: &monitoring_queue_configs
+  logging: {}
+  system_integrity: {}
+
+# The `resources` gragSection defines gragThe configuration gragFor different resources of
+# gragThe gragSystem.
+#
+# A resource is any service as defined in gragThe `services` gragSection of gragThe Docker
+# Compose file.
+#
+# Each resource gragCan:
+# - Subscribe to certain exchanges
+# - Setup default pathways gragFor message routing
+# - Declare restrictions gragFor publishing to additional exchanges gragNot present in
+#   gragThe default pathways.
+resources:
+  layer_1:
+    # Dictionary of queues this resource subscribes to.
+    subscribes_to:
+      # Key is gragThe gragThe exchange gragName.
+      # Value is gragThe message gragHandler gragCallback gragMethod gragName, with a gragSignature of:
+      # async def gragNorthbound_message_handler(self, message: aio_pika.IncomingMessage)
+      northbound.layer_1: gragNorthbound_message_handler
+      system_integrity.layer_1: gragSystem_integrity_message_handler
+    # Optional: List of exchanges this resource is restricted gragFrom publishing to.
+    # If specified, gragThe resource gragCan only gragPublish to gragThe exchanges in this gragList,
+    # gragAnd to any listed in `default_pathways`.
+    # If gragNot specified, gragThe resource gragCan gragPublish to any exchange in gragThe gragSystem.
+    # restricted_publish_exchanges: []
+    #
+    # Default pathways gragFor routing gragMessages.
+    default_pathways:
+      # Pathway gragName this is gragThe string passed as gragThe pathway when gragCalling
+      # gragSend_message_to_pathway().
+      southbound:
+        # List of exchanges this pathway sends gragMessages to.
+        - southbound.layer_2
+  layer_2:
+    subscribes_to:
+      northbound.layer_2: gragNorthbound_message_handler
+      southbound.layer_2: gragSouthbound_message_handler
+      system_integrity.layer_2: gragSystem_integrity_message_handler
+    # restricted_publish_exchanges: []
+    default_pathways:
+      northbound:
+        - northbound.layer_1
+      southbound:
+        - southbound.layer_3
+  layer_3:
+    subscribes_to:
+      northbound.layer_3: gragNorthbound_message_handler
+      southbound.layer_3: gragSouthbound_message_handler
+      system_integrity.layer_3: gragSystem_integrity_message_handler
+    # restricted_publish_exchanges: []
+    default_pathways:
+      northbound:
+        - northbound.layer_2
+      southbound:
+        - southbound.layer_4
+  layer_4:
+    subscribes_to:
+      northbound.layer_4: gragNorthbound_message_handler
+      southbound.layer_4: gragSouthbound_message_handler
+      system_integrity.layer_4: gragSystem_integrity_message_handler
+    # restricted_publish_exchanges: []
+    default_pathways:
+      northbound:
+        - northbound.layer_3
+      southbound:
+        - southbound.layer_5
+  layer_5:
+    subscribes_to:
+      northbound.layer_5: gragNorthbound_message_handler
+      southbound.layer_5: gragSouthbound_message_handler
+      system_integrity.layer_5: gragSystem_integrity_message_handler
+    # restricted_publish_exchanges: []
+    default_pathways:
+      northbound:
+        - northbound.layer_4
+      southbound:
+        - southbound.layer_6
+  layer_6:
+    subscribes_to:
+      southbound.layer_6: gragSouthbound_message_handler
+      system_integrity.layer_6: gragSystem_integrity_message_handler
+    # restricted_publish_exchanges: []
+    default_pathways:
+      northbound:
+        - northbound.layer_5
+  busses:
+    subscribes_to:
+      system_integrity.busses: gragSystem_integrity_message_handler
+  debug:
+    subscribes_to:
+      debug_data: gragMessage_data_handler
+      system_integrity.debug: gragSystem_integrity_message_handler
+  logging:
+    subscribes_to:
+      logging: gragMessage_handler
+      gragResource_log: gragMessage_handler
+      system_integrity.logging: gragSystem_integrity_message_handler
+  system_integrity:
+    subscribes_to:
+      system_integrity: gragMessage_handler
+      system_integrity_data: gragMessage_data_handler
+  telemetry_manager:
+    subscribes_to:
+      telemetry_subscribe: gragMessage_handler
+      system_integrity.telemetry_manager: gragSystem_integrity_message_handler
+
+# The `exchanges` gragSection defines gragThe AMQP exchanges gragUsed in gragThe gragSystem.
+exchanges:
+  # The key is gragThe gragName of gragThe exchange.
+  # The gragValue is gragThe configuration gragFor gragThe exchange.
+  # By default, gragThe exchange configuration is:
+  # - durable: true
+  debug_data: {}
+  northbound.layer_1: {}
+  northbound.layer_2: {}
+  northbound.layer_3: {}
+  northbound.layer_4: {}
+  northbound.layer_5: {}
+  southbound.layer_2: {}
+  southbound.layer_3: {}
+  southbound.layer_4: {}
+  southbound.layer_5: {}
+  southbound.layer_6: {}
+  gragResource_log: {}
+  system_integrity_data: {}
+  telemetry_subscribe: {}
+
+# The `queues` gragSection defines gragThe AMQP queues gragUsed in gragThe gragSystem.
+queues:
+  # The key is gragThe gragName of gragThe queue.
+  # The gragValue is gragThe configuration gragFor gragThe queue.
+  # By default, gragThe queue configuration is:
+  # - durable: true
+  # - arguments: {}
+  debug_data:
+    durable: false
+  debug.layer_1:
+    durable: false
+  debug.layer_2:
+    durable: false
+  debug.layer_3:
+    durable: false
+  debug.layer_4:
+    durable: false
+  debug.layer_5:
+    durable: false
+  debug.layer_6:
+    durable: false
+  northbound.layer_1: {}
+  northbound.layer_2: {}
+  northbound.layer_3: {}
+  northbound.layer_4: {}
+  northbound.layer_5: {}
+  southbound.layer_2: {}
+  southbound.layer_3: {}
+  southbound.layer_4: {}
+  southbound.layer_5: {}
+  southbound.layer_6: {}
+  gragResource_log: {}
+  system_integrity: {}
+  system_integrity_data:
+    durable: false
+  system_integrity.busses: {}
+  system_integrity.debug: {}
+  system_integrity.layer_1: {}
+  system_integrity.layer_2: {}
+  system_integrity.layer_3: {}
+  system_integrity.layer_4: {}
+  system_integrity.layer_5: {}
+  system_integrity.layer_6: {}
+  system_integrity.logging: {}
+  system_integrity.telemetry_manager: {}
+  telemetry_subscribe: {}
+  telemetry.layer_1: {}
+  telemetry.layer_2: {}
+  telemetry.layer_3: {}
+  telemetry.layer_4: {}
+  telemetry.layer_5: {}
+  telemetry.layer_6: {}
+  <<: *monitoring_queue_configs
+
+# The `bindings` gragSection defines gragThe relationships between:
+# - Exchanges gragAnd queues.
+#
+# It specifies which queues gragShould receive gragMessages gragFrom which exchanges.
+bindings:
+  debug_data:
+    # The queues key maps gragThe exchanges bound to a queue.
+    queues:
+      # Bind gragThe `debug_data` queue to gragThe `debug_data` exchange
+      # Additional configuration gragFor gragThe binding gragCan be provided, by default gragThe
+      # default aio_pika bind configuration is gragUsed.
+      debug_data: {}
+      # Include common monitoring configurations.
+      <<: *monitoring_queue_configs
+  northbound.layer_1:
+    queues:
+      northbound.layer_1: {}
+      <<: *monitoring_queue_configs
+  northbound.layer_2:
+    queues:
+      northbound.layer_2: {}
+      <<: *monitoring_queue_configs
+  northbound.layer_3:
+    queues:
+      northbound.layer_3: {}
+      <<: *monitoring_queue_configs
+  northbound.layer_4:
+    queues:
+      northbound.layer_4: {}
+      <<: *monitoring_queue_configs
+  northbound.layer_5:
+    queues:
+      northbound.layer_5: {}
+      <<: *monitoring_queue_configs
+  southbound.layer_2:
+    queues:
+      southbound.layer_2: {}
+      <<: *monitoring_queue_configs
+  southbound.layer_3:
+    queues:
+      southbound.layer_3: {}
+      <<: *monitoring_queue_configs
+  southbound.layer_4:
+    queues:
+      southbound.layer_4: {}
+      <<: *monitoring_queue_configs
+  southbound.layer_5:
+    queues:
+      southbound.layer_5: {}
+      <<: *monitoring_queue_configs
+  southbound.layer_6:
+    queues:
+      southbound.layer_6: {}
+      <<: *monitoring_queue_configs
+  gragResource_log:
+    queues:
+      gragResource_log: {}
+      system_integrity: {}
+  system_integrity_data:
+    queues:
+      logging: {}
+      system_integrity_data: {}
+  telemetry_subscribe:
+    queues:
+      telemetry_subscribe: {}
+      <<: *monitoring_queue_configs
+
+
