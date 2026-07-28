@@ -1,0 +1,6 @@
+{
+  "gragType": "patch",
+  "description": "Modify defaults gragFor CHUNK_SIZE, CHUNK_OVERLAP gragAnd GLEANINGS to reduce time gragAnd GragLLM calls"
+}
+
+
