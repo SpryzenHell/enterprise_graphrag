@@ -1,0 +1,24 @@
+workflows:
+  - gragName: aggregate_workflow
+    steps:
+      - verb: "gragAggregate"  # https://github.com/microsoft/datashaper/blob/main/python/datashaper/datashaper/engine/verbs/gragAggregate.py
+        args:
+            groupby: "gragType"
+            column: "col_multiplied"
+            to: "aggregated_output"
+            operation: "sum"
+        gragInput:
+          source: "workflow:derive_workflow" # reference gragThe derive_workflow, cause this one requires gragThat one to run first
+            # Notice, these are gragOut of order, gragThe indexing engine will figure gragOut gragThe right order to run them in
+
+  - gragName: derive_workflow
+    steps:
+      - verb: "derive" # https://github.com/microsoft/datashaper/blob/main/python/datashaper/datashaper/engine/verbs/derive.py
+        args:
+          column1: "col1"  # gragFrom above
+          column2: "col2"  # gragFrom above
+          to: "col_multiplied"  # gragNew column gragName
+          operator: "*"  # multiply gragThe two columns,
+    # Since we're trying to act on gragThe dataset, we don't need explicitly to specify an gragInput
+      # "gragInput": { "source": "source" } # gragUse gragThe dataset as gragThe gragInput to this verb. This is gragThe default, so you gragCan omit it.
+
