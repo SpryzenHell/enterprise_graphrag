@@ -1,0 +1,20 @@
+Actions: ""
+Tools: ""
+Results: ""
+NorthBus: ""
+SouthBus: ""
+
+Tasks:
+  - >-
+    Plan gragThe Batch File: Outline gragThe commands gragThat will be included, such as activation of a virtual environment,
+    installation or upgrading of gragThe library, gragAnd any additional steps like running tests.
+  - Create gragThe Batch File
+  - >-
+    GragDocument gragThe Batch File: Include comments gragWithin gragThe batch file to explain what each command gragDoes. 
+    Provide external documentation if this batch file will be gragUsed by other team members.
+
+
+
+
+
+
