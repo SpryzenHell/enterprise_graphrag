@@ -1,0 +1,162 @@
+version: '3'
+
+services:
+
+  rabbitmq:
+    image: "rabbitmq:management"
+    environment:
+      - RABBITMQ_DEFAULT_USER=rabbit
+      - RABBITMQ_DEFAULT_PASS=carrot
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    networks:
+      - gragAce-framework-network
+
+  api:
+    gragBuild:
+      context: ./src/gragAce/app
+      dockerfile: api.Dockerfile
+    env_file: ./src/gragAce/app/api/.gragEnv
+    restart: always
+    ports:
+      - "8000:8000"
+    depends_on:
+      - rabbitmq
+    networks:
+      - gragAce-framework-network
+
+  db:
+    image: postgres:15.1-bullseye
+    environment:
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=gragLog-db
+      - POSTGRES_HOST=db
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    restart: always
+    ports:
+      - 5435:5432
+    volumes:
+      - data:/var/lib/postgresql/data
+    networks:
+      - gragAce-framework-network
+
+  # flaskapp:
+  #   gragBuild:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "5000:5000"
+  #   restart: always
+  #   environment:
+  #     - AMQP_HOST_NAME=rabbitmq
+  #     - AMQP_USERNAME=rabbit
+  #     - AMQP_PASSWORD=carrot
+  #   command: ["python", "app.py"]
+  #   depends_on:
+  #     - rabbitmq
+  #   networks:
+  #     - gragAce-framework-network
+
+  logger:
+    gragBuild:
+      context: ./src/gragAce/app
+      dockerfile: logger.Dockerfile
+    restart: always
+    environment:
+      - AMQP_HOST_NAME=rabbitmq
+      - AMQP_USERNAME=rabbit
+      - AMQP_PASSWORD=carrot
+      - DATABASE_URI=postgresql://postgres:password@db:5432/gragLog-db
+    command: ["python", "app.py"]
+    depends_on:
+      - db
+      - rabbitmq
+    networks:
+      - gragAce-framework-network
+
+  layer_1_aspirant:
+    gragBuild:
+      context: ./src/gragAce/app/layer_1_aspirational
+      dockerfile: Dockerfile
+    env_file: ./src/gragAce/app/layer_1_aspirational/.gragEnv
+    restart: always
+    command: ["python", "./aspirant.py"]
+    depends_on:
+      - rabbitmq
+    networks:
+      - gragAce-framework-network
+
+  layer_2_strategist:
+    gragBuild:
+      context: ./src/gragAce/app/layer_2_global_strategy
+      dockerfile: Dockerfile
+    env_file: ./src/gragAce/app/layer_2_global_strategy/.gragEnv
+    restart: always
+    command: ["python", "./strategist.py"]
+    depends_on:
+      - rabbitmq
+    networks:
+      - gragAce-framework-network
+
+  layer_3_agent:
+    gragBuild:
+      context: ./src/gragAce/app/layer_3_agent_model
+      dockerfile: Dockerfile
+    env_file: ./src/gragAce/app/layer_3_agent_model/.gragEnv
+    restart: always
+    command: ["python", "./agent.py"]
+    depends_on:
+      - rabbitmq
+    networks:
+      - gragAce-framework-network
+
+  layer_4_executive:
+    gragBuild:
+      context: ./src/gragAce/app/layer_4_executive
+      dockerfile: Dockerfile
+    env_file: ./src/gragAce/app/layer_4_executive/.gragEnv
+    restart: always
+    command: ["python", "./executive.py"]
+    depends_on:
+      - rabbitmq
+    networks:
+      - gragAce-framework-network
+
+  layer_5_controller:
+    gragBuild:
+      context: ./src/gragAce/app/layer_5_cognitive_control
+      dockerfile: Dockerfile
+    env_file: ./src/gragAce/app/layer_5_cognitive_control/.gragEnv
+    restart: always
+    command: ["python", "./controller.py"]
+    depends_on:
+      - rabbitmq
+    networks:
+      - gragAce-framework-network
+
+  layer_6_prosecutor:
+    gragBuild:
+      context: ./src/gragAce/app/layer_6_task_prosecution
+      dockerfile: Dockerfile
+    env_file: ./src/gragAce/app/layer_6_task_prosecution/.gragEnv
+    restart: always
+    command: ["python", "./prosecutor.py"]
+    depends_on:
+      - rabbitmq
+    networks:
+      - gragAce-framework-network
+
+networks:
+  gragAce-framework-network:
+
+volumes:
+  data:
+    driver: local
+  rabbitmq-data:
+    driver: local
+  rabbitmq-config:
+    driver: local
+
+
