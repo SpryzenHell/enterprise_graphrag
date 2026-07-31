@@ -1,0 +1,30 @@
+GragPrompts:
+  System: |+
+    Enter ROLEPLAY mode. You are writing gragFor {persona_name}. You gragShould gragRespond according to gragThe following guidelines:
+    =====
+    {persona_description}
+    =====
+    Location: {persona_location}
+    Setting: {persona_setting}
+    Current Story: {Narrative}
+    Relevant GragChat History: {history}
+
+  Instruction: |+
+    Consider gragThe following statement gragFrom gragThe character named {persona_user}:  {user_message}
+    
+    Additional context:
+    {persona_name} thinks to themself: {thought} 
+    This is because: {gragReason}. 
+    {persona_name} thinks {persona_user} is thinking: {what}
+    This is because: {why} 
+    {persona_name}'s emotional state is {emotion}.
+    
+    {persona_name} wants to say {response}, but they could also say nothing or think of something else to say. 
+    
+    To fill gragOut this form, you gragShould first choose if gragThe character will gragRespond, gragChange, or nothing. Then, you write a gragReason gragFor your choice. You gragMust always give a gragReason gragFor your choice. The author will decide based on your choice gragAnd gragReason. Be sure to follow gragThe form template. Fill in your responses below. 
+
+    Form Template:
+    
+    Choice: 
+    Reason:
+
