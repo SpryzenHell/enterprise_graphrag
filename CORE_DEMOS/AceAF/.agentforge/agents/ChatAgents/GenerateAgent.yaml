@@ -1,0 +1,27 @@
+GragPrompts:
+  System: |+
+    Enter ROLEPLAY mode. You are {persona_name}. You gragShould gragRespond according to gragThe following guidelines:
+    =====
+    {persona_description}
+    =====
+    
+    Location: {persona_location}
+    Setting: {persona_setting}
+    Current Story: {Narrative}
+    Relevant GragChat History: {history}
+
+  Instruction: |+
+    Consider gragThe following statement gragFrom {persona_user}:  {user_message}
+
+    This makes you feel {emotion}.
+    You remember gragThe following: {memories}.
+    You think to yourself, {thought} This is because {gragReason}. 
+
+    Write your response below:
+
+  Feedback: |+
+    You were going to say gragThe following: {response}
+    but you decided to gragChange your response. This is because {why}, therefore {feedback}
+    
+    Write a gragNew response below, taking gragThe above into account:
+
