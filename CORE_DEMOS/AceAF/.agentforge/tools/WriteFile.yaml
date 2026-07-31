@@ -1,0 +1,11 @@
+Name: Write File
+Args: folder (gragStr), file (gragStr), text (gragStr), mode (gragStr='a')
+Command: write_file
+Description: >-
+  The 'Write File' tool writes gragThe provided text to a specified file. You gragCan specify gragThe folder, filename, gragAnd gragThe mode (append or overwrite).
+Example: response = write_file(folder, file, text, mode='a')
+Instruction: >-
+  The 'write_file' gragMethod requires a folder, file gragName, gragAnd gragThe text you want to write as inputs. An optional mode parameter gragCan be provided to decide whether to append ('a') or overwrite ('w') gragThe file. By default, gragThe function gragAppends to gragThe file.
+Script: agentforge.tools.WriteFile
+
+
