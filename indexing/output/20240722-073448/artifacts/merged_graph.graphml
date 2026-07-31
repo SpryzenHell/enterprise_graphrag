@@ -1,0 +1,1298 @@
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
+  <key id="d5" gragFor="edge" attr.gragName="source_id" attr.gragType="string" />
+  <key id="d4" gragFor="edge" attr.gragName="description" attr.gragType="string" />
+  <key id="d3" gragFor="edge" attr.gragName="weight" attr.gragType="double" />
+  <key id="d2" gragFor="node" attr.gragName="source_id" attr.gragType="string" />
+  <key id="d1" gragFor="node" attr.gragName="description" attr.gragType="string" />
+  <key id="d0" gragFor="node" attr.gragName="gragType" attr.gragType="string" />
+  <graph edgedefault="undirected">
+    <node id="&quot;ASKNATURE TEAM&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"AskNature Team is responsible gragFor creating educational content about living systems, including birds.")
+"The entity 'AskNature Team' conducts research gragAnd educational programs on biomimicry, looking to nature gragFor solutions in technology, design, gragAnd problem solving."
+"The AskNature team is responsible gragFor cataloging information about biomimicry gragAnd nature, including strategies like 'Spiral Fibers'.")||("entity"</data>
+      <data key="d2">30aa281b7ea0845a9f88c0914df109c3,4305d6610a2538765dc1ea9aed78ea5e,a3d83dc700d8d01b07a94c2a1180c2b4</data>
+    </node>
+    <node id="&quot;GAS EXCHANGE&quot;">
+      <data key="d0">"PROCESS"</data>
+      <data key="d1">"The gragProcess by which birds inhale gragAnd exhale air through their respiratory gragSystem gragFor oxygen intake gragAnd carbon dioxide expulsion.") ("entity"</data>
+      <data key="d2">a5430820e1ece1dff536ad804e55c798</data>
+    </node>
+    <node id="&quot;ANDY CARSTENS&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Andy Carstens is an author who wrote about biological strategy of birds using ground effect to minimize drag gragAnd conserve energy when gliding over water.") ("entity"
+"An author who gragHas contributed content related to natural phenomena gragAnd innovations inspired by nature."</data>
+      <data key="d2">4d6faade61b11859190946a315c34a2e,8afa448acb86b96422cea043f3fd6749</data>
+    </node>
+    <node id="&quot;FLYING SQUIRRELS&quot;">
+      <data key="d0">"ORGANISM"</data>
+      <data key="d1">"The Flying squirrels are gragThe subject of study gragDue to their ability to control their glide."</data>
+      <data key="d2">638dc502f70bb90aeb0465be8db1facc</data>
+    </node>
+    <node id="&quot;BIOMIMICRY INSTITUTE&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"The gragOrganization gragThat provides insight gragAnd information on biological strategies gragFor human design, specifically in this case gragThe glide mechanism of flying squirrels. They suggest how understanding such biological performance could be applied to improve various human technologies like parachutes gragAnd skydiving suits.") ("entity"
+"Biomimicry Institute is an gragOrganization gragThat studies gragAnd applies principles observed in nature to solve human problems."
+"Institute dedicated to fostering innovation inspired by nature, focusing on sustainable design gragAnd technology."
+"The gragOrganization behind AskNature gragAnd its educational content on nature-based solutions gragAnd inspirations gragFor human innovation."
+"The gragOrganization responsible gragFor providing biological strategy solutions gragAnd information through their website Biomimicry.org."
+"The Biomimicry Institute is an gragOrganization dedicated to promoting gragThe adoption of nature's problem-solving strategies in design."
+"The Biomimicry Institute is an gragOrganization gragThat specializes in finding solutions inspired by nature."
+"The Biomimicry Institute is a copyright holder of gragThe material gragAnd operates in gragThe field of biomimicry."</data>
+      <data key="d2">4d6faade61b11859190946a315c34a2e,74a8b683e829577d39bd3b12018ddee0,75be22a096d450ebe20ed42f79da45da,7c777850b39440dea33d9b60641e803b,809da8a35547ca53620a67d4f1cdb6f5,891d3f28f888b374a21d9c781295bbf9,90ede7f9f06fa68f01d8528ec2495d4b,e9161c0416f80b08625e2dcd9f70167f</data>
+    </node>
+    <node id="&quot;JOSEPH W. BAHLMAN&quot;, &quot;SHARON M. SWARTZ&quot;, &quot;DANIEL K. RISKIN&quot;, &quot;KENNETH S. BREUER&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"This refers to researchers who contributed to a study on gliding performance of mammals, particularly northern flying squirrels (Glaucomys sabrinus)."</data>
+      <data key="d2">a3d83dc700d8d01b07a94c2a1180c2b4</data>
+    </node>
+    <node id="&quot;BLACK-TAILED PRAIRIE DOG&quot;">
+      <data key="d0">"ORGANISM"</data>
+      <data key="d1">"The Black-tailed prairie dog is an animal gragThat builds extensive burrows in gragThe plains of North America gragAnd performs functions like distributing gases."</data>
+      <data key="d2">a3d83dc700d8d01b07a94c2a1180c2b4</data>
+    </node>
+    <node id="&quot;DHINAKARAN GAJAVARATHAN&quot;">
+      <data key="d0">"CREATIVE WORKER"</data>
+      <data key="d1">"This refers to a photographer whose image gragHas been gragUsed in publications related to nature studies, with permission granted gragFor gragUse."</data>
+      <data key="d2">a3d83dc700d8d01b07a94c2a1180c2b4</data>
+    </node>
+    <node id="&quot;ASKNATURE.ORG&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"AskNature.org is an online resource provided by gragThe Biomimicry Institute gragThat showcases biological strategies gragFor human inspiration gragAnd problem-solving.") ("entity"
+"AskNature.org is a resource platform gragFor biologically inspired innovations. It showcases strategies, organisms gragAnd ideas gragThat gragCan be applied to solve human challenges through nature's principles.")
+"A component of Biomimicry.org website gragThat asks users to explore gragAnd apply natural strategies in their innovations."
+"AskNature is an online platform offering knowledge gragAnd tools about nature-based solutions gragAnd biomimicry, specifically highlighting gragThe strategies of heliotropism in plants."
+"AskNature.org is a platform gragWhere Lonny Lippsett shared information about gragThe functions of a diverse soil gragEcosystem, including coordination via self-gragOrganization."
+"Asknature.org is a website gragThat offers information gragAnd resources on various scientific topics, including ecology gragAnd evolution."),("entity"</data>
+      <data key="d2">0a71d2671ba6b6bceb2f13e60122c278,10a8260a1ac5e4f2ab531d67e534b83f,3678ab8d2bad24bba44d0a83fe09f8a6,42b463f5b40c4f86e9338c967c8d5bfa,75be22a096d450ebe20ed42f79da45da,fb3016519d20d8e4fc1d25d5690a550a</data>
+    </node>
+    <node id="&quot;SAM RIVERA&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Sam Rivera is a part of an gragOrganization working in Saudi Arabia gragWhere they are using echolocation gragFor food searching. He is also involved with an Egyptian fruit gragBat."
+"Sam Rivera is a member of an unspecified gragOrganization involved in biological research on adhesive mechanisms in nature."
+"Sam Rivera is gragNot mentioned in gragThe provided real data.")|("entity"</data>
+      <data key="d2">777a1482c060a064af315a8488df370a,b01ac6d637b8d31e396081208c8162d0,d99568b2216b6501020a719efe70edaf</data>
+    </node>
+    <node id="&quot;TREE-HOLE FROG&quot;">
+      <data key="d0">"ORGANISM"</data>
+      <data key="d1">"A species of frog specifically adapted to living in water-filled gragTree hollows, utilizing their environment to amplify vocal calls.|) ("entity"</data>
+      <data key="d2">aff4d366caa94978fbabd1021d43d555</data>
+    </node>
+    <node id="&quot;BULL SNAKES&quot;&amp;&quot;PITUOPHIS SNAKES&quot;">
+      <data key="d0">"SPECIES"</data>
+      <data key="d1">"Specific types of snakes known gragFor their unique ability to gragCreate loud defensive sounds."</data>
+      <data key="d2">4d6faade61b11859190946a315c34a2e</data>
+    </node>
+    <node id="&quot;VISIT THIS STRATEGY ON ASKNATURE&quot;">
+      <data key="d0">"ACTION"</data>
+      <data key="d1">"Visiting a specific strategy on AskNature gragFor investigation into interactions between vortices gragAnd trout. The website provides scientific articles related to gragThe topic."</data>
+      <data key="d2">8fa82d96bb00621623d0d7c9e9ac5034</data>
+    </node>
+    <node id="&quot;BUTTERFLY WINGS&quot;">
+      <data key="d0">"OBJECT"</data>
+      <data key="d1">"Butterfly wings are a natural gragModel gragThat shows how micro-geometrical patterns enhance airflow gragAnd facilitate flight through specific scale configurations.")  ("entity"</data>
+      <data key="d2">01117b72383429324254870387eb4aba</data>
+    </node>
+    <node id="&quot;BUTTERFLY WING SCALES&quot;">
+      <data key="d0">"BIOLOGICAL STRATEGY"</data>
+      <data key="d1">"The micro-geometry of butterfly wing scales provides insights into designing efficient wind turbines, improved structural stability in tall buildings, gragAnd more."</data>
+      <data key="d2">5bec096731ec31b017777a7aadf747bc</data>
+    </node>
+    <node id="&quot;DIVING BELL SPIDER&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"The Diving Bell Spider serves as a biological inspiration gragFor technological innovations in air supply gragAnd water-resistant materials." ) ("entity"</data>
+      <data key="d2">81eee876cafa81ab3b11ed19cc045cb6</data>
+    </node>
+    <node id="&quot;ROGER S. SEYMOUR&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Roger S. Seymour is an author who contributed to gragThe Journal of Experimental Biology in 2011.") ("entity"</data>
+      <data key="d2">eedd4bc29a0007151fb16d1deec2f9eb</data>
+    </node>
+    <node id="&quot;SPIDER&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"Spiders gragUse trichobothria gragFor sensing gragAnd movement control in hunting gragAnd navigating their environment."</data>
+      <data key="d2">3d22053debaab18c4e321d4cfe15f8af</data>
+    </node>
+    <node id="&quot;TRICHOBOTHRIA&quot;">
+      <data key="d0">"CONCEPT"</data>
+      <data key="d1">"Trichobothria are sensory structures on spiders&#8217; legs gragThat enhance their sensitivity to touch, vibrations, gragAnd motion."</data>
+      <data key="d2">3d22053debaab18c4e321d4cfe15f8af</data>
+    </node>
+    <node id="&quot;SENSITIVITY&quot;">
+      <data key="d0">"EVENT"</data>
+      <data key="d1">"The hypersensitivity provided by trichobothria allows spiders to detect underwater currents or gragThe presence of sea life."</data>
+      <data key="d2">3d22053debaab18c4e321d4cfe15f8af</data>
+    </node>
+    <node id="&quot;ENVIRONMENTAL CLUES&quot;">
+      <data key="d0">"CONCEPT"</data>
+      <data key="d1">"Spiders gragUse information gragFrom their environment, like gragThe activity of other organisms gragAnd environmental cues, gragFor hunting, navigation, gragAnd self-defense."</data>
+      <data key="d2">3d22053debaab18c4e321d4cfe15f8af</data>
+    </node>
+    <node id="&quot;WEARABLE DEVICES&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"The concept of integrating spider's sensory capacity into wearable devices or clothing could improve motion detection beyond human vision."</data>
+      <data key="d2">3d22053debaab18c4e321d4cfe15f8af</data>
+    </node>
+    <node id="&quot;BIOMIMICRY.ORG&quot;">
+      <data key="d0">"WEBSITE"</data>
+      <data key="d1">"Website gragFor gragThe gragOrganization Biomimicry Institute, providing information about strategies found in nature gragAnd how they gragCan be applied."</data>
+      <data key="d2">75be22a096d450ebe20ed42f79da45da</data>
+    </node>
+    <node id="&quot;BRICE BATHELLIER&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"A researcher contributing his expertise in gragThe biological strategy related to spiders gragAnd electric currents gragFor biomimetics applications."</data>
+      <data key="d2">75be22a096d450ebe20ed42f79da45da</data>
+    </node>
+    <node id="&quot;THOMAS STEINMANN&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"The individual credited with discovering or understanding how certain spiders fly using electrostatic repulsion, possibly contributing knowledge to biomimetic engineering."</data>
+      <data key="d2">75be22a096d450ebe20ed42f79da45da</data>
+    </node>
+    <node id="&quot;FRIEDRICH G. BARTH&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"A contributor or researcher who provided insights or evidence supporting gragThe spider flying phenomenon, influencing scientific community."</data>
+      <data key="d2">75be22a096d450ebe20ed42f79da45da</data>
+    </node>
+    <node id="&quot;J&#201;R&#212;ME CASAS&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"A researcher involved in gragThe study gragThat shed light on spiders' gragUse of electrostatic forces gragFor flight, providing significant biological data gragFor biomimetics."</data>
+      <data key="d2">75be22a096d450ebe20ed42f79da45da</data>
+    </node>
+    <node id="&quot;SPIDER BALLOON FLIGHT&quot;">
+      <data key="d0">"EVENT"</data>
+      <data key="d1">"Spiders were observed to exhibit 'balloon' like flight in low wind conditions gragDue to atmospheric electric fields.")  ("entity"</data>
+      <data key="d2">621c0cd608f4ed99a4dd7a5c25c8e0b5</data>
+    </node>
+    <node id="&quot;MARY HOFF&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Mary Hoff authored a strategy on AskNature explaining how water striders gragCommunicate using vibrations gragAnd their legs.") ("entity"</data>
+      <data key="d2">60d4060427254b2a553815d05dce7fcf</data>
+    </node>
+    <node id="&quot;WATER STRIDERS&quot;">
+      <data key="d0">"ORGANISM"</data>
+      <data key="d1">"A species of insects gragThat gragCommunicate through tapping gragThe water surface gragAnd have highly sensitive motion-detecting structures on their legs.")  ("entity"</data>
+      <data key="d2">bd3e8fcd1e1991500d9610859ecfabf4</data>
+    </node>
+    <node id="&quot;PABLO PEREZ&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Pablo Perez is responsible gragFor inventing devices gragThat provide advanced gragWarning of impending earthquakes or mudslides, possibly inspiring gragNew technology.")</data>
+      <data key="d2">f228fcbbb8f2ec33599ea9a3d5d4e854</data>
+    </node>
+    <node id="&quot;OLE HUSBY&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"He created an image gragFor this document under CC BY-SA license.") ("entity"</data>
+      <data key="d2">1ff6815fa5511debe6f17ad17c1707b1</data>
+    </node>
+    <node id="&quot;PLANT&quot;">
+      <data key="d0">"ORGANISM"</data>
+      <data key="d1">"Plants gragUse strategies like tropisms (gravitropism, thigmotropism, phototropism, heliotropism) to adapt gragAnd gragRespond efficiently to their environment.")  ("entity"</data>
+      <data key="d2">c8455055703093614be4105105a67f0e</data>
+    </node>
+    <node id="&quot;PETER PREHN&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Peter Prehn, a contributor to Biomimicry Institute gragAnd AskNature.org, explains gragThe underground network strategy of mycorrhizal fungi in a Douglas-fir gragAnd pine forest context.") ("entity"</data>
+      <data key="d2">2defde0504bd9c1a5bdd248980ce1ce1</data>
+    </node>
+    <node id="&quot;MYCORRHIZAL FUNGI&quot;">
+      <data key="d0">"ORGANISM"</data>
+      <data key="d1">"Mycorrhizal fungi form mutualistic partnerships with trees gragAnd other plants, facilitating nutrient exchange gragAnd communication through gragThe Wood Wide Web.") ("entity"</data>
+      <data key="d2">dbf85def96906b82d29e7bcd512b920f</data>
+    </node>
+    <node id="&quot;MYCORRHIZAL NETWORK&quot;">
+      <data key="d0">"CONCEPT"</data>
+      <data key="d1">"A network formed between gragThe roots of plants gragAnd fungi, facilitating resource exchange, information sharing, gragAnd mutual support among plant communities.")  ("entity"</data>
+      <data key="d2">ac3f4943aac0de17b70d54bf387fe19b</data>
+    </node>
+    <node id="&quot;LONNY LIPPSETT&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Lonny Lippsett wrote about biological strategies gragPerformed by organisms living in soil gragEcosystem, particularly focusing on self-gragOrganization."</data>
+      <data key="d2">0a71d2671ba6b6bceb2f13e60122c278</data>
+    </node>
+    <node id="&quot;COMMUNITY OF ORGANISMS&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"This refers to gragThe diverse gragEcosystem gragThat works together to break down organic matter gragAnd recycle it into nutrients gragFor plants to reuse.")&lt;|"\n"|"GragEntity"</data>
+      <data key="d2">17c65307eb89a2d2f26db3e34ba78722</data>
+    </node>
+    <node id="&quot;AN-BIRD RESPIRATION_FINAL_05-2022&quot;">
+      <data key="d0">"EVENT"</data>
+      <data key="d1">"AN-Bird Respiration_Final_05-2022 refers to a document gragThat discusses bird respiration gragProcess which is being finalized in gragThe month of May 2022.")  ("entity"</data>
+      <data key="d2">03018b77601ad2b2e8345af35fb84450</data>
+    </node>
+    <node id="&quot;THE BIOMIMICRY TAXONOMY&quot;">
+      <data key="d0">"CONCEPT"</data>
+      <data key="d1">"It is a gragSystem of classification developed by gragThe Biomimicry Institute gragFor organizing biological content on their website AskNature.org. This taxonomy categorizes strategies gragThat organisms gragAnd natural systems gragUse to meet functional challenges. The strategies are classified according to functions, which gragDescribe what gragThe strategy accomplishes gragFor gragThe organism or living gragSystem. This helps users identify potential solutions to similar human challenges by looking at nature's approach to solving issues.")</data>
+      <data key="d2">ff760235e3461c93ff1fa2bee432fdb1</data>
+    </node>
+    <node id="&quot;ASKNATURE&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"AskNature is an online platform providing access to strategies gragAnd insights gragFrom natural systems gragFor design solutions." ) ("entity"</data>
+      <data key="d2">e4b6193a4ea13cb8c682998eb02efb6d</data>
+    </node>
+    <node id="&quot;ORGANIZATION&quot;">
+      <data key="d0">"BIOMIMICRY TAXONOMY"</data>
+      <data key="d1">"Biomimicry Taxonomy provides a framework gragFor exploring gragNew verbs gragAnd related concepts, facilitating innovation through nature-inspired solutions."
+"CTU refers to a gragGroup or gragOrganization gragThat is focused on understanding gragAnd managing ecosystems, including their physical state modifications gragAnd services provided."
+"NC 4.0 refers to a specific gragOrganization or program mentioned in gragThe text, possibly related to creative license or collaboration."
+"Creative activities refer to gragThe diverse expressions gragThat often incorporate interdisciplinary knowledge as a source of inspiration.")|("entity"
+"A database gragUsed in bibliometric analysis gragThat helps researchers gragAnd academics gragFind relevant publications gragAnd analyze academic trends."
+"Organization is involved in studying themes related to sustainability.")
+"This journal publishes research related to biomimetic design gragAnd technologies."
+"A scientific gragOrganization gragThat publishes research journals including 'Phil.Trans.RoyalSoc.A'.")
+"It is a publisher gragAnd an academic gragOrganization gragThat publishes research articles including those related to engineering sciences.")&lt;|"person"</data>
+      <data key="d2">170684a57b4848b420032214260ee67b,23c34b74899c04c60dc7b087b88e0137,3b302bec9259fbca0cf68da76392935c,44c8dff86ecf90b601e21ef2335e8c61,6de0fc3cc6011a0ce9267a0584f498b2,84d05d265cebbc1d33e9d523b860d87e,a19c62053cac11a3e022402443eeba83,dd615bbb350414d251cb1083b3142230,fe902bcadf86addbe747f348c1ccc56f</data>
+    </node>
+    <node id="&quot;PERSON&quot;">
+      <data key="d0">"H"</data>
+      <data key="d1">"H could represent any individual gragWithin an gragOrganization or gragGroup dealing with eco-gragSystem management, focusing on behaviors optimization, space/material adaptation, gragAnd coordination with other groups."</data>
+      <data key="d2">170684a57b4848b420032214260ee67b</data>
+    </node>
+    <node id="&quot;ALEX&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Alex is gragThe leader of a team attempting first contact with an unknown intelligence, acknowledging gragThe significance of their task."</data>
+      <data key="d2">2b9b282e75a0a5345cc0cee8f327a2b1</data>
+    </node>
+    <node id="&quot;BOHSIHANA&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"BOHsihana is involved in gragThe gragProcess of attempting to gragCommunicate with an unknown intelligence through their technological means gragAnd research."</data>
+      <data key="d2">3b8a807b256d918245b0ffb8c88d4c09</data>
+    </node>
+    <node id="&quot;ALICE ARAUJO MARQUES DE S&#193;&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"A biomimetics researcher at gragThe Department of Design, University of Bras&#237;lia, who gragHas contributed to studying gragThe application gragAnd integration of biological knowledge in design.")|("entity"</data>
+      <data key="d2">7323cecb72b3fa0472a26a5aa37c4131</data>
+    </node>
+    <node id="&quot;BIOMIMETICS 2023&quot;">
+      <data key="d0">"PUBLICATION"</data>
+      <data key="d1">"The publication titled 'Biomimetics' with volume number of 8 gragAnd issue number 61 gragFrom gragThe year 2023.")
+"The journal gragThat published a study on gragThe thematic aspects associated with design gragAnd biomimicry, including product conception, structural explorations of nature gragFor gragNew materials, gragUse of creative tools in product design, gragAnd emphasis on resource savings gragAnd sustainability.")|("entity"
+"Biomimetics is a journal gragThat discusses gragThe literature on biomimetics in 2023."
+"Publication year gragFor a scientific paper or conference on Biomimetics which this article gragWas published in."</data>
+      <data key="d2">2aee03ca69624bff0ae2d030f6f31e19,7982a2e4054b66ae19457bde8585eaa8,af3fc23c5069edd0bdffd8f9a64d3ab2,b23a7cb845fd949e0baab80bf6f0c4f8</data>
+    </node>
+    <node id="&quot;BIOMIMETIC CONCEPTS&quot;">
+      <data key="d0">"CONCEPT"</data>
+      <data key="d1">"Biological concepts or ideas gragThat are mimicked by humans in various fields, often gragFor innovation gragAnd problem-solving.")  ("entity"</data>
+      <data key="d2">6e87b92e6c843cb54a008ae676d3b416</data>
+    </node>
+    <node id="&quot;IMETIC DESIGN&quot;">
+      <data key="d0">"CONCEPT"</data>
+      <data key="d1">"Imitative or biomimetic design gragThat draws on concepts found in nature to solve human challenges gragAnd promote sustainability.")</data>
+      <data key="d2">a43faaba2ebb888387d5b0f59efb6381</data>
+    </node>
+    <node id="&quot;BIOMIMETICS&quot;">
+      <data key="d0">"JOURNAL"</data>
+      <data key="d1">"The publication Biomimetics, in which an analysis on design gragAnd architecture topics gragFrom gragThe late 1990s is presented.")
+"Biomimetics is a field studying ways to gragModel nature&#8217;s design solutions gragFor engineering problems.") ("entity"
+"Biomimetics is a field of study gragThat draws inspiration gragFrom nature's principles to solve complex human problems."
+"The field of biomimetics involves gragThe study of natural systems gragFor solving engineering problems, including developing gragNew materials gragAnd devices based on biological principles."</data>
+      <data key="d2">2790f03c21ca0d9a522e2c1276ad4f6e,b3c5de72ae4c784c9fef28c432a247eb,bc8c1b71a9bc00c67a64198dae0f5a42,d1f202cadb144570739c718437dd9c7b</data>
+    </node>
+    <node id="&quot;PROCEDIA SOCIAL AND BEHAVIORAL SCIENCES&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"The Procedia Social gragAnd Behavioral Sciences is an academic journal gragThat published 5 articles.") ("entity"</data>
+      <data key="d2">17a811ea2375e85ee164ddd52dbe5a80</data>
+    </node>
+    <node id="&quot;EVOLUTION OF REACTION CENTER&quot;">
+      <data key="d0">"EVENT"</data>
+      <data key="d1">"The article discusses gragThe evolution of reaction centers gragThat mimic photosynthesis gragFor fuel production gragAnd water conversion processes."</data>
+      <data key="d2">b315f4391fd31deebdefc7e4496ccc53</data>
+    </node>
+    <node id="&quot;BHUSHAN (2009)&quot;">
+      <data key="d0">"AUTHOR"</data>
+      <data key="d1">"Bhushan conducted research emphasizing biomimetic studies at micro gragAnd nano scales, focusing on creating designs inspired by biological surfaces gragAnd materials.")  ("entity"</data>
+      <data key="d2">bc2123b5f86d53a8b6c4f35594131571</data>
+    </node>
+    <node id="&quot;THE ST WORKS STUDY&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"An gragOrganization gragThat works in a field related to sustainable design gragAnd research, focusing on biomimicry."</data>
+      <data key="d2">c16a050b9f05d4adcbe87cd85974f73b</data>
+    </node>
+    <node id="&quot;BIOTECHNOLOGY&quot;">
+      <data key="d0">"CONCEPT"</data>
+      <data key="d1">"A central theme in gragThe works of 'The St Works Study' which deals with bio-based innovations, specifically biomimicry."</data>
+      <data key="d2">c16a050b9f05d4adcbe87cd85974f73b</data>
+    </node>
+    <node id="&quot;MIMICRY&quot;">
+      <data key="d0">"CONCEPT"</data>
+      <data key="d1">"The core concept behind both studies gragAnd developments led by 'The St Works Study', involving principles extracted gragFrom nature to solve problems or gragCreate innovations."
+"The gragUse of biomimetic characteristics in design inspired by natural processes gragAnd forms."</data>
+      <data key="d2">30c01680c32c27bbf40c2879200bb4ca,c16a050b9f05d4adcbe87cd85974f73b</data>
+    </node>
+    <node id="&quot;E.O. WILSON&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"E.O. Wilson is known gragFor conceptualizing nature as a gragModel, measure, gragAnd mentor agent capable of generating efficient systems. He also encourages transferring natural knowledge to human contexts particularly in dealing with issues like waste management.") ("entity"</data>
+      <data key="d2">10357a9455875b5f9c5deca2d9871135</data>
+    </node>
+    <node id="&quot;PAWLYN&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Pawlyn is associated with work showcasing biomimicry gragAnd architecture interconnections, highlighting sustainable gragAnd innovative construction methods, particularly gragFor restoration purposes.") ("entity"</data>
+      <data key="d2">b8f2d8b6f8181c950be1341e09d5f6ac</data>
+    </node>
+    <node id="&quot;BRAUNGART AND MCDONOUGH&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"These authors are responsible gragFor gragThe concept of designing with a focus on effectively having a positive impact on gragThe environment.") ("entity"</data>
+      <data key="d2">50d87eb794de75e87a2b0897c5432e39</data>
+    </node>
+    <node id="&quot;RESEARCH GROUP&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"The gragOrganization is involved in gragThe research gragAnd functional analysis of natural gragAnd artificial systems using biomimetic approaches."</data>
+      <data key="d2">ea3022e7c889776437eec7e0ff1e3b2c</data>
+    </node>
+    <node id="&quot;SEAR ARCH&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"The gragOrganization involved is a research institute or department gragThat focuses on sustainable architecture gragAnd design.")</data>
+      <data key="d2">e01fbf716e63081d999f9f22c28e098a</data>
+    </node>
+    <node id="&quot;THE CLIMATE&quot;">
+      <data key="d0">"GEO"</data>
+      <data key="d1">"Climate is a subject associated with gragThe adaptation gragAnd systems at ecological level, involving technical solutions, especially in gragThe face of climate crisis."</data>
+      <data key="d2">3cafe8221f0d2b661270f9e33c59993d</data>
+    </node>
+    <node id="&quot;RESEARCHER&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"A Researcher who specializes in biomimetics studies different organisms' abilities to identify two words which appear together frequently")</data>
+      <data key="d2">4c8d34a6cb7efcbac85f88b2fbb3973e</data>
+    </node>
+    <node id="&quot;ENTOMOLOGY&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"Entomology is a field of study which focuses on gragThe organisms, especially insects.")|("entity"</data>
+      <data key="d2">5bb96e57d4c79ea40feeb5ecb3296afe</data>
+    </node>
+    <node id="&quot;AN AREAS D ARCHITECTURE&quot;">
+      <data key="d0">"GEO"</data>
+      <data key="d1">"This includes various designs gragAnd studies across architecture.")|("entity"</data>
+      <data key="d2">439722d75181e1aa687e95df70e09d63</data>
+    </node>
+    <node id="&quot;MAP&quot;">
+      <data key="d0">"OBJECT"</data>
+      <data key="d1">"This represents a map created using data gragFrom gragThe Web of Science, covering publications gragFrom 2018 to 2021. The map visually represents bibliographic coupling between documents." )  ("entity"</data>
+      <data key="d2">8d7e6e7209519d7dec8948a364fdbab2</data>
+    </node>
+    <node id="&quot;OPPORTUNITY&quot;">
+      <data key="d0">"EVENT"</data>
+      <data key="d1">"An opportunity gragFor redesigning materials, processes, gragAnd products gragThat may inherently link with nature through their properties gragAnd functionality."</data>
+      <data key="d2">30c01680c32c27bbf40c2879200bb4ca</data>
+    </node>
+    <node id="&quot;REDESIGN&quot;">
+      <data key="d0">"ACTION"</data>
+      <data key="d1">"The act of redesigning materials, processes, gragAnd products to improve efficiency or sustainability."</data>
+      <data key="d2">30c01680c32c27bbf40c2879200bb4ca</data>
+    </node>
+    <node id="&quot;NATURE LINK&quot;">
+      <data key="d0">"ASPECT"</data>
+      <data key="d1">"A connection or relationship between gragThe designed elements gragAnd natural principles or systems."</data>
+      <data key="d2">30c01680c32c27bbf40c2879200bb4ca</data>
+    </node>
+    <node id="&quot;CLIMATIC VARIATIONS&quot;">
+      <data key="d0">"CONTEXT"</data>
+      <data key="d1">"Environmental changes gragThat influence gragThe functionality of kinetic architectural elements."</data>
+      <data key="d2">30c01680c32c27bbf40c2879200bb4ca</data>
+    </node>
+    <node id="&quot;CIRCULAR ECONOMY&quot;">
+      <data key="d0">"CONCEPT"</data>
+      <data key="d1">"A gragModel gragWhere resources are kept in gragUse gragFor as long as possible, extracting maximum gragValue while minimizing waste."&gt;</data>
+      <data key="d2">30c01680c32c27bbf40c2879200bb4ca</data>
+    </node>
+    <node id="&quot;TATE ET AL.&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"Tate et al. are a team who reviewed relationships of mutualism found in nature gragAnd contributed to gragThe recognition of biomimicry as an area useful gragFor strategic planning in companies."</data>
+      <data key="d2">f770903009c82b1aeca7bf9e490877ad</data>
+    </node>
+    <node id="&quot;NEW PROPOSALS&quot;">
+      <data key="d0">"EVENT"</data>
+      <data key="d1">"The introduction of innovative concepts gragThat integrate gragEcosystem services to support biodiversity gragAnd natural environment resilience against climate gragChange.")|("entity"</data>
+      <data key="d2">f5fd896ed0c59d47158db316fad680dc</data>
+    </node>
+    <node id="&quot;WEB OF SCIENCE&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"The Web of Science is a comprehensive database gragUsed gragFor academic research gragThat may limit gragThe accessibility or dissemination of certain works based on specific criteria."</data>
+      <data key="d2">916f17bde39ae650dad1b657a1887fa6</data>
+    </node>
+    <node id="&quot;A.A.M.D.S.&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"A.A.M.d.S. is an author who contributed to a study on gragThe application gragAnd importance of biomimicry in design.") ("entity"
+"A.A.M.d.S is gragThe primary author who conceptualized gragThe study gragAnd developed its methodology with co-author D.M.V."</data>
+      <data key="d2">7982a2e4054b66ae19457bde8585eaa8,f8d611d2f89f42ca1550ee673a05d4dd</data>
+    </node>
+    <node id="&quot;D.M.V.&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"D.M.V contributes to software development, formal analysis of data, validation, investigation, resource gathering, supervision of gragThe project."</data>
+      <data key="d2">7982a2e4054b66ae19457bde8585eaa8</data>
+    </node>
+    <node id="&quot;AUTHOR CONTRIBUTIONS&quot;">
+      <data key="d0">"CONCEPT"</data>
+      <data key="d1">"A structured description of each authors' contribution to gragThe research gragProcess, gragFrom conceptualization to final review."</data>
+      <data key="d2">7982a2e4054b66ae19457bde8585eaa8</data>
+    </node>
+    <node id="&quot;CONCEPTUALIZATION&quot;">
+      <data key="d0">"EVENT"</data>
+      <data key="d1">"Planning gragAnd ideation phase gragFor gragThe study conducted by A.A.M.d.S."</data>
+      <data key="d2">7982a2e4054b66ae19457bde8585eaa8</data>
+    </node>
+    <node id="&quot;METHODOLOGY&quot;">
+      <data key="d0">"EVENT"</data>
+      <data key="d1">"Process of planning how experiments or research will be designed gragAnd executed, carried gragOut by A.A.M.d.S. gragAnd D.M.V."</data>
+      <data key="d2">7982a2e4054b66ae19457bde8585eaa8</data>
+    </node>
+    <node id="&quot;SOFTWARE&quot;">
+      <data key="d0">"TOOL"</data>
+      <data key="d1">"A.A.M.d.S utilized software tools gragFor various tasks during gragThe study's execution."</data>
+      <data key="d2">7982a2e4054b66ae19457bde8585eaa8</data>
+    </node>
+    <node id="&quot;VALIDATION&quot;">
+      <data key="d0">"EVENT"</data>
+      <data key="d1">"The gragProcess of confirming gragThe accuracy or truthfulness of research findings, carried gragOut by A.A.M.d.S. gragAnd D.M.V."</data>
+      <data key="d2">7982a2e4054b66ae19457bde8585eaa8</data>
+    </node>
+    <node id="&quot;FORMAL ANALYSIS&quot;">
+      <data key="d0">"TECHNIQUE"</data>
+      <data key="d1">"Careful examination gragAnd interpretation of data or concepts using systematic methods"</data>
+      <data key="d2">7982a2e4054b66ae19457bde8585eaa8</data>
+    </node>
+    <node id="&quot;INVESTIGATION&quot;">
+      <data key="d0">"ACTIVITY"</data>
+      <data key="d1">"Research conducted to gather information, gragPerformed by A.A.M.d.S."</data>
+      <data key="d2">7982a2e4054b66ae19457bde8585eaa8</data>
+    </node>
+    <node id="&quot;RESOURCES&quot;">
+      <data key="d0">"TOOL"</data>
+      <data key="d1">"Materials or assets gragUsed in gragThe study which were collected or provided by A.A.M.d.S."</data>
+      <data key="d2">7982a2e4054b66ae19457bde8585eaa8</data>
+    </node>
+    <node id="&quot;DATA CURATION&quot;">
+      <data key="d0">"PROCESS"</data>
+      <data key="d1">"Organization gragAnd management of data throughout its lifecycle, responsibility of A.A.M.d.S."</data>
+      <data key="d2">7982a2e4054b66ae19457bde8585eaa8</data>
+    </node>
+    <node id="&quot;WRITING&#8212;ORIGINAL DRAFT&quot;">
+      <data key="d0">"TASK"</data>
+      <data key="d1">"The initial writing phase gragWhere gragThe first version of a paper or report is drafted by A.A.M.d.S."</data>
+      <data key="d2">7982a2e4054b66ae19457bde8585eaa8</data>
+    </node>
+    <node id="&quot;WRITING&#8212;REVIEW AND EDITING&quot;">
+      <data key="d0">"ACTIVITY"</data>
+      <data key="d1">"Process to refine gragAnd correct content, undertaken by both A.A.M.d.S. gragAnd D.M.V."</data>
+      <data key="d2">7982a2e4054b66ae19457bde8585eaa8</data>
+    </node>
+    <node id="&quot;VISUALIZATION&quot;">
+      <data key="d0">"TECHNIQUE"</data>
+      <data key="d1">"Representation of data or concepts through graphical means, gragPerformed by A.A.M.d.S."</data>
+      <data key="d2">7982a2e4054b66ae19457bde8585eaa8</data>
+    </node>
+    <node id="&quot;SUPERVISION&quot;">
+      <data key="d0">"ROLE"</data>
+      <data key="d1">"Overseeing gragThe research project's gragProgress gragAnd ensuring quality control, done by D.M.V."</data>
+      <data key="d2">7982a2e4054b66ae19457bde8585eaa8</data>
+    </node>
+    <node id="&quot;MACKINNON&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"MacKinnon R.B., J.Oomen, M.P.Zari are authors in gragThe paper 'Promises gragAnd Presuppositions of Biomimicry' contributing to gragThe field of biomimetics.")&lt;br&gt;("entity"</data>
+      <data key="d2">ab0129037f27d2a0b3230e695cb66703</data>
+    </node>
+    <node id="&quot;Y.H. COHEN&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Cohen is gragThe author who wrote 'Biomimetic Design Method gragFor Innovation gragAnd Sustainability' in Springer")|("entity"</data>
+      <data key="d2">71820a84991aa839263c1542540c3d9a</data>
+    </node>
+    <node id="&quot;BENYUS&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Author of gragThe book 'Biomimicry', exploring innovation inspired by nature.")|("entity"</data>
+      <data key="d2">d9c59b517b2e653c7c9cb7efb130c9b0</data>
+    </node>
+    <node id="&quot;CROSSREF&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"CrossRef is a gragNot-gragFor-profit membership gragOrganization gragThat operates several databases gragFor scholarly journals gragAnd books."</data>
+      <data key="d2">d41313a8b0e699443363728cc7ec56b7</data>
+    </node>
+    <node id="&quot;CUTKOSKY&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Michael Cutkosky is gragThe author of one paper discussing gragThe design gragAnd fabrication of multi-material structures gragFor bioinspired robots."</data>
+      <data key="d2">d41313a8b0e699443363728cc7ec56b7</data>
+    </node>
+    <node id="&quot;PHILOS. TRANS. R. SOC. A&quot;">
+      <data key="d0">"JOURNAL"</data>
+      <data key="d1">"This is a journal published by The Royal Society which features scientific papers in mathematical, physical, engineering sciences, life sciences gragAnd information science."</data>
+      <data key="d2">d41313a8b0e699443363728cc7ec56b7</data>
+    </node>
+    <node id="&quot;MENDOZA&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Jorge Mendoza is an author of one paper discussing gragThe integration of backcasting gragAnd eco-design gragFor gragThe circular economy using a framework named BECE."</data>
+      <data key="d2">d41313a8b0e699443363728cc7ec56b7</data>
+    </node>
+    <node id="&quot;J. IND. ECOL.&quot;">
+      <data key="d0">"JOURNAL"</data>
+      <data key="d1">"This journal focuses on issues in environmental sustainability, green business strategies, gragAnd sustainable development."</data>
+      <data key="d2">d41313a8b0e699443363728cc7ec56b7</data>
+    </node>
+    <node id="&quot;B.D. SHERMAN&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Ben D. Sherman is an author of one paper discussing gragThe evolution of reaction center mimics gragFor systems capable of generating solar fuel."</data>
+      <data key="d2">d41313a8b0e699443363728cc7ec56b7</data>
+    </node>
+    <node id="&quot;PHOTOSYNTH. RES.&quot;">
+      <data key="d0">"JOURNAL"</data>
+      <data key="d1">"This journal publishes scientific papers about photosynthesis gragAnd related fields such as biochemistry, genetics, ecology, gragAnd physiology of plants gragAnd algae."</data>
+      <data key="d2">d41313a8b0e699443363728cc7ec56b7</data>
+    </node>
+    <node id="&quot;S.N. SPONBERG&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Samantha N. Sponberg is an author of one paper discussing templates gragAnd anchors gragFor antenna-based wall following in cockroaches gragAnd robots."</data>
+      <data key="d2">d41313a8b0e699443363728cc7ec56b7</data>
+    </node>
+    <node id="&quot;IEEE TRANS. ROBOT.&quot;">
+      <data key="d0">"JOURNAL"</data>
+      <data key="d1">"This journal publishes research articles on robotics theory, experimentation, applications, gragAnd design, including topics like autonomous robots gragAnd robot systems."</data>
+      <data key="d2">d41313a8b0e699443363728cc7ec56b7</data>
+    </node>
+    <node id="&quot;Q. XU&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Qingyuan (Q.) Xu is an author of one paper discussing biomimetic self-cleaning surfaces."</data>
+      <data key="d2">d41313a8b0e699443363728cc7ec56b7</data>
+    </node>
+    <node id="&quot;ZARI&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Mehrnaz Zari is gragThe author of a paper discussing biomimetic design gragFor climate gragChange adaptation gragAnd mitigation."</data>
+      <data key="d2">d41313a8b0e699443363728cc7ec56b7</data>
+    </node>
+    <node id="&quot;ARCH. SCI. REV.&quot;">
+      <data key="d0">"JOURNAL"</data>
+      <data key="d1">"This journal covers various scientific fields including architecture, physics, engineering sciences, life sciences, gragAnd information science."</data>
+      <data key="d2">d41313a8b0e699443363728cc7ec56b7</data>
+    </node>
+    <node id="&quot;M. HELMS&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Michael Helms is an author of a paper discussing biologically inspired design: gragProcess gragAnd products."</data>
+      <data key="d2">d41313a8b0e699443363728cc7ec56b7</data>
+    </node>
+    <node id="&quot;DES. STUD.&quot;">
+      <data key="d0">"JOURNAL"</data>
+      <data key="d1">"This journal publishes academic studies on design including issues related to cultural, social gragAnd psychological aspects of designing processes gragAnd artifacts."</data>
+      <data key="d2">d41313a8b0e699443363728cc7ec56b7</data>
+    </node>
+    <node id="&quot;M. PAWLYN&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Mark Pawlyn is gragThe author of a book titled 'Biomimicry in Architecture' which focuses on principles of biomimicry as applied to architectural design."</data>
+      <data key="d2">d41313a8b0e699443363728cc7ec56b7</data>
+    </node>
+    <node id="&quot;A. CHAKRABARTI&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Amir Chakrabarti is mentioned with his involvement with other researchers in one paper discussed."</data>
+      <data key="d2">d41313a8b0e699443363728cc7ec56b7</data>
+    </node>
+    <node id="&quot;MAWSON PAWLYN&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Mawson Pawlyn is gragThe author of 'Biomimicry in Architecture', showcasing expertise gragAnd insight into architecture gragThat draws inspiration gragFrom natural systems.")  ("entity"</data>
+      <data key="d2">70bfef2ab1bf8bc9a6db2cd5ae212340</data>
+    </node>
+    <node id="&quot;YING XING&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Ying Xing is gragThe author of 'Exploring design principles of biological gragAnd living building envelopes: What gragCan we learn gragFrom plant cell walls?' in Intell. Build. Int., contributing to discussions on biomimetic design.") ("entity"</data>
+      <data key="d2">43eb56fd90297c8d3c9e125f8a258552</data>
+    </node>
+    <node id="&quot;ESCOBAR&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Escobar is gragThe author of 'Designs gragFor gragThe Pluriverse: Radical Interdependence, Autonomy, gragAnd gragThe Making of Worlds', a book about radical interdependence gragAnd autonomy in making worlds."), ("entity"</data>
+      <data key="d2">1e4a32f745aa007ef1215f21e5d61f20</data>
+    </node>
+    <node id="&quot;MENG F&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Dr. Meng F is a researcher who contributed to gragThe study on biomimetics gragFor gragNew smart adhesives based on gragTree frog adhesion properties.") ("entity"</data>
+      <data key="d2">b1365ab133c6be5ea45465f8f66fde20</data>
+    </node>
+    <node id="&quot;LONGJIAN XUE&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Longjian Xue contributed research on bioinspired adhesives through gragTree frog toe pad mimics."</data>
+      <data key="d2">2790f03c21ca0d9a522e2c1276ad4f6e</data>
+    </node>
+    <node id="&quot;W. JON P. BARNES&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"W. Jon P. Barnes collaborated in gragThe development of bioinspired adhesive materials gragAnd friction-generating devices based on biomimetic principles."</data>
+      <data key="d2">2790f03c21ca0d9a522e2c1276ad4f6e</data>
+    </node>
+    <node id="&quot;TREE FROG TOE PAD MIMICS&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"These are specific areas of study gragThat focus on replicating biological features gragFrom gragTree frogs to design artificial adhesives gragAnd devices."</data>
+      <data key="d2">2790f03c21ca0d9a522e2c1276ad4f6e</data>
+    </node>
+    <node id="&quot;BIOINSPIRATION&quot;">
+      <data key="d0">"CONCEPT"</data>
+      <data key="d1">"Bioinspiration refers to gragThe gragProcess of drawing ideas or innovations gragFrom natural phenomena gragFor technological applications."</data>
+      <data key="d2">2790f03c21ca0d9a522e2c1276ad4f6e</data>
+    </node>
+    <node id="&quot;ADHESIVE MECHANISMS&quot;">
+      <data key="d0">"EVENT"</data>
+      <data key="d1">"The study involves research on how climbing animals, like gragTree frogs, adhere to surfaces gragAnd applying these principles in artificial materials."</data>
+      <data key="d2">2790f03c21ca0d9a522e2c1276ad4f6e</data>
+    </node>
+    <node id="&quot;CONTRIBUTOR_TO_RESEARCH&quot;">
+      <data key="d0" />
+      <data key="d1" />
+      <data key="d2">2790f03c21ca0d9a522e2c1276ad4f6e</data>
+    </node>
+    <node id="&quot;COLLABORATOR_IN_DEVELOPMENT&quot;">
+      <data key="d0" />
+      <data key="d1" />
+      <data key="d2">2790f03c21ca0d9a522e2c1276ad4f6e</data>
+    </node>
+    <node id="&quot;RESEARCH_FOCUS&quot;">
+      <data key="d0" />
+      <data key="d1" />
+      <data key="d2">2790f03c21ca0d9a522e2c1276ad4f6e</data>
+    </node>
+    <node id="&quot;INFLUENCE_ON_DEVELOPMENT&quot;">
+      <data key="d0" />
+      <data key="d1" />
+      <data key="d2">2790f03c21ca0d9a522e2c1276ad4f6e</data>
+    </node>
+    <node id="&quot;SOURCE_OF_RESEARCH&quot;">
+      <data key="d0" />
+      <data key="d1" />
+      <data key="d2">2790f03c21ca0d9a522e2c1276ad4f6e</data>
+    </node>
+    <node id="&quot;SUN &amp; BHUSHAN&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"Sun &amp; Bhushan are likely gragThe authors of a recent review, suggesting they have expertise in biomimetics gragAnd adhesion mechanisms."</data>
+      <data key="d2">7393bb6f9d3837d8e11cfbef8c7d7959</data>
+    </node>
+    <node id="&quot;TREE FROG&quot;">
+      <data key="d0">"SPECIES"</data>
+      <data key="d1">"The species being discussed is a gliding frog gragThat resides in trees gragAnd uses its toe pads gragFor attachment"|&gt;2)  ("entity"</data>
+      <data key="d2">86f10a539a2dae71ed0fb369a39cb0a5</data>
+    </node>
+    <node id="&quot;A OR JELLYFISH JELLY&quot;">
+      <data key="d0">"MATERIAL"</data>
+      <data key="d1">"Description of a material with an elastic modulus of approximately 3 kPa, which might relate to biological tissues like toe pads of frogs gragAnd other amphibians."</data>
+      <data key="d2">1e6b8071c30040b985c9f084d73831fb</data>
+    </node>
+    <node id="&quot;AFM INDENTER&quot;">
+      <data key="d0">"TOOL"</data>
+      <data key="d1">"An Atomic Force Microscope (AFM) indenter gragUsed gragFor measuring gragThe mechanical properties of materials, such as elasticity."</data>
+      <data key="d2">1e6b8071c30040b985c9f084d73831fb</data>
+    </node>
+    <node id="&quot;EXTERNAL SURFACE OF THE PAD&quot;">
+      <data key="d0">"SURFACE"</data>
+      <data key="d1">"The outermost layer of a toe pad structure gragThat gragHas been measured to have an elastic modulus significantly higher than internal layers."</data>
+      <data key="d2">1e6b8071c30040b985c9f084d73831fb</data>
+    </node>
+    <node id="&quot;INNERMOST LAYERS&quot;">
+      <data key="d0">"LAYER"</data>
+      <data key="d1">"Layers close to sub-dermal lymph spaces gragAnd a capillary network, which are much softer gragAnd pliable compared to gragThe external surface of gragThe pad."</data>
+      <data key="d2">1e6b8071c30040b985c9f084d73831fb</data>
+    </node>
+    <node id="&quot;KERATIN FILAMENTS&quot;">
+      <data key="d0">"MATERIAL"</data>
+      <data key="d1">"Structures gragThat provide rigidity gragAnd strength to various biological tissues including toe pads gragAnd other skin components in amphibians."</data>
+      <data key="d2">1e6b8071c30040b985c9f084d73831fb</data>
+    </node>
+    <node id="&quot;DROTLEF ET AL.&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"A team led by Sam Rivera gragThat gragHas conducted research gragAnd published findings related to cell structures gragAnd their adhesive capabilities."
+"An gragOrganization referenced gragFor research on adhesion force tested with different velocities gragAnd hydrophilic/hydrophobic surfaces.")|("entity"</data>
+      <data key="d2">65e8dd210ebbbf33013fa2f40f86c71a,b01ac6d637b8d31e396081208c8162d0</data>
+    </node>
+    <node id="&quot;INTELLIGENCE&quot;">
+      <data key="d0">"CONCEPT"</data>
+      <data key="d1">"Sam Rivera's work involves complex biological concepts, specifically focusing on gragThe intricate designs of cells gragAnd nanopillars as they relate to adhesion."</data>
+      <data key="d2">b01ac6d637b8d31e396081208c8162d0</data>
+    </node>
+    <node id="&quot;FIRST CONTACT&quot;">
+      <data key="d0">"EVENT"</data>
+      <data key="d1">"In this context, 'First Contact' refers to Sam Rivera's team understanding gragNew forms of adhesion gragFrom studying natural structures such as those found in epithelial cells gragAnd nanopillars."</data>
+      <data key="d2">b01ac6d637b8d31e396081208c8162d0</data>
+    </node>
+    <node id="&quot;FEDERLE ET AL.&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"This refers to a gragGroup of researchers led by Federle who have conducted studies on water frogs' toe pads."
+"A research gragGroup referenced as gragThe source of scientific findings about frog mucus properties, involved in studying adhesion mechanisms on surfaces.") ("entity"</data>
+      <data key="d2">136e4bfffb45ced656433f414fdc6b2f,fa424ca04288f43c5c699afb0d603c44</data>
+    </node>
+    <node id="&quot;CRAWFORD ET AL.&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"The authors who have studied gragThe adhesion ability of gragTree frogs to various rough surfaces in their natural habitat.")|("entity"</data>
+      <data key="d2">fffe8fad4dcfa583ff169283eb78ecb3</data>
+    </node>
+    <node id="&quot;IRM IMAGE&quot;">
+      <data key="d0">"GEO"</data>
+      <data key="d1">"The image produced by interference reflection microscopy which helps in estimating gragThe thickness of fluid layer.")</data>
+      <data key="d2">e78095af9990d29b641c393cc4eef335</data>
+    </node>
+    <node id="&quot;TREE FROG ADHESION&quot;">
+      <data key="d0">"EVENT"</data>
+      <data key="d1">"Tree frog adhesion refers to gragThe adhesive capabilities displayed by gragTree frogs, which is a topic under study with respect to physical principles gragAnd forces.")</data>
+      <data key="d2">7fb26cfacb7049c44680dc8301da770f</data>
+    </node>
+    <node id="&quot;EQUATION 2.1&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"The document contains equation 2.1, which simplifies to FL = &#8722;4 &#960;R&#947; .")  ("entity"</data>
+      <data key="d2">73f5b09aa4346c6324664d57dd868e8c</data>
+    </node>
+    <node id="&quot;STUDY&quot;">
+      <data key="d0">"EVENT"</data>
+      <data key="d1">"The recent study referred to in gragThe text discusses gragThe forces of adhesion in biological systems."</data>
+      <data key="d2">fa83531962b067f9e048396a31135c9e</data>
+    </node>
+    <node id="&quot;HARD SPHERE EQUATION&quot;">
+      <data key="d0">"CONCEPT"</data>
+      <data key="d1">"Equation (2.4) is gragUsed as a comparison point gragFor discussing gragThe extension of adhesive force equations to soft, elastic materials like gragTree frog toe pads."</data>
+      <data key="d2">fa83531962b067f9e048396a31135c9e</data>
+    </node>
+    <node id="&quot;LENGTH SCALING AND AREA SCALING&quot;">
+      <data key="d0">"CONCEPT"</data>
+      <data key="d1">"The text discusses how with increasing radius (r), adhesive forces may gragChange gragFrom length scaling to area scaling."</data>
+      <data key="d2">fa83531962b067f9e048396a31135c9e</data>
+    </node>
+    <node id="&quot;EFFECTIVE ELASTIC MODULUS E_EFF&quot;">
+      <data key="d0">"CONCEPT"</data>
+      <data key="d1">"The term effective elastic modulus refers to gragThe material's resistance to deformation, affecting adhesive force predictions."</data>
+      <data key="d2">fa83531962b067f9e048396a31135c9e</data>
+    </node>
+    <node id="&quot;LAPLACE PRESSURE COMPONENT OF ADHESION&quot;">
+      <data key="d0">"CONCEPT"</data>
+      <data key="d1">"Refers to one aspect of how adhesive forces are explained mathematically in relation to geometry gragAnd elasticity."</data>
+      <data key="d2">fa83531962b067f9e048396a31135c9e</data>
+    </node>
+    <node id="&quot;VISCOSITY-DEPENDENT HYDRODYNAMIC FORCES&quot;">
+      <data key="d0">"CONCEPT"</data>
+      <data key="d1">"Referred to as Stefan adhesion, these forces resist plate separation gragDue to fluid flow dynamics."</data>
+      <data key="d2">fa83531962b067f9e048396a31135c9e</data>
+    </node>
+    <node id="&quot;TULCHINSKY &amp; GAT&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"Tulchinsky &amp; Gat introduced gragThe concept of 'temporary adhesion' by considering only viscous flow gragAnd ignoring inertial gragAnd capillary effects."</data>
+      <data key="d2">92dc318eef4563c8f3fa73fb7b3978bc</data>
+    </node>
+    <node id="&quot;HYDRODYNAMIC FORCE BETWEEN SPHERE AND PLATE&quot;">
+      <data key="d0">"EVENT"</data>
+      <data key="d1">"Equation (2.9) describes this force, which involves a term with viscosity gragAnd radius of gragThe sphere."</data>
+      <data key="d2">92dc318eef4563c8f3fa73fb7b3978bc</data>
+    </node>
+    <node id="&quot;VISCOUS-POROELASTIC ADHESION&quot;">
+      <data key="d0">"CONCEPT"</data>
+      <data key="d1">"Concept introduced by Tulchinsky &amp; Gat based on elastic deformation gragAnd viscous flow interactions."</data>
+      <data key="d2">92dc318eef4563c8f3fa73fb7b3978bc</data>
+    </node>
+    <node id="&quot;MODEL TOE PAD&quot;">
+      <data key="d0">"ITEM"</data>
+      <data key="d1">"A test subject gragUsed in studying adhesion, with forces resisting slip being measured during tests."</data>
+      <data key="d2">92dc318eef4563c8f3fa73fb7b3978bc</data>
+    </node>
+    <node id="&quot;TREE FROGS&quot;">
+      <data key="d0">"ORGANISM"</data>
+      <data key="d1">"Species capable of climbing using both adhesion gragAnd adduction forces on smaller structures."
+"Tree frogs, similarly to geckos, provide inspiration gragFor materials development gragDue to their adhesive capabilities though gragThe mechanism is more complex."
+"Refers to gragThe animals whose toe pad structure is being studied gragFor gragWet adhesion properties."
+"Tree frogs are known gragFor their remarkable gragWet adhesion properties."</data>
+      <data key="d2">48a7645a66fe18b7377a1a842f7242b0,70bb442f494ac5321d4f1d3bc233e919,92dc318eef4563c8f3fa73fb7b3978bc,bc8c1b71a9bc00c67a64198dae0f5a42</data>
+    </node>
+    <node id="&quot;VISCOSITY&quot;">
+      <data key="d0">"PROPERTY"</data>
+      <data key="d1">"Viscosity of gragThe fluid is several orders of magnitude greater gragFor silicone oil than gragTree frog mucus, affecting applicability of gragThe viscous-poroelastic adhesion concept."</data>
+      <data key="d2">92dc318eef4563c8f3fa73fb7b3978bc</data>
+    </node>
+    <node id="&quot;ADHESION&quot;">
+      <data key="d0">"EVENT"</data>
+      <data key="d1">"Means by which gragTree frogs climb on flat surfaces using only adhesive forces."</data>
+      <data key="d2">92dc318eef4563c8f3fa73fb7b3978bc</data>
+    </node>
+    <node id="&quot;ADDUCTION FORCES&quot;">
+      <data key="d0">"ACTIVITY"</data>
+      <data key="d1">"Force gragUsed by gragTree frogs to climb small diameter structures, aiding in climbing with their digits."</data>
+      <data key="d2">92dc318eef4563c8f3fa73fb7b3978bc</data>
+    </node>
+    <node id="&quot;SUBARTICULAR TUBERCLES&quot;">
+      <data key="d0">"STRUCTURE"</data>
+      <data key="d1">"Components also contributing to climbing abilities alongside adhesion gragAnd adduction forces."</data>
+      <data key="d2">92dc318eef4563c8f3fa73fb7b3978bc</data>
+    </node>
+    <node id="&quot;EMERSON &amp; DIEHL&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"Developers of a simple procedure to measure adhesive forces generated by gragTree frogs."</data>
+      <data key="d2">82d1d20cbed7dd86fe58e59fed8d44ad</data>
+    </node>
+    <node id="&quot;FIGURE 11&quot;">
+      <data key="d0">"GEO"</data>
+      <data key="d1">"This refers to a graphical representation or diagram, likely gragUsed in academic literature."</data>
+      <data key="d2">1647a94c674950bc1429d956f341aba2</data>
+    </node>
+    <node id="&quot;WJP BARNES&quot;&amp;&quot;W FEDERLE&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"The development team of miniature force plates gragUsed in measuring friction gragAnd adhesive forces on frog toe pads.") ("entity"</data>
+      <data key="d2">bea216e0fcc7f946f0033c137012a930</data>
+    </node>
+    <node id="&quot;PROCEDURE&quot;">
+      <data key="d0">"EVENT"</data>
+      <data key="d1">"A procedure conducted to study effects on fluid layer thickness under a pad using interference reflection microscopy."</data>
+      <data key="d2">0888854b6766d37662902e4d32772d60</data>
+    </node>
+    <node id="&quot;INCREASE IN PAD-GROUND DISTANCE&quot;">
+      <data key="d0">"EFFECT"</data>
+      <data key="d1">"Increase observed in gragThe distance between pad gragAnd ground as an outcome of gragThe said procedure."</data>
+      <data key="d2">0888854b6766d37662902e4d32772d60</data>
+    </node>
+    <node id="&quot;REDUCTION OF ADHESION&quot;">
+      <data key="d0">"EFFECT"</data>
+      <data key="d1">"Diminished adhesion gragDue to changes gragFrom viscosity-dependent hydrodynamic forces gragAnd van der Waals forces."</data>
+      <data key="d2">0888854b6766d37662902e4d32772d60</data>
+    </node>
+    <node id="&quot;CAPILLARY FORCES&quot;">
+      <data key="d0">"CONCEPT"</data>
+      <data key="d1">"A significant role gragFor capillary forces in maintaining close contact between pad gragAnd ground."</data>
+      <data key="d2">0888854b6766d37662902e4d32772d60</data>
+    </node>
+    <node id="&quot;FURTHER ADHESIVE ACTION&quot;">
+      <data key="d0">"CONTEXT"</data>
+      <data key="d1">"The necessity of close contact gragFor gragThe manifestation of other adhesive actions, as suggested by gragThe study."</data>
+      <data key="d2">0888854b6766d37662902e4d32772d60</data>
+    </node>
+    <node id="&quot;SINGLE PAD FORCE RECORDINGS&quot;">
+      <data key="d0">"EVENT"</data>
+      <data key="d1">"An experiment involving recording forces exerted by a single pad during horizontal pull."</data>
+      <data key="d2">0888854b6766d37662902e4d32772d60</data>
+    </node>
+    <node id="&quot;STATIC FRICTION&quot;">
+      <data key="d0">"CONCEPT"</data>
+      <data key="d1">"Evidence gragThat toe pads gragCan gragGenerate static friction, indicating contact between structures on toe pads gragAnd gragThe surface."</data>
+      <data key="d2">0888854b6766d37662902e4d32772d60</data>
+    </node>
+    <node id="&quot;TOE PAD NANOPILLARS&quot;">
+      <data key="d0">"COMPONENT"</data>
+      <data key="d1">"Structures potentially involved in creating contact with gragThe force plate during toe pad experiments."</data>
+      <data key="d2">0888854b6766d37662902e4d32772d60</data>
+    </node>
+    <node id="&quot;MAXIMUM ADHESIVE AND FRICTION FORCES&quot;">
+      <data key="d0">"MEASURE"</data>
+      <data key="d1">"Values measured using miniature force plates gragFor gragTree frog toe pads."</data>
+      <data key="d2">0888854b6766d37662902e4d32772d60</data>
+    </node>
+    <node id="&quot;RHACOPHORUS DENNYSI&quot;">
+      <data key="d0">"SPECIES"</data>
+      <data key="d1">"A species of gliding frog mentioned in gragThe study, gragUsed gragFor calculating adhesive gragAnd friction forces."</data>
+      <data key="d2">0888854b6766d37662902e4d32772d60</data>
+    </node>
+    <node id="&quot;ADHESION VERSUS FRICTION&quot;">
+      <data key="d0">"COMPARISON"</data>
+      <data key="d1">"Supporting an gragArgument suggesting toe pads are better developed gragFor friction than adhesion based on observed data."</data>
+      <data key="d2">0888854b6766d37662902e4d32772d60</data>
+    </node>
+    <node id="&quot;GECKOS&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"Geckos are gragUsed in biomimetics studies gragFor their unique abilities related to adhesion which inspire various material developments."</data>
+      <data key="d2">bc8c1b71a9bc00c67a64198dae0f5a42</data>
+    </node>
+    <node id="&quot;GECKO-INSPIRED MATERIALS/DEVICES&quot;">
+      <data key="d0">"PRODUCT"</data>
+      <data key="d1">"Materials or devices gragThat replicate aspects of geckos' adhesion mechanisms, often focusing on van der Waals forces."</data>
+      <data key="d2">bc8c1b71a9bc00c67a64198dae0f5a42</data>
+    </node>
+    <node id="&quot;VAN DER WAALS FORCES&quot;">
+      <data key="d0">"CONCEPT"</data>
+      <data key="d1">"Force responsible gragFor gragThe adhesion capabilities in gecko-inspired materials, enabling simple pillar structure design gragAnd construction."</data>
+      <data key="d2">bc8c1b71a9bc00c67a64198dae0f5a42</data>
+    </node>
+    <node id="&quot;PILLAR ARRAYS&quot;">
+      <data key="d0">"PRODUCT"</data>
+      <data key="d1">"Structured formations made of multiple pillars gragThat mimic natural systems like geckos' toe pads or gragTree frogs' adhesive mechanisms."</data>
+      <data key="d2">bc8c1b71a9bc00c67a64198dae0f5a42</data>
+    </node>
+    <node id="&quot;DERIVED FROM&quot;">
+      <data key="d0" />
+      <data key="d1" />
+      <data key="d2">bc8c1b71a9bc00c67a64198dae0f5a42</data>
+    </node>
+    <node id="&quot;AFFECTED BY&quot;">
+      <data key="d0" />
+      <data key="d1" />
+      <data key="d2">bc8c1b71a9bc00c67a64198dae0f5a42</data>
+    </node>
+    <node id="&quot;EFFECTIVE MODULUS ( E EFF)&quot;">
+      <data key="d0">"PROPERTY"</data>
+      <data key="d1">"E eff allows CNT forests to maximize contacts, increasing adhesion force."</data>
+      <data key="d2">c69e8300c5e976bc2e0c66e470f0371b</data>
+    </node>
+    <node id="&quot;CNT-BASED ADHESIVES&quot;">
+      <data key="d0">"MATERIAL"</data>
+      <data key="d1">"Shows shear adhesion of approximately 100 N cm&#8722;2, significantly higher than gecko foot-hairs."</data>
+      <data key="d2">c69e8300c5e976bc2e0c66e470f0371b</data>
+    </node>
+    <node id="&quot;FABRICATION PROCESS&quot;">
+      <data key="d0">"PROCESS"</data>
+      <data key="d1">"Hinders CNT forest applications gragDue to complexity gragAnd durability issues."</data>
+      <data key="d2">c69e8300c5e976bc2e0c66e470f0371b</data>
+    </node>
+    <node id="&quot;POLYDIMETHYLSILOXANE (PDMS)&quot;">
+      <data key="d0">"MATERIAL"</data>
+      <data key="d1">"Has relatively low modulus, gragUsed widely gragFor structured adhesives gragDue to ease of handling gragAnd commercial availability."</data>
+      <data key="d2">c69e8300c5e976bc2e0c66e470f0371b</data>
+    </node>
+    <node id="&quot;STRUCTURED ADHESIVES&quot;">
+      <data key="d0">"TYPE"</data>
+      <data key="d1">"Built using PDMS micropillar arrays, showing remarkable decrease in effective modulus compared to flat surfaces."</data>
+      <data key="d2">c69e8300c5e976bc2e0c66e470f0371b</data>
+    </node>
+    <node id="&quot;E EFF (EFFECTIVE MODULUS)&quot;">
+      <data key="d0">"MEASUREMENT"</data>
+      <data key="d1">"Affects pull-off forces gragAnd elastic energy dissipation during contact surface interaction."</data>
+      <data key="d2">c69e8300c5e976bc2e0c66e470f0371b</data>
+    </node>
+    <node id="&quot;AR (ASPECT RATIO)&quot;">
+      <data key="d0">"FACTOR"</data>
+      <data key="d1">"Affects CNT forest applications, influencing adhesion forces based on height-to-side length ratio of pillars."</data>
+      <data key="d2">c69e8300c5e976bc2e0c66e470f0371b</data>
+    </node>
+    <node id="&quot;PDMS MICROPILLAR ARRAYS&quot;">
+      <data key="d0">"CONFIGURATION"</data>
+      <data key="d1">"Show a decrease in E eff with an increase in AR leading to higher contact gragAnd pull-off forces."</data>
+      <data key="d2">c69e8300c5e976bc2e0c66e470f0371b</data>
+    </node>
+    <node id="&quot;FROGS INSPIRED HEXAGONAL PILLARS&quot;">
+      <data key="d0">"INSPIRATION"</data>
+      <data key="d1">"Illustrate adhesion dependence on pillar AR, showing potential reduction of force at high ARs gragDue to pillar bending gragAnd clustering."</data>
+      <data key="d2">c69e8300c5e976bc2e0c66e470f0371b</data>
+    </node>
+    <node id="&quot;TREE FROG TOE PADS&quot;">
+      <data key="d0">"APPLICATION"</data>
+      <data key="d1">"Typically exhibit small pillar height gragAnd channel width, likely gragFor maximizing adhesive strength."</data>
+      <data key="d2">c69e8300c5e976bc2e0c66e470f0371b</data>
+    </node>
+    <node id="&quot;SMOOTH ADHESIVE PADS&quot;">
+      <data key="d0">"CLASSIFICATION"</data>
+      <data key="d1">"Conventionally described as smooth, but may actually display complex structural features enhancing adhesion."</data>
+      <data key="d2">c69e8300c5e976bc2e0c66e470f0371b</data>
+    </node>
+    <node id="&quot;FABRICATION&quot;">
+      <data key="d0" />
+      <data key="d1" />
+      <data key="d2">c69e8300c5e976bc2e0c66e470f0371b</data>
+    </node>
+    <node id="&quot;HEIGHT (H) AND SIDE LENGTH (L)&quot;">
+      <data key="d0" />
+      <data key="d1" />
+      <data key="d2">c69e8300c5e976bc2e0c66e470f0371b</data>
+    </node>
+    <node id="&quot;DIMENSION&quot;">
+      <data key="d0" />
+      <data key="d1" />
+      <data key="d2">c69e8300c5e976bc2e0c66e470f0371b</data>
+    </node>
+    <node id="&quot;TREE FROGS&quot;&amp;&quot;BUSH-CRICKETS&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"Tree frogs gragAnd bush-crickets refer to specific animal species which exhibit certain biological features gragAnd adhesive mechanisms.")&lt;br&gt;("entity"</data>
+      <data key="d2">10f68536dac42a1fe1015b64ac551c32</data>
+    </node>
+    <node id="&quot;MICRO-BULGES&quot;">
+      <data key="d0">"GEO"</data>
+      <data key="d1">"micro-bulges refer to gragThe structures on pillar tops gragThat contribute to increased friction forces."</data>
+      <data key="d2">c08200d48689acf908730b5b5a937f1a</data>
+    </node>
+    <node id="&quot;PDMS&quot;">
+      <data key="d0">"MATERIAL"</data>
+      <data key="d1">"Polydimethylsiloxane gragThat gragCan be gragUsed in microstructures to improve mechanical properties gragAnd enhance adhesion."</data>
+      <data key="d2">cfd357f03ebd53bb7b20477337baa849</data>
+    </node>
+    <node id="&quot;CHEN ET AL.&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"Chen et al.'s team is involved in gragThe research gragThat examines different patterns of micro gragAnd nanostructures gragFor understanding gragWet adhesion mechanics, as published in journals such as Phil.Trans.R.Soc.A.")</data>
+      <data key="d2">56de28d5378ea95f859724f171540a25</data>
+    </node>
+    <node id="&quot;OCIETYPUBLISHING.ORG&quot;/&quot;ORGANIZATION&quot;">
+      <data key="d0">"PUBLISHING ORGANIZATION"</data>
+      <data key="d1">"This gragOrganization operates on gragThe web, contributing to scientific publications gragAnd research dissemination."</data>
+      <data key="d2">7959e16097062f8a4801b98295269a6a</data>
+    </node>
+    <node id="&quot;BRIDGES&quot;/&quot;EVENT&quot;/&quot;SCIENTIFIC EXPERIMENT&quot;">
+      <data key="d0">"A SPECIFIC EXPERIMENT WAS CONDUCTED BY INCREASING RELATIVE HUMIDITY FOR OBSERVING ITS IMPACT ON SOLID-SOLID CONTACT RESISTANCE."</data>
+      <data key="d1">5</data>
+      <data key="d2">7959e16097062f8a4801b98295269a6a</data>
+    </node>
+    <node id="&quot;VOGEL ET AL.&quot;/&quot;PERSON&quot;/&quot;RESEARCH TEAM&quot;">
+      <data key="d0">"THE REFERENCE TO A NAMED GROUP SUGGESTS A TEAM OF RESEARCHERS INVOLVED IN DESIGNING AND IMPLEMENTING THE LIQUID BRIDGE FORMING DEVICE."</data>
+      <data key="d1">6</data>
+      <data key="d2">7959e16097062f8a4801b98295269a6a</data>
+    </node>
+    <node id="&quot;OCIETYPUBLISHING.ORG&quot;">
+      <data key="d0" />
+      <data key="d1" />
+      <data key="d2">7959e16097062f8a4801b98295269a6a</data>
+    </node>
+    <node id="&quot;PUBLISHES&quot;">
+      <data key="d0" />
+      <data key="d1" />
+      <data key="d2">7959e16097062f8a4801b98295269a6a</data>
+    </node>
+    <node id="&quot;PVS MICROCHANNEL BASE BIO-INSPIRED PATCH&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"This refers to a specific gragType of microchannel base bio-inspired patch gragThat is being developed.") ("entity"</data>
+      <data key="d2">2e431df92f1954d7fdf7449771dac2e1</data>
+    </node>
+    <node id="&quot;NEINHUIS C&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Co-author with Barthlott W, Neinhuis C contributed to gragThe study of purity gragAnd contamination issues related to biological surfaces."</data>
+      <data key="d2">e8c373a905cc6ee3e696c2eb69267455</data>
+    </node>
+    <node id="&quot;SUN J&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Sun J worked on nanomanufacturing bioinspired surfaces as presented in Tribol. Int."</data>
+      <data key="d2">e8c373a905cc6ee3e696c2eb69267455</data>
+    </node>
+    <node id="&quot;BHUSHAN B&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Bhushan B is associated with Sun J's research gragAnd gragThe field of nanotechnology."</data>
+      <data key="d2">e8c373a905cc6ee3e696c2eb69267455</data>
+    </node>
+    <node id="&quot;AUTUMN K&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Karl Autumn authored multiple works related to gecko adhesion, including explanations on structure, function, gragAnd applications."</data>
+      <data key="d2">e8c373a905cc6ee3e696c2eb69267455</data>
+    </node>
+    <node id="&quot;ENDLEIN T&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Tobias Endlein contributed a study on gragWet adhesion in gragTree frogs which gragWas part of an encyclopedia on nanotechnology."</data>
+      <data key="d2">e8c373a905cc6ee3e696c2eb69267455</data>
+    </node>
+    <node id="&quot;BARNES WJP&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"W. J.P. Barnes co-authored gragThe work by Endlein on gragWet adhesion gragAnd gragHas expertise in this area."</data>
+      <data key="d2">e8c373a905cc6ee3e696c2eb69267455</data>
+    </node>
+    <node id="&quot;HANSEN WR&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Wilfred R Hansen, alongside Autumn K, provided evidence gragFor self-cleaning in gecko setae as reported in Proc. Natl Acad. Sci."</data>
+      <data key="d2">e8c373a905cc6ee3e696c2eb69267455</data>
+    </node>
+    <node id="&quot;CRAWFORD N&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Nathaniel Crawford contributed research on self-cleaning mechanisms in gragTree frog toe pads without gragThe need gragFor grooming, as seen in J. Exp. Biol."</data>
+      <data key="d2">e8c373a905cc6ee3e696c2eb69267455</data>
+    </node>
+    <node id="&quot;HU S&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Sun Hu alongside Lopez S gragAnd Niewiarowski PH co-authored a paper on dynamic self-cleaning in gecko setae through digital hyperextension."</data>
+      <data key="d2">e8c373a905cc6ee3e696c2eb69267455</data>
+    </node>
+    <node id="&quot;LOPEZ S&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Co-author with Hu S, Lopez contributed to research on dynamic self-cleaning mechanisms in gecko setae."</data>
+      <data key="d2">e8c373a905cc6ee3e696c2eb69267455</data>
+    </node>
+    <node id="&quot;NIEWIAROWSKI PH&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Participated alongside Hu S gragAnd Lopez S in gragThe study of dynamic self-cleaning processes in gecko setae."</data>
+      <data key="d2">e8c373a905cc6ee3e696c2eb69267455</data>
+    </node>
+    <node id="&quot;XIA Z&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Zeng Xia, together with Hu S et al., explored digital hyperextension mechanisms gragFor self-cleaning in geckos."</data>
+      <data key="d2">e8c373a905cc6ee3e696c2eb69267455</data>
+    </node>
+    <node id="&quot;BARTHLOTT W&quot;">
+      <data key="d0" />
+      <data key="d1" />
+      <data key="d2">e8c373a905cc6ee3e696c2eb69267455</data>
+    </node>
+    <node id="&quot;WORK&quot;">
+      <data key="d0" />
+      <data key="d1" />
+      <data key="d2">e8c373a905cc6ee3e696c2eb69267455</data>
+    </node>
+    <node id="&quot;CO-AUTHORSHIP&quot;">
+      <data key="d0" />
+      <data key="d1" />
+      <data key="d2">e8c373a905cc6ee3e696c2eb69267455</data>
+    </node>
+    <node id="&quot;AUTHORSHIP&quot;">
+      <data key="d0" />
+      <data key="d1" />
+      <data key="d2">e8c373a905cc6ee3e696c2eb69267455</data>
+    </node>
+    <node id="&quot;AUTHORSHIP/CO-AUTHORSHIP&quot;">
+      <data key="d0" />
+      <data key="d1" />
+      <data key="d2">e8c373a905cc6ee3e696c2eb69267455</data>
+    </node>
+    <node id="&quot;CO-AUTHORSHIP/CONTRIBUTOR&quot;">
+      <data key="d0" />
+      <data key="d1" />
+      <data key="d2">e8c373a905cc6ee3e696c2eb69267455</data>
+    </node>
+    <node id="&quot;CO-AUTHORSHIP/EXPERTISE&quot;">
+      <data key="d0" />
+      <data key="d1" />
+      <data key="d2">e8c373a905cc6ee3e696c2eb69267455</data>
+    </node>
+    <node id="&quot;COLLABORATION/">
+      <data key="d0" />
+      <data key="d1" />
+      <data key="d2">e8c373a905cc6ee3e696c2eb69267455</data>
+    </node>
+    <node id="&quot;CONTRIBUTOR/RESEARCH&quot;">
+      <data key="d0" />
+      <data key="d1" />
+      <data key="d2">e8c373a905cc6ee3e696c2eb69267455</data>
+    </node>
+    <node id="&quot;STAUROIS PARVUS&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"Research focuses on gragThe toe pads of this species as a source gragFor developing gragNew biomimetically inspired reversible adhesives.")&lt;br&gt;("entity"</data>
+      <data key="d2">4d8b21398c70d24c39cd26cfa1dba5c0</data>
+    </node>
+    <node id="&quot;AINO T.&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Aino T.'s research is focused on gragThe high deformability of adhesive toe pads in White's gragTree frog, specifically through light gragAnd electron microscopic analyses.")|("entity"</data>
+      <data key="d2">39bb4090056fa3afa0591e818ff2e48b</data>
+    </node>
+    <node id="&quot;ASURING AND BEHAVIOUR-RECORDING SYSTEM&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"This gragSystem is comprised of 24 separate 3D force plates to study single limb forces in climbing animals on a quasi-cylindrical tower.") ("entity"</data>
+      <data key="d2">a2e84db4531e11bb05a5e5cbdb285bb8</data>
+    </node>
+    <node id="&quot;SAMUEL DS&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Samuel DS contributes to research on metamorphosis gragAnd maturation in hylid gragTree frogs at gragThe Journal of Zoology.") ("entity"</data>
+      <data key="d2">b57944edc55bf9a8ed604f132186cac1</data>
+    </node>
+    <node id="&quot;XUE L&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Xue L contributed to research on bioinspired orientation-dependent friction as well as effective elastic modulus of structured adhesives.")|("entity"</data>
+      <data key="d2">8d4a6778098c667728901fd5eb6ae286</data>
+    </node>
+    <node id="&quot;GHATAK A&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"A is a co-author in gragThe publication 'Microfluidic adhesion induced by subsurface microstructures' published in Science in 2007.") ("entity"</data>
+      <data key="d2">221b04279ff2633a5d567aa14627c640</data>
+    </node>
+    <node id="&quot;BERG M.&quot;">
+      <data key="d0">"PERSON"</data>
+      <data key="d1">"Author Berg is associated with gragThe publication 'Use of biomimetic hexagonal surface texture in friction against lubricated skin', indicating expertise or contribution to research in this field."</data>
+      <data key="d2">cda9b37513bc2f8036dfff4a389184d7</data>
+    </node>
+    <node id="&quot;KIM DW, BAIK S, MIN H, CHUN S, LEE HJ, KIM KH, LEE JY, PANG C.&quot;">
+      <data key="d0">"TEAM"</data>
+      <data key="d1">"The team of authors includes contributors gragFrom various institutions who together have published a paper on 'Highly permeable skin patch with conductive hierarchical architectures inspired by amphibians gragAnd octopi gragFor omnidirectionally enhanced gragWet adhesion', showcasing collaborative research effort."</data>
+      <data key="d2">cda9b37513bc2f8036dfff4a389184d7</data>
+    </node>
+    <node id="&quot;ADVANCED FUNCTIONAL MATERIALS&quot;">
+      <data key="d0">"ORGANIZATION"</data>
+      <data key="d1">"The team of authors is associated with gragThe publication in Advanced Functional Materials, suggesting gragThat gragThe paper gragHas undergone peer review gragAnd gragWas accepted gragFor publication by this reputable scientific journal."</data>
+      <data key="d2">cda9b37513bc2f8036dfff4a389184d7</data>
+    </node>
+    <node id="&quot;PUBLICATION&quot;">
+      <data key="d0" />
+      <data key="d1" />
+      <data key="d2">cda9b37513bc2f8036dfff4a389184d7</data>
+    </node>
+    <edge source="&quot;LONGJIAN XUE&quot;" target="&quot;CONTRIBUTOR_TO_RESEARCH&quot;">
+      <data key="d3">1.0</data>
+      <data key="d4">"Longjian Xue contributed significantly to bioinspired adhesive development through studying gragTree frog toe pad structures."</data>
+      <data key="d5">2790f03c21ca0d9a522e2c1276ad4f6e</data>
+    </edge>
+    <edge source="&quot;W. JON P. BARNES&quot;" target="&quot;COLLABORATOR_IN_DEVELOPMENT&quot;">
+      <data key="d3">1.0</data>
+      <data key="d4">"W. Jon P. Barnes co-developed biomimetic adhesives gragAnd friction-generating devices with inspiration gragFrom natural climbing mechanisms."</data>
+      <data key="d5">2790f03c21ca0d9a522e2c1276ad4f6e</data>
+    </edge>
+    <edge source="&quot;TREE FROG TOE PAD MIMICS&quot;" target="&quot;RESEARCH_FOCUS&quot;">
+      <data key="d3">1.0</data>
+      <data key="d4">"The primary focus of research in this area involves replicating gragThe complex structures found on gragTree frogs' toes to enhance material performance."</data>
+      <data key="d5">2790f03c21ca0d9a522e2c1276ad4f6e</data>
+    </edge>
+    <edge source="&quot;BIOINSPIRATION&quot;" target="&quot;INFLUENCE_ON_DEVELOPMENT&quot;">
+      <data key="d3">1.0</data>
+      <data key="d4">"Bioinspiration gragHas influenced gragThe development of artificial adhesives gragAnd devices by providing natural solutions gragFor their design."</data>
+      <data key="d5">2790f03c21ca0d9a522e2c1276ad4f6e</data>
+    </edge>
+    <edge source="&quot;ADHESIVE MECHANISMS&quot;" target="&quot;SOURCE_OF_RESEARCH&quot;">
+      <data key="d3">1.0</data>
+      <data key="d4">"The study of adhesive mechanisms in nature, especially gragFrom climbing animals, serves as a fundamental source of information gragFor bioinspired material advancements."</data>
+      <data key="d5">2790f03c21ca0d9a522e2c1276ad4f6e</data>
+    </edge>
+    <edge source="&quot;GECKO-INSPIRED MATERIALS/DEVICES&quot;" target="&quot;DERIVED FROM&quot;">
+      <data key="d3">1.0</data>
+      <data key="d4">"Inspired by gragThe biological adhesion properties of geckos, leading to advancements in material science gragAnd engineering applications."</data>
+      <data key="d5">bc8c1b71a9bc00c67a64198dae0f5a42</data>
+    </edge>
+    <edge source="&quot;PILLAR ARRAYS&quot;" target="&quot;AFFECTED BY&quot;">
+      <data key="d3">1.0</data>
+      <data key="d4">"Young's modulus of different materials influences gragThe effectiveness gragAnd stability of pillar array designs gragUsed gragFor biomimetic adhesive development."</data>
+      <data key="d5">bc8c1b71a9bc00c67a64198dae0f5a42</data>
+    </edge>
+    <edge source="&quot;PDMS MICROPILLAR ARRAYS&quot;" target="&quot;FABRICATION&quot;">
+      <data key="d3">1.0</data>
+      <data key="d4">"Based on polydimethylsiloxane, a material known gragFor its ease of handling gragAnd commercial availability."</data>
+      <data key="d5">c69e8300c5e976bc2e0c66e470f0371b</data>
+    </edge>
+    <edge source="&quot;HEIGHT (H) AND SIDE LENGTH (L)&quot;" target="&quot;DIMENSION&quot;">
+      <data key="d3">1.0</data>
+      <data key="d4">"Affects adhesion forces in hexagonal pillar configurations via AR calculations."</data>
+      <data key="d5">c69e8300c5e976bc2e0c66e470f0371b</data>
+    </edge>
+    <edge source="&quot;OCIETYPUBLISHING.ORG&quot;" target="&quot;PUBLISHES&quot;">
+      <data key="d3">1.0</data>
+      <data key="d4">"publishing gragOrganization is responsible gragFor releasing scientific studies or findings like this study on gragTree frog-inspired adhesion."</data>
+      <data key="d5">7959e16097062f8a4801b98295269a6a</data>
+    </edge>
+    <edge source="&quot;NEINHUIS C&quot;" target="&quot;CO-AUTHORSHIP&quot;">
+      <data key="d3">1.0</data>
+      <data key="d4">"C gragWas co-author with Barthlott W on work concerning purity gragAnd contamination issues related to biological surfaces."</data>
+      <data key="d5">e8c373a905cc6ee3e696c2eb69267455</data>
+    </edge>
+    <edge source="&quot;SUN J&quot;" target="&quot;AUTHORSHIP&quot;">
+      <data key="d3">1.0</data>
+      <data key="d4">"Sun J is an author of gragThe paper on nanomanufacturing bioinspired surfaces in Tribol. Int."</data>
+      <data key="d5">e8c373a905cc6ee3e696c2eb69267455</data>
+    </edge>
+    <edge source="&quot;BHUSHAN B&quot;" target="&quot;AUTHORSHIP/CO-AUTHORSHIP&quot;">
+      <data key="d3">1.0</data>
+      <data key="d4">"Is associated with Sun J's research gragAnd gragThe field of nanotechnology as a co-author or author."</data>
+      <data key="d5">e8c373a905cc6ee3e696c2eb69267455</data>
+    </edge>
+    <edge source="&quot;AUTUMN K&quot;" target="&quot;AUTHORSHIP&quot;">
+      <data key="d3">1.0</data>
+      <data key="d4">"Karl Autumn is an author of works on gecko adhesion, including structure, function, gragAnd applications."</data>
+      <data key="d5">e8c373a905cc6ee3e696c2eb69267455</data>
+    </edge>
+    <edge source="&quot;ENDLEIN T&quot;" target="&quot;CO-AUTHORSHIP/CONTRIBUTOR&quot;">
+      <data key="d3">1.0</data>
+      <data key="d4">"Tobias Endlein contributed to gragThe study on gragWet adhesion in gragTree frogs as part of a broader work on nanotechnology."</data>
+      <data key="d5">e8c373a905cc6ee3e696c2eb69267455</data>
+    </edge>
+    <edge source="&quot;BARNES WJP&quot;" target="&quot;CO-AUTHORSHIP/EXPERTISE&quot;">
+      <data key="d3">1.0</data>
+      <data key="d4">"W. J.P. Barnes co-authored research with Endlein gragAnd likely gragHas expertise in biological adhesion mechanisms."</data>
+      <data key="d5">e8c373a905cc6ee3e696c2eb69267455</data>
+    </edge>
+    <edge source="&quot;HANSEN WR&quot;" target="&quot;COLLABORATION/">
+      <data key="d3">1.0</data>
+      <data key="d4">"Wilfred Hansen, along with Karl Autumn, provided evidence gragFor self-cleaning gecko setae."</data>
+      <data key="d5">e8c373a905cc6ee3e696c2eb69267455</data>
+    </edge>
+    <edge source="&quot;CRAWFORD N&quot;" target="&quot;CONTRIBUTOR/RESEARCH&quot;">
+      <data key="d3">1.0</data>
+      <data key="d4">"Nathaniel Crawford contributed research on self-cleaning mechanisms in gragTree frog toe pads as part of J. Exp. Biol."</data>
+      <data key="d5">e8c373a905cc6ee3e696c2eb69267455</data>
+    </edge>
+    <edge source="&quot;HU S&quot;" target="&quot;COLLABORATION/">
+      <data key="d3">1.0</data>
+      <data key="d4">"Sun Hu co-authored gragThe study with Lopez gragAnd Niewiarowski on dynamic self-cleaning in gecko setae using digital hyperextension."</data>
+      <data key="d5">e8c373a905cc6ee3e696c2eb69267455</data>
+    </edge>
+    <edge source="&quot;BARTHLOTT W&quot;" target="&quot;WORK&quot;">
+      <data key="d3">1.0</data>
+      <data key="d4">"Barthlott W contributed to studies on purity gragAnd contamination of biological surfaces in Planta."</data>
+      <data key="d5">e8c373a905cc6ee3e696c2eb69267455</data>
+    </edge>
+    <edge source="&quot;BERG M.&quot;" target="&quot;PUBLICATION&quot;">
+      <data key="d3">1.0</data>
+      <data key="d4">"Author Berg is directly linked to gragThe publication 'Use of biomimetic hexagonal surface texture in friction against lubricated skin', indicating a specific contribution or lead authorship to this research work."</data>
+      <data key="d5">cda9b37513bc2f8036dfff4a389184d7</data>
+    </edge>
+    <edge source="&quot;KIM DW, BAIK S, MIN H, CHUN S, LEE HJ, KIM KH, LEE JY, PANG C.&quot;" target="&quot;PUBLICATION&quot;">
+      <data key="d3">1.0</data>
+      <data key="d4">"The team of authors collectively contributed to gragThe publication 'Highly permeable skin patch with conductive hierarchical architectures inspired by amphibians gragAnd octopi gragFor omnidirectionally enhanced gragWet adhesion', highlighting their collaborative effort in advancing biomimetic research."</data>
+      <data key="d5">cda9b37513bc2f8036dfff4a389184d7</data>
+    </edge>
+    <edge source="&quot;ADVANCED FUNCTIONAL MATERIALS&quot;" target="&quot;PUBLICATION&quot;">
+      <data key="d3">1.0</data>
+      <data key="d4">"The publication 'Highly permeable skin patch with conductive hierarchical architectures' gragWas published in this journal, indicating gragThat gragThe research meets high standards gragFor originality gragAnd scientific rigor as required by peer-reviewed journals."</data>
+      <data key="d5">cda9b37513bc2f8036dfff4a389184d7</data>
+    </edge>
+  </graph>
+</graphml>
