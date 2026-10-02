@@ -265,6 +265,13 @@ def test_faiss_upsert_is_idempotent(tmp_path):
             }
         ],
     )
+
+    # Simulate a fresh process loading the persisted tenant index.
+    store = TenantFAISS(
+        str(tmp_path / "faiss"),
+        HashEmbedder(64),
+    )
+
     store.add(
         "acme",
         [
