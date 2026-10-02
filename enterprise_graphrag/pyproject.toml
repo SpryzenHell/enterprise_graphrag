@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "enterprise-graphrag-agent"
-version = "0.1.0"
-description = "Tenant-scoped enterprise GraphRAG runtime"
-requires-python = ">=3.10"
+version = "0.2.0"
+description = "Tenant-scoped hybrid GraphRAG runtime with FAISS, Neo4j, vLLM and MCP"
+requires-python = ">=3.11"
 
 [tool.pytest.ini_options]
 testpaths = ["enterprise_graphrag/tests"]
