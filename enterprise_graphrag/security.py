@@ -7,14 +7,14 @@ import httpx
 
 
 PATTERNS = [
-    r"ignores+(all|any|previous|prior)s+instructions",
-    r"systems+prompt",
-    r"developers+message",
-    r"reveals+(your|the)s+(prompt|instructions|secrets?)",
-    r"sends+(this|the)s+(data|document|prompt)",
-    r"disables+(safety|security|policy)",
-    r"executes+.*(shell|command|code)",
-    r"yous+ares+nows+(the|a)",
+    r"ignore\s+(all|any|previous|prior)\s+instructions",
+    r"system\s+prompt",
+    r"developer\s+message",
+    r"reveal\s+(your|the)\s+(prompt|instructions|secrets?)",
+    r"send\s+(this|the)\s+(data|document|prompt)",
+    r"disable\s+(safety|security|policy)",
+    r"execute\s+.*(shell|command|code)",
+    r"you\s+are\s+now\s+(the|a)",
 ]
 
 
@@ -35,18 +35,31 @@ class SecurityGateway:
         self.threshold = threshold
         self.marker_threshold = marker_threshold
         self.patterns = [
-            re.compile(pattern, re.IGNORECASE)
+            re.compile(
+                pattern,
+                re.IGNORECASE,
+            )
             for pattern in PATTERNS
         ]
 
-    def perplexity(self, text: str) -> float | None:
-        if not (self.base_url and self.model):
+    def perplexity(
+        self,
+        text: str,
+    ) -> float | None:
+        if not (
+            self.base_url
+            and self.model
+        ):
             return None
 
         try:
             response = httpx.post(
                 f"{self.base_url}/v1/completions",
-                headers={"Authorization": f"Bearer {self.api_key}"},
+                headers={
+                    "Authorization": (
+                        f"Bearer {self.api_key}"
+                    )
+                },
                 json={
                     "model": self.model,
                     "prompt": text[:12000],
@@ -57,27 +70,55 @@ class SecurityGateway:
                 timeout=60,
             )
             response.raise_for_status()
+
             entries = (
-                response.json()["choices"][0].get("prompt_logprobs")
+                response.json()[
+                    "choices"
+                ][0].get(
+                    "prompt_logprobs"
+                )
                 or []
             )
 
             values = []
             for entry in entries:
-                if not isinstance(entry, dict):
+                if not isinstance(
+                    entry,
+                    dict,
+                ):
                     continue
+
                 for item in entry.values():
-                    if isinstance(item, dict):
-                        logprob = item.get("logprob")
-                        if isinstance(logprob, (int, float)):
-                            values.append(float(logprob))
+                    if not isinstance(
+                        item,
+                        dict,
+                    ):
+                        continue
+
+                    logprob = item.get(
+                        "logprob"
+                    )
+
+                    if isinstance(
+                        logprob,
+                        (int, float),
+                    ):
+                        values.append(
+                            float(logprob)
+                        )
 
             if not values:
                 return None
 
             return float(
-                math.exp(-(sum(values) / len(values)))
+                math.exp(
+                    -(
+                        sum(values)
+                        / len(values)
+                    )
+                )
             )
+
         except (
             OSError,
             httpx.HTTPError,
@@ -93,10 +134,15 @@ class SecurityGateway:
         direct: bool = False,
     ) -> dict:
         marker_count = sum(
-            len(pattern.findall(text))
+            len(
+                pattern.findall(text)
+            )
             for pattern in self.patterns
         )
-        perplexity = self.perplexity(text)
+
+        perplexity = self.perplexity(
+            text
+        )
 
         if direct and marker_count:
             return {
@@ -106,7 +152,10 @@ class SecurityGateway:
                 "perplexity": perplexity,
             }
 
-        if marker_count >= self.marker_threshold:
+        if (
+            marker_count
+            >= self.marker_threshold
+        ):
             return {
                 "allowed": False,
                 "reason": "retrieved injection markers",
