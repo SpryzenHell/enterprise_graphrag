@@ -90,6 +90,9 @@ def test_auth_and_health(tmp_path):
     assert client.get(
         "/"
     ).status_code == 200
+    assert client.get(
+        "/ready"
+    ).status_code == 200
     assert client.post(
         "/v1/query",
         json={"query": "policy"},
