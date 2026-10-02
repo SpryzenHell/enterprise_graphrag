@@ -9,20 +9,22 @@ This directory is the supported runtime for the merged project. The original Gra
 ### Implemented invariants
 
 - Every data query requires a signed JWT containing `tenant_id` and a `graphrag:query` scope.
-- FAISS uses one HNSW index per tenant, so an ANN search cannot return another tenant's vectors.
+- FAISS uses one HNSW index per tenant and tenant IDs are hashed into filenames to prevent path collisions.
 - Neo4j identities and traversals include the same tenant predicate.
 - Vector and graph rankings are merged with weighted Reciprocal Rank Fusion.
 - Retrieved content is screened before answer generation.
-- When vLLM is configured, the security gateway can call `/v1/completions` with `prompt_logprobs` and calculate a perplexity signal. vLLM also exposes OpenAI-compatible chat and embeddings endpoints. See the upstream docs before selecting a threshold.
-- MCP is implemented with the current Python SDK's `MCPServer` and Streamable HTTP.
-- CI runs compile checks and the isolated test suite.
+- When vLLM is configured, the security gateway can call `/v1/completions` with `prompt_logprobs` and calculate a perplexity signal.
+- vLLM exposes OpenAI-compatible chat and embedding APIs used by the answer/embedding adapters.
+- MCP uses the current Python SDK `MCPServer` surface and Streamable HTTP.
+- CI runs compile checks, tests and the deterministic evaluation.
 
 ## Local validation
 
 ```bash
 python -m pip install -r requirements-enterprise.txt
-python -m compileall enterprise_graphrag
+python -m compileall enterprise_graphrag scripts
 pytest -q enterprise_graphrag/tests
+python scripts/evaluate_enterprise.py
 ```
 
 ## Run the service
@@ -31,13 +33,13 @@ pytest -q enterprise_graphrag/tests
 python -m enterprise_graphrag.run --host 127.0.0.1 --port 8000
 ```
 
-The service exposes:
+Endpoints:
 
 - `GET /health`
 - `GET /docs`
 - `POST /v1/query`
 - `GET /v1/tenant`
-- `POST /mcp` (Streamable HTTP)
+- `POST /mcp/`
 
 Generate a development token:
 
@@ -48,23 +50,19 @@ python -m enterprise_graphrag.token --subject demo-user --tenant acme --scope gr
 ## Production backends
 
 ### Neo4j
-Set:
 
-```text
-NEO4J_URI=neo4j://localhost:7687
-NEO4J_USER=neo4j
-NEO4J_PASSWORD=<secret>
-NEO4J_DATABASE=neo4j
-```
+Set `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, and `NEO4J_DATABASE`.
 
 The adapter uses parameterized Cypher, explicit database selection and tenant-aware document/entity identity.
 
 ### vLLM
-vLLM's current OpenAI-compatible server supports `/v1/chat/completions` and `/v1/embeddings`. The security layer uses `/v1/completions` with `prompt_logprobs` when PPL scoring is configured.
+
+vLLM's OpenAI-compatible server provides `/v1/chat/completions`, `/v1/completions` and `/v1/embeddings`. The security layer uses prompt log-probabilities for its optional PPL signal.
 
 ### MCP
-The current Python SDK exposes `MCPServer`, tool/resource/prompt decorators, and `streamable_http_app()`. When mounted inside FastAPI, the host lifespan starts the MCP session manager.
+
+The current Python SDK's `MCPServer` provides tool/resource/prompt decorators and `streamable_http_app()`. When mounted in FastAPI, the host application's lifespan owns the MCP session manager.
 
 ## Evidence boundary
 
-The code does not fabricate production metrics. Accuracy, latency, injection-detection rates, retrieval recall/MRR and GPU throughput must be measured against the actual corpus, model and deployment before being placed on a resume.
+The checked-in deterministic tests verify architecture and security invariants. They are not evidence of production latency, retrieval quality, injection-detection rate or GPU throughput. Those numbers must be measured against the target corpus, model and deployment before entering a resume.
