@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 import threading
 from pathlib import Path
 
@@ -36,7 +35,6 @@ class TenantFAISS:
 
     @staticmethod
     def _tenant_key(tenant: str) -> str:
-        # Hash the whole tenant ID to prevent sanitized filename collisions.
         return hashlib.sha256(
             tenant.encode("utf-8")
         ).hexdigest()[:24]
@@ -97,8 +95,9 @@ class TenantFAISS:
             matrix = np.asarray(
                 self.embedder.embed(
                     [
-                        f"{doc['title']}
-{doc['text']}"
+                        doc["title"]
+                        + "\n"
+                        + doc["text"]
                         for doc in documents
                     ]
                 ),
@@ -131,9 +130,9 @@ class TenantFAISS:
                 ids.tolist(),
                 documents,
             ):
-                self.meta[tenant][str(vector_id)] = dict(
-                    document
-                )
+                self.meta[tenant][
+                    str(vector_id)
+                ] = dict(document)
 
             index_path, meta_path = self._paths(tenant)
             self.faiss.write_index(
