@@ -19,7 +19,7 @@ PATTERNS = [
 
 
 class SecurityGateway:
-    """Marker-based injection detection with optional vLLM PPL signal."""
+    """Marker-based injection detection with an optional exact prompt-PPL signal."""
 
     def __init__(
         self,
@@ -35,10 +35,7 @@ class SecurityGateway:
         self.threshold = threshold
         self.marker_threshold = marker_threshold
         self.patterns = [
-            re.compile(
-                pattern,
-                re.IGNORECASE,
-            )
+            re.compile(pattern, re.IGNORECASE)
             for pattern in PATTERNS
         ]
 
@@ -66,55 +63,78 @@ class SecurityGateway:
                     "max_tokens": 1,
                     "temperature": 0.0,
                     "prompt_logprobs": 1,
+                    "return_token_ids": True,
                 },
                 timeout=60,
             )
             response.raise_for_status()
 
+            choice = response.json()[
+                "choices"
+            ][0]
             entries = (
-                response.json()[
-                    "choices"
-                ][0].get(
+                choice.get(
                     "prompt_logprobs"
                 )
                 or []
             )
+            token_ids = (
+                choice.get(
+                    "prompt_token_ids"
+                )
+                or []
+            )
 
-            values = []
-            for entry in entries:
+            if len(entries) != len(token_ids):
+                return None
+
+            observed = []
+
+            for position, entry in enumerate(
+                entries
+            ):
+                if (
+                    position == 0
+                    or entry is None
+                ):
+                    continue
+
+                token_id = token_ids[position]
+                token_data = entry.get(
+                    str(token_id)
+                )
+
+                if token_data is None:
+                    token_data = entry.get(
+                        token_id
+                    )
+
                 if not isinstance(
-                    entry,
+                    token_data,
                     dict,
                 ):
                     continue
 
-                for item in entry.values():
-                    if not isinstance(
-                        item,
-                        dict,
-                    ):
-                        continue
+                logprob = token_data.get(
+                    "logprob"
+                )
 
-                    logprob = item.get(
-                        "logprob"
+                if isinstance(
+                    logprob,
+                    (int, float),
+                ):
+                    observed.append(
+                        float(logprob)
                     )
 
-                    if isinstance(
-                        logprob,
-                        (int, float),
-                    ):
-                        values.append(
-                            float(logprob)
-                        )
-
-            if not values:
+            if not observed:
                 return None
 
             return float(
                 math.exp(
                     -(
-                        sum(values)
-                        / len(values)
+                        sum(observed)
+                        / len(observed)
                     )
                 )
             )
