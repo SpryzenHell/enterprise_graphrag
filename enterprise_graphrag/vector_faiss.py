@@ -46,6 +46,16 @@ class TenantFAISS:
             self.root / f"{key}.json",
         )
 
+    def _new_index(self):
+        base = self.faiss.IndexHNSWFlat(
+            self.dimension,
+            32,
+            self.faiss.METRIC_INNER_PRODUCT,
+        )
+        base.hnsw.efConstruction = 80
+        base.hnsw.efSearch = 64
+        return self.faiss.IndexIDMap2(base)
+
     def _load(self, tenant: str):
         with self._lock:
             if tenant in self.indexes:
@@ -68,20 +78,80 @@ class TenantFAISS:
                         f"index={index.d}, embedder={self.dimension}"
                     )
             else:
-                base = self.faiss.IndexHNSWFlat(
-                    self.dimension,
-                    32,
-                    self.faiss.METRIC_INNER_PRODUCT,
-                )
-                base.hnsw.efConstruction = 80
-                base.hnsw.efSearch = 64
-                index = self.faiss.IndexIDMap2(
-                    base
-                )
+                index = self._new_index()
                 self.meta[tenant] = {}
 
             self.indexes[tenant] = index
             return index
+
+    def _embed(self, documents: list[dict]) -> np.ndarray:
+        matrix = np.asarray(
+            self.embedder.embed(
+                [
+                    doc["title"]
+                    + "\n"
+                    + doc["text"]
+                    for doc in documents
+                ]
+            ),
+            dtype="float32",
+        )
+        self.faiss.normalize_L2(matrix)
+        return matrix
+
+    def _persist(
+        self,
+        tenant: str,
+        index,
+        metadata: dict[str, dict],
+    ) -> None:
+        index_path, meta_path = self._paths(tenant)
+        self.faiss.write_index(
+            index,
+            str(index_path),
+        )
+        meta_path.write_text(
+            json.dumps(
+                metadata,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+    def _rebuild(
+        self,
+        tenant: str,
+        documents: list[dict],
+    ) -> None:
+        index = self._new_index()
+        matrix = self._embed(documents)
+
+        if documents:
+            ids = np.arange(
+                len(documents),
+                dtype=np.int64,
+            )
+            index.add_with_ids(
+                matrix,
+                ids,
+            )
+            metadata = {
+                str(vector_id): document
+                for vector_id, document in zip(
+                    ids.tolist(),
+                    documents,
+                )
+            }
+        else:
+            metadata = {}
+
+        self.indexes[tenant] = index
+        self.meta[tenant] = metadata
+        self._persist(
+            tenant,
+            index,
+            metadata,
+        )
 
     def add(
         self,
@@ -102,39 +172,38 @@ class TenantFAISS:
             return
 
         with self._lock:
-            matrix = np.asarray(
-                self.embedder.embed(
-                    [
-                        doc["title"]
-                        + "\n"
-                        + doc["text"]
-                        for doc in documents
-                    ]
-                ),
-                dtype="float32",
-            )
-            self.faiss.normalize_L2(matrix)
-
             index = self._load(tenant)
-            existing_ids: list[int] = []
-            existing_doc_ids = {
+            existing_by_vector_id = self.meta[tenant]
+            replacement_ids = {
                 document["doc_id"]
                 for document in documents
             }
-            for vector_id, existing in self.meta[tenant].items():
-                if (
-                    existing.get("doc_id")
-                    in existing_doc_ids
-                ):
-                    existing_ids.append(
-                        int(vector_id)
-                    )
+            has_replacements = any(
+                existing.get("doc_id") in replacement_ids
+                for existing in existing_by_vector_id.values()
+            )
 
+            if has_replacements:
+                # HNSW does not support vector deletion. Rebuild the affected
+                # tenant index so an upsert cannot leave stale vectors behind.
+                retained = [
+                    document
+                    for existing in existing_by_vector_id.values()
+                    if (document := dict(existing)).get("doc_id")
+                    not in replacement_ids
+                ]
+                self._rebuild(
+                    tenant,
+                    retained + documents,
+                )
+                return
+
+            matrix = self._embed(documents)
             start = (
                 max(
                     (
                         int(key)
-                        for key in self.meta[tenant]
+                        for key in existing_by_vector_id
                     ),
                     default=-1,
                 )
@@ -145,26 +214,10 @@ class TenantFAISS:
                 start + len(documents),
                 dtype=np.int64,
             )
-
-            # Add replacements before removing the old vectors so a failed
-            # FAISS add does not leave the index missing the document.
             index.add_with_ids(
                 matrix,
                 ids,
             )
-
-            if existing_ids:
-                index.remove_ids(
-                    np.asarray(
-                        existing_ids,
-                        dtype=np.int64,
-                    )
-                )
-                for vector_id in existing_ids:
-                    self.meta[tenant].pop(
-                        str(vector_id),
-                        None,
-                    )
 
             for vector_id, document in zip(
                 ids.tolist(),
@@ -174,17 +227,10 @@ class TenantFAISS:
                     str(vector_id)
                 ] = document
 
-            index_path, meta_path = self._paths(tenant)
-            self.faiss.write_index(
+            self._persist(
+                tenant,
                 index,
-                str(index_path),
-            )
-            meta_path.write_text(
-                json.dumps(
-                    self.meta[tenant],
-                    indent=2,
-                ),
-                encoding="utf-8",
+                self.meta[tenant],
             )
 
     def search(
