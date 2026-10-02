@@ -73,3 +73,39 @@ jobs:
           NEO4J_PASSWORD: testpassword
           NEO4J_DATABASE: neo4j
         run: pytest -q enterprise_graphrag/tests/test_neo4j_integration.py -m integration
+
+
+  container-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build production image
+        run: docker build -f Dockerfile.enterprise -t enterprise-graphrag:ci .
+
+      - name: Start container
+        run: |
+          docker run -d --name enterprise-graphrag-ci \
+            -p 8000:8000 \
+            -e GRAGRAPH_ENV=development \
+            -e GRAGRAPH_JWT_SECRET=ci-only-secret-change-me-please-32-bytes \
+            enterprise-graphrag:ci
+
+      - name: Health and readiness smoke test
+        run: |
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8000/health > /tmp/health.json; then
+              break
+            fi
+            sleep 2
+          done
+          curl --fail --silent http://127.0.0.1:8000/health
+          curl --fail --silent http://127.0.0.1:8000/ready
+
+      - name: Container logs on failure
+        if: failure()
+        run: docker logs enterprise-graphrag-ci
+
+      - name: Stop container
+        if: always()
+        run: docker rm -f enterprise-graphrag-ci
