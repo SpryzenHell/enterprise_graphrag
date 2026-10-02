@@ -20,9 +20,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = [
-  "pytest>=8.3,<9",
-]
+dev = ["pytest>=8.3,<9"]
 
 [project.scripts]
 enterprise-graphrag = "enterprise_graphrag.run:main"
@@ -30,3 +28,6 @@ enterprise-graphrag-token = "enterprise_graphrag.token:main"
 
 [tool.pytest.ini_options]
 testpaths = ["enterprise_graphrag/tests"]
+markers = [
+  "integration: tests that require live external infrastructure"
+]
