@@ -67,3 +67,11 @@ For a deployed hostname, set MCP_RESOURCE_URL to the exact public MCP URL. The S
 ## Evidence boundary
 
 The checked-in deterministic tests verify architecture and security invariants. They are not evidence of production latency, retrieval quality, injection-detection rate or GPU throughput. Those numbers must be measured against the target corpus, model and deployment before entering a resume.
+
+
+## Ingestion semantics
+
+`doc_id` is the tenant-local primary key for ingestion.
+Replaying a batch with an existing `doc_id` performs an upsert instead of creating duplicate retrieval records.
+For FAISS HNSW, replacement documents trigger a rebuild of that tenant's index because HNSW vector deletion is not supported; append-only ingestion remains incremental.
+Neo4j document upserts replace the document's `MENTIONS` relationships before creating the current entity links.
