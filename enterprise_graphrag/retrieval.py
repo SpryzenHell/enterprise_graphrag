@@ -25,14 +25,35 @@ class TenantMemoryGraph:
         tenant: str,
         doc: dict,
     ) -> None:
-        self.docs[tenant][doc["doc_id"]] = dict(doc)
+        doc_id = doc["doc_id"]
+
+        # Upserts must remove stale entity memberships before indexing the
+        # replacement text; otherwise the graph can keep returning a document
+        # for entities that no longer occur in the current document.
+        previous = self.docs[tenant].get(doc_id)
+        if previous:
+            for entity in self.ENTITY_PATTERN.findall(
+                previous["text"]
+            ):
+                key = entity.lower()
+                doc_ids = self.entities[tenant].get(key)
+                if doc_ids is None:
+                    continue
+                doc_ids.discard(doc_id)
+                if not doc_ids:
+                    self.entities[tenant].pop(
+                        key,
+                        None,
+                    )
+
+        self.docs[tenant][doc_id] = dict(doc)
 
         for entity in self.ENTITY_PATTERN.findall(
             doc["text"]
         ):
             self.entities[tenant][
                 entity.lower()
-            ].add(doc["doc_id"])
+            ].add(doc_id)
 
     def search(
         self,
