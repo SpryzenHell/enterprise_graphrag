@@ -9,7 +9,6 @@ from enterprise_graphrag.auth import (
     principal_from_token,
 )
 from enterprise_graphrag.embeddings import HashEmbedder
-from enterprise_graphrag.fusion import Hit
 from enterprise_graphrag.llm import ExtractiveAnswerModel
 from enterprise_graphrag.retrieval import (
     HybridRetriever,
@@ -248,3 +247,48 @@ def test_memory_graph_upsert_removes_stale_entities():
 
     assert not old_entity_hits
     assert [hit.doc_id for hit in new_entity_hits] == ["doc-1"]
+
+
+def test_faiss_upsert_is_idempotent(tmp_path):
+    store = TenantFAISS(
+        str(tmp_path / "faiss"),
+        HashEmbedder(64),
+    )
+
+    store.add(
+        "acme",
+        [
+            {
+                "doc_id": "doc-1",
+                "title": "Original Policy",
+                "text": "Original retention policy for Acme.",
+            }
+        ],
+    )
+    store.add(
+        "acme",
+        [
+            {
+                "doc_id": "doc-1",
+                "title": "Updated Policy",
+                "text": "Updated retention policy for Acme.",
+            },
+            {
+                "doc_id": "doc-1",
+                "title": "Final Policy",
+                "text": "Final retention policy for Acme.",
+            },
+        ],
+    )
+
+    assert store.stats()["tenants"]["acme"] == 1
+
+    hits = store.search(
+        "acme",
+        "Final retention policy",
+        5,
+    )
+
+    assert [hit.doc_id for hit in hits] == ["doc-1"]
+    assert hits[0].title == "Final Policy"
+    assert hits[0].text == "Final retention policy for Acme."
