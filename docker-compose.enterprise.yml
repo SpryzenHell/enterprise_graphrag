@@ -1,0 +1,47 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.enterprise
+    environment:
+      GRAGRAPH_JWT_SECRET: ${GRAGRAPH_JWT_SECRET:?set GRAGRAPH_JWT_SECRET}
+      GRAGRAPH_JWT_ISSUER: ${GRAGRAPH_JWT_ISSUER:-http://localhost:8000}
+      GRAGRAPH_JWT_AUDIENCE: ${GRAGRAPH_JWT_AUDIENCE:-enterprise-graphrag-api}
+      GRAGRAPH_FAISS_DIR: /data/faiss
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:?set NEO4J_PASSWORD}
+      NEO4J_DATABASE: neo4j
+      VLLM_BASE_URL: ${VLLM_BASE_URL:-}
+      VLLM_API_KEY: ${VLLM_API_KEY:-}
+      VLLM_MODEL: ${VLLM_MODEL:-}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
+    ports:
+      - "8000:8000"
+    volumes:
+      - graphrag_faiss:/data/faiss
+    depends_on:
+      neo4j:
+        condition: service_healthy
+
+  neo4j:
+    image: neo4j:2026-community
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?set NEO4J_PASSWORD}
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - graphrag_neo4j:/data
+    healthcheck:
+      test:
+        ["CMD-SHELL", "wget -q --spider http://localhost:7474 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  graphrag_faiss:
+  graphrag_neo4j:
