@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import threading
@@ -14,27 +15,37 @@ from .fusion import Hit
 class TenantFAISS:
     """One FAISS HNSW index per tenant; tenant isolation is physical."""
 
-    def __init__(self, root: str, embedder: Embedder) -> None:
+    def __init__(
+        self,
+        root: str,
+        embedder: Embedder,
+    ) -> None:
         import faiss
 
         self.faiss = faiss
         self.root = Path(root)
-        self.root.mkdir(parents=True, exist_ok=True)
+        self.root.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
         self.embedder = embedder
         self.dimension = embedder.dimension
-        self.indexes = {}
-        self.meta = {}
+        self.indexes: dict[str, object] = {}
+        self.meta: dict[str, dict[str, dict]] = {}
         self._lock = threading.RLock()
 
     @staticmethod
-    def _safe_tenant(tenant: str) -> str:
-        return re.sub(r"[^A-Za-z0-9_-]", "_", tenant)
+    def _tenant_key(tenant: str) -> str:
+        # Hash the whole tenant ID to prevent sanitized filename collisions.
+        return hashlib.sha256(
+            tenant.encode("utf-8")
+        ).hexdigest()[:24]
 
     def _paths(self, tenant: str):
-        safe = self._safe_tenant(tenant)
+        key = self._tenant_key(tenant)
         return (
-            self.root / f"{safe}.faiss",
-            self.root / f"{safe}.json",
+            self.root / f"{key}.faiss",
+            self.root / f"{key}.json",
         )
 
     def _load(self, tenant: str):
@@ -43,8 +54,11 @@ class TenantFAISS:
                 return self.indexes[tenant]
 
             index_path, meta_path = self._paths(tenant)
+
             if index_path.exists() and meta_path.exists():
-                index = self.faiss.read_index(str(index_path))
+                index = self.faiss.read_index(
+                    str(index_path)
+                )
                 self.meta[tenant] = json.loads(
                     meta_path.read_text(
                         encoding="utf-8"
@@ -63,7 +77,9 @@ class TenantFAISS:
                 )
                 base.hnsw.efConstruction = 80
                 base.hnsw.efSearch = 64
-                index = self.faiss.IndexIDMap2(base)
+                index = self.faiss.IndexIDMap2(
+                    base
+                )
                 self.meta[tenant] = {}
 
             self.indexes[tenant] = index
@@ -93,7 +109,10 @@ class TenantFAISS:
             index = self._load(tenant)
             start = (
                 max(
-                    (int(key) for key in self.meta[tenant]),
+                    (
+                        int(key)
+                        for key in self.meta[tenant]
+                    ),
                     default=-1,
                 )
                 + 1
@@ -103,13 +122,18 @@ class TenantFAISS:
                 start + len(documents),
                 dtype=np.int64,
             )
-            index.add_with_ids(matrix, ids)
+            index.add_with_ids(
+                matrix,
+                ids,
+            )
 
-            for vector_id, doc in zip(
+            for vector_id, document in zip(
                 ids.tolist(),
                 documents,
             ):
-                self.meta[tenant][str(vector_id)] = dict(doc)
+                self.meta[tenant][str(vector_id)] = dict(
+                    document
+                )
 
             index_path, meta_path = self._paths(tenant)
             self.faiss.write_index(
@@ -130,17 +154,22 @@ class TenantFAISS:
         query: str,
         limit: int = 8,
     ) -> list[Hit]:
-        vector = np.asarray(
+        query_vector = np.asarray(
             self.embedder.embed([query]),
             dtype="float32",
         )
-        self.faiss.normalize_L2(vector)
+        self.faiss.normalize_L2(
+            query_vector
+        )
 
         index = self._load(tenant)
         if index.ntotal == 0:
             return []
 
-        scores, ids = index.search(vector, limit)
+        scores, ids = index.search(
+            query_vector,
+            limit,
+        )
         hits = []
 
         for vector_id, score in zip(
@@ -150,21 +179,21 @@ class TenantFAISS:
             if vector_id < 0:
                 continue
 
-            metadata = self.meta[tenant].get(
+            document = self.meta[tenant].get(
                 str(vector_id)
             )
-            if metadata is None:
+            if document is None:
                 continue
 
             hits.append(
                 Hit(
-                    doc_id=metadata["doc_id"],
-                    title=metadata["title"],
+                    doc_id=document["doc_id"],
+                    title=document["title"],
                     tenant_id=tenant,
-                    text=metadata["text"],
+                    text=document["text"],
                     score=float(score),
                     source="vector",
-                    metadata=metadata,
+                    metadata=document,
                 )
             )
 
