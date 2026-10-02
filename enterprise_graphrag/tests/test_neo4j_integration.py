@@ -65,6 +65,35 @@ def test_neo4j_tenant_isolation():
             for hit in hits
         )
 
+        store.add(
+            "acme",
+            {
+                "doc_id": "integration-acme",
+                "title": "Acme Integration Policy v2",
+                "text": "Acme Finance Operations owns incident response.",
+            },
+        )
+
+        stale_hits = store.search(
+            "acme",
+            "Security Operations",
+            10,
+        )
+        updated_hits = store.search(
+            "acme",
+            "Finance Operations",
+            10,
+        )
+
+        assert all(
+            hit.doc_id != "integration-acme"
+            for hit in stale_hits
+        )
+        assert any(
+            hit.doc_id == "integration-acme"
+            for hit in updated_hits
+        )
+
         trace = store.trace(
             "acme",
             ["integration-acme"],
