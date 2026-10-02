@@ -16,9 +16,11 @@ This directory is the supported runtime for the merged project. The original Gra
 - When vLLM is configured, the security gateway can call `/v1/completions` with `prompt_logprobs` and calculate a perplexity signal.
 - vLLM exposes OpenAI-compatible chat and embedding APIs used by the answer/embedding adapters.
 - MCP uses the current Python SDK `MCPServer` surface and Streamable HTTP.
-- CI runs compile checks, tests and the deterministic evaluation.
+- CI runs package compilation, tests, backend contract tests and deterministic evaluation.
 
 ## Local validation
+
+From the repository root:
 
 ```bash
 python -m pip install -r requirements-enterprise.txt
@@ -57,7 +59,7 @@ The adapter uses parameterized Cypher, explicit database selection and tenant-aw
 
 ### vLLM
 
-vLLM's OpenAI-compatible server provides `/v1/chat/completions`, `/v1/completions` and `/v1/embeddings`. The security layer uses prompt log-probabilities for its optional PPL signal.
+vLLM's current OpenAI-compatible server provides `/v1/chat/completions`, `/v1/completions` and `/v1/embeddings`. The security layer uses prompt log-probabilities for its optional PPL signal.
 
 ### MCP
 
