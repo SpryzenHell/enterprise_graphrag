@@ -9,6 +9,7 @@ from enterprise_graphrag.auth import (
     principal_from_token,
 )
 from enterprise_graphrag.embeddings import HashEmbedder
+from enterprise_graphrag.fusion import Hit
 from enterprise_graphrag.llm import ExtractiveAnswerModel
 from enterprise_graphrag.retrieval import (
     HybridRetriever,
@@ -213,3 +214,37 @@ def test_faiss_is_physically_partitioned(tmp_path):
         hit.doc_id != "g"
         for hit in hits
     )
+
+
+def test_memory_graph_upsert_removes_stale_entities():
+    graph = TenantMemoryGraph()
+    graph.add(
+        "acme",
+        {
+            "doc_id": "doc-1",
+            "title": "Original Policy",
+            "text": "Acme Security Operations owns incident response.",
+        },
+    )
+    graph.add(
+        "acme",
+        {
+            "doc_id": "doc-1",
+            "title": "Updated Policy",
+            "text": "Acme Finance Operations owns incident response.",
+        },
+    )
+
+    old_entity_hits = graph.search(
+        "acme",
+        "Security Operations",
+        5,
+    )
+    new_entity_hits = graph.search(
+        "acme",
+        "Finance Operations",
+        5,
+    )
+
+    assert not old_entity_hits
+    assert [hit.doc_id for hit in new_entity_hits] == ["doc-1"]
