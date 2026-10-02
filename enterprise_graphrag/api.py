@@ -1,36 +1,126 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+from pathlib import Path
+
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, PlainTextResponse
 
+from .agent import EnterpriseGraphRAGAgent, build_agent
 from .auth import require_query_access
 from .config import settings
-from .retrieval import HybridRetriever, TenantMemoryGraph
-from .schemas import QueryRequest
-from .security import SecurityGateway
-
-app = FastAPI(title="Enterprise GraphRAG Agent", version="0.1.0")
-app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:8000"], allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type"])
-
-security = SecurityGateway(threshold=settings.security_ppl_threshold, marker_threshold=settings.security_marker_threshold)
-retriever = HybridRetriever(TenantMemoryGraph(), security)
+from .schemas import QueryRequest, QueryResponse, TenantPrincipal
 
 
-@app.get("/health")
-def health():
-    return {"status": "ok", "retrieval": "hybrid-vector-graph-rrf", "security": "marker+ppl", "vllm_ppl_enabled": bool(settings.vllm_base_url and settings.vllm_model)}
+def create_app(agent: EnterpriseGraphRAGAgent | None = None) -> FastAPI:
+    runtime = agent or build_agent()
+    mcp = None
+    mcp_app = None
+
+    try:
+        from .mcp_server import create_mcp_server
+        mcp = create_mcp_server(runtime)
+        mcp_app = mcp.streamable_http_app(
+            streamable_http_path="/",
+            json_response=True,
+            stateless_http=True,
+            host="127.0.0.1",
+        )
+    except (ImportError, RuntimeError):
+        mcp = None
+        mcp_app = None
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        if mcp is not None:
+            async with mcp.session_manager.run():
+                yield
+        else:
+            yield
+
+    app = FastAPI(
+        title="Enterprise GraphRAG Agent",
+        version="0.2.0",
+        lifespan=lifespan,
+    )
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=list(settings.allowed_origins),
+        allow_credentials=False,
+        allow_methods=["GET", "POST"],
+        allow_headers=[
+            "Authorization",
+            "Content-Type",
+            "Mcp-Session-Id",
+            "Mcp-Protocol-Version",
+        ],
+        expose_headers=["Mcp-Session-Id"],
+    )
+
+    @app.get("/")
+    def home() -> HTMLResponse:
+        return HTMLResponse(
+            "<h1>Enterprise GraphRAG</h1>"
+            "<p>Use <a href='/docs'>/docs</a> or POST /v1/query.</p>"
+        )
+
+    @app.get("/health")
+    def health() -> dict:
+        return {
+            "status": "ok",
+            "retrieval": "FAISS HNSW + graph + weighted RRF",
+            "graph_backend": type(
+                runtime.retriever.graph
+            ).__name__,
+            "vector_backend": type(
+                runtime.retriever.vector
+            ).__name__,
+            "answer_backend": type(
+                runtime.answer_model
+            ).__name__,
+            "mcp_enabled": mcp_app is not None,
+            "vllm_enabled": bool(
+                settings.vllm_base_url
+                and settings.vllm_model
+            ),
+        }
+
+    @app.get("/v1/tenant")
+    def tenant(
+        principal: TenantPrincipal = Depends(
+            require_query_access
+        ),
+    ) -> dict:
+        return {
+            "subject": principal.subject,
+            "tenant_id": principal.tenant_id,
+            "scopes": sorted(principal.scopes),
+        }
+
+    @app.post(
+        "/v1/query",
+        response_model=QueryResponse,
+    )
+    def query(
+        request: QueryRequest,
+        principal: TenantPrincipal = Depends(
+            require_query_access
+        ),
+    ) -> QueryResponse:
+        return QueryResponse.model_validate(
+            runtime.query(
+                principal,
+                request.query,
+                request.top_k,
+            )
+        )
+
+    if mcp_app is not None:
+        app.mount("/mcp", mcp_app)
+
+    return app
 
 
-@app.post("/v1/query")
-def query(request: QueryRequest, principal: dict = Depends(require_query_access)):
-    direct = security.inspect(request.query, direct=True)
-    if not direct["allowed"]:
-        return {"answer": "Request blocked by the security gateway.", "citations": [], "security": direct, "trace": {"blocked_stage": "input_policy"}}
-    hits, blocked, vector_count, graph_count = retriever.search(principal["tenant_id"], request.query, request.top_k or settings.top_k)
-    answer = hits[0].text if hits else "No authorized evidence found."
-    return {
-        "answer": answer,
-        "citations": [{"rank": i, "doc_id": h.doc_id, "title": h.title, "tenant_id": h.tenant_id, "score": h.score, "source": h.source} for i, h in enumerate(hits, 1)],
-        "security": {"allowed": True, "reason": "authorized evidence", "blocked_contexts": blocked},
-        "trace": {"tenant_id": principal["tenant_id"], "vector_candidates": vector_count, "graph_candidates": graph_count, "fused_candidates": len(hits) + len(blocked)},
-    }
+app = create_app()
