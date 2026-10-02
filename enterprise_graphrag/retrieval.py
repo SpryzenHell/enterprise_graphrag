@@ -10,6 +10,10 @@ from .security import SecurityGateway
 class TenantMemoryGraph:
     """Small CI/demo graph mirroring the Neo4j tenant boundary."""
 
+    ENTITY_PATTERN = re.compile(
+        r"\b[A-Z][A-Za-z0-9&.-]{2,}\b"
+    )
+
     def __init__(self) -> None:
         self.docs = defaultdict(dict)
         self.entities = defaultdict(
@@ -23,9 +27,8 @@ class TenantMemoryGraph:
     ) -> None:
         self.docs[tenant][doc["doc_id"]] = dict(doc)
 
-        for entity in re.findall(
-            r"[A-Z][A-Za-z0-9&.-]{2,}",
-            doc["text"],
+        for entity in self.ENTITY_PATTERN.findall(
+            doc["text"]
         ):
             self.entities[tenant][
                 entity.lower()
@@ -47,7 +50,10 @@ class TenantMemoryGraph:
         scores = defaultdict(float)
 
         for entity, docs in self.entities[tenant].items():
-            if any(term in entity for term in terms):
+            if any(
+                term in entity
+                for term in terms
+            ):
                 for doc_id in docs:
                     scores[doc_id] += 2.0
 
@@ -98,9 +104,8 @@ class TenantMemoryGraph:
                 "tenant_id": tenant,
             }
 
-            for entity in re.findall(
-                r"[A-Z][A-Za-z0-9&.-]{2,}",
-                doc["text"],
+            for entity in self.ENTITY_PATTERN.findall(
+                doc["text"]
             )[:8]:
                 entity_id = (
                     f"entity:{tenant}:{entity.lower()}"
@@ -151,8 +156,14 @@ class HybridRetriever:
         documents: list[dict],
     ) -> None:
         for document in documents:
-            self.graph.add(tenant, document)
-        self.vector.add(tenant, documents)
+            self.graph.add(
+                tenant,
+                document,
+            )
+        self.vector.add(
+            tenant,
+            documents,
+        )
 
     def search(
         self,
@@ -225,9 +236,15 @@ class HybridRetriever:
         tenant: str,
         doc_ids: list[str],
     ):
-        if hasattr(self.graph, "trace"):
+        if hasattr(
+            self.graph,
+            "trace",
+        ):
             return self.graph.trace(
                 tenant,
                 doc_ids,
             )
-        return {"nodes": [], "edges": []}
+        return {
+            "nodes": [],
+            "edges": [],
+        }
