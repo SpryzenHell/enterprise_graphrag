@@ -31,6 +31,7 @@ include = ["enterprise_graphrag*"]
 
 [tool.pytest.ini_options]
 testpaths = ["enterprise_graphrag/tests"]
+addopts = ["--import-mode=importlib"]
 markers = [
   "integration: tests that require live external infrastructure"
 ]
