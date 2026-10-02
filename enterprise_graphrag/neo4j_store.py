@@ -76,6 +76,9 @@ class Neo4jTenantStore:
         MERGE (d:Document {tenant_id:$tenant, doc_id:$doc_id})
         SET d.title=$title, d.text=$text
         WITH d
+        OPTIONAL MATCH (d)-[r:MENTIONS]->(:Entity {tenant_id:$tenant})
+        DELETE r
+        WITH d
         UNWIND $entities AS name
         MERGE (e:Entity {tenant_id:$tenant, key:toLower(name)})
         SET e.name=name
