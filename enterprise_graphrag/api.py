@@ -3,7 +3,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
@@ -41,11 +41,20 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
-        if mcp is not None:
-            async with mcp.session_manager.run():
+        try:
+            if mcp is not None:
+                async with mcp.session_manager.run():
+                    yield
+            else:
                 yield
-        else:
-            yield
+        finally:
+            close = getattr(
+                runtime.retriever.graph,
+                "close",
+                None,
+            )
+            if close is not None:
+                close()
 
     application = FastAPI(
         title="Enterprise GraphRAG Agent",
@@ -99,6 +108,34 @@ def create_app(
                 settings.vllm_base_url
                 and settings.vllm_model
             ),
+        }
+
+    @application.get("/ready")
+    def ready() -> dict:
+        graph = runtime.retriever.graph
+        verify = getattr(
+            graph,
+            "verify",
+            None,
+        )
+        if verify is not None:
+            try:
+                verify()
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Graph backend is not ready",
+                ) from exc
+
+        return {
+            "status": "ready",
+            "graph_backend": type(
+                graph
+            ).__name__,
+            "vector_backend": type(
+                runtime.retriever.vector
+            ).__name__,
+            "mcp_enabled": mcp_app is not None,
         }
 
     @application.get("/v1/tenant")
