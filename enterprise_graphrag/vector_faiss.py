@@ -107,9 +107,10 @@ class TenantFAISS:
         index,
         metadata: dict[str, dict],
     ) -> None:
-        # Persist index and metadata through temporary files, then atomically
-        # replace the live pair. A crash during a write therefore cannot leave
-        # a partially-written FAISS index or JSON metadata file.
+        # Persist both artifacts through temporary files. Replace metadata
+        # first, then the index: after a crash the metadata may reference vectors
+        # not yet visible in FAISS, but FAISS will never expose new vector IDs
+        # without matching metadata, and the next ID allocation cannot reuse them.
         index_path, meta_path = self._paths(tenant)
         index_fd, index_tmp = tempfile.mkstemp(
             dir=self.root,
@@ -141,12 +142,12 @@ class TenantFAISS:
             Path(meta_tmp).chmod(0o600)
 
             os.replace(
-                index_tmp,
-                index_path,
-            )
-            os.replace(
                 meta_tmp,
                 meta_path,
+            )
+            os.replace(
+                index_tmp,
+                index_path,
             )
         finally:
             for tmp_path in (index_tmp, meta_tmp):
