@@ -38,3 +38,4 @@ __pycache__/
 
 enterprise_data/faiss/
 enterprise_data/evaluation.json
+enterprise_data/benchmark.json
