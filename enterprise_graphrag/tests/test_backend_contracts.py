@@ -94,6 +94,7 @@ def test_vllm_prompt_logprob_ppl_contract(monkeypatch):
     assert score is not None
     assert captured["url"] == "http://localhost:8000/v1/completions"
     assert captured["json"]["prompt_logprobs"] == 1
+    assert captured["json"]["return_token_ids"] is True
 
 
 def test_neo4j_adapter_keeps_tenant_predicates(monkeypatch):
