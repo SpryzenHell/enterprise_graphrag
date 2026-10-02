@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import tempfile
 import threading
 from pathlib import Path
 
@@ -105,18 +107,53 @@ class TenantFAISS:
         index,
         metadata: dict[str, dict],
     ) -> None:
+        # Persist index and metadata through temporary files, then atomically
+        # replace the live pair. A crash during a write therefore cannot leave
+        # a partially-written FAISS index or JSON metadata file.
         index_path, meta_path = self._paths(tenant)
-        self.faiss.write_index(
-            index,
-            str(index_path),
+        index_fd, index_tmp = tempfile.mkstemp(
+            dir=self.root,
+            prefix=index_path.name + ".",
+            suffix=".tmp",
         )
-        meta_path.write_text(
-            json.dumps(
-                metadata,
-                indent=2,
-            ),
-            encoding="utf-8",
+        meta_fd, meta_tmp = tempfile.mkstemp(
+            dir=self.root,
+            prefix=meta_path.name + ".",
+            suffix=".tmp",
         )
+        os.close(index_fd)
+        os.close(meta_fd)
+
+        try:
+            self.faiss.write_index(
+                index,
+                index_tmp,
+            )
+            Path(index_tmp).chmod(0o600)
+
+            Path(meta_tmp).write_text(
+                json.dumps(
+                    metadata,
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+            Path(meta_tmp).chmod(0o600)
+
+            os.replace(
+                index_tmp,
+                index_path,
+            )
+            os.replace(
+                meta_tmp,
+                meta_path,
+            )
+        finally:
+            for tmp_path in (index_tmp, meta_tmp):
+                try:
+                    os.unlink(tmp_path)
+                except FileNotFoundError:
+                    pass
 
     def _rebuild(
         self,
