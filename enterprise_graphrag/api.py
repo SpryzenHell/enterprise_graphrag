@@ -5,7 +5,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse
 
 from .agent import EnterpriseGraphRAGAgent, build_agent
 from .auth import require_query_access
@@ -13,13 +13,21 @@ from .config import settings
 from .schemas import QueryRequest, QueryResponse, TenantPrincipal
 
 
-def create_app(agent: EnterpriseGraphRAGAgent | None = None) -> FastAPI:
+UI_PATH = Path(__file__).with_name("static").joinpath(
+    "index.html"
+)
+
+
+def create_app(
+    agent: EnterpriseGraphRAGAgent | None = None,
+) -> FastAPI:
     runtime = agent or build_agent()
     mcp = None
     mcp_app = None
 
     try:
         from .mcp_server import create_mcp_server
+
         mcp = create_mcp_server(runtime)
         mcp_app = mcp.streamable_http_app(
             streamable_http_path="/",
@@ -39,13 +47,13 @@ def create_app(agent: EnterpriseGraphRAGAgent | None = None) -> FastAPI:
         else:
             yield
 
-    app = FastAPI(
+    application = FastAPI(
         title="Enterprise GraphRAG Agent",
         version="0.2.0",
         lifespan=lifespan,
     )
 
-    app.add_middleware(
+    application.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.allowed_origins),
         allow_credentials=False,
@@ -59,18 +67,24 @@ def create_app(agent: EnterpriseGraphRAGAgent | None = None) -> FastAPI:
         expose_headers=["Mcp-Session-Id"],
     )
 
-    @app.get("/")
+    @application.get(
+        "/",
+        response_class=HTMLResponse,
+    )
     def home() -> HTMLResponse:
         return HTMLResponse(
-            "<h1>Enterprise GraphRAG</h1>"
-            "<p>Use <a href='/docs'>/docs</a> or POST /v1/query.</p>"
+            UI_PATH.read_text(
+                encoding="utf-8"
+            )
         )
 
-    @app.get("/health")
+    @application.get("/health")
     def health() -> dict:
         return {
             "status": "ok",
-            "retrieval": "FAISS HNSW + graph + weighted RRF",
+            "retrieval": (
+                "FAISS HNSW + graph + weighted RRF"
+            ),
             "graph_backend": type(
                 runtime.retriever.graph
             ).__name__,
@@ -87,7 +101,7 @@ def create_app(agent: EnterpriseGraphRAGAgent | None = None) -> FastAPI:
             ),
         }
 
-    @app.get("/v1/tenant")
+    @application.get("/v1/tenant")
     def tenant(
         principal: TenantPrincipal = Depends(
             require_query_access
@@ -96,10 +110,12 @@ def create_app(agent: EnterpriseGraphRAGAgent | None = None) -> FastAPI:
         return {
             "subject": principal.subject,
             "tenant_id": principal.tenant_id,
-            "scopes": sorted(principal.scopes),
+            "scopes": sorted(
+                principal.scopes
+            ),
         }
 
-    @app.post(
+    @application.post(
         "/v1/query",
         response_model=QueryResponse,
     )
@@ -118,9 +134,12 @@ def create_app(agent: EnterpriseGraphRAGAgent | None = None) -> FastAPI:
         )
 
     if mcp_app is not None:
-        app.mount("/mcp", mcp_app)
+        application.mount(
+            "/mcp",
+            mcp_app,
+        )
 
-    return app
+    return application
 
 
 app = create_app()
