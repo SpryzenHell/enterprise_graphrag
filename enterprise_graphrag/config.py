@@ -4,6 +4,9 @@ import os
 from dataclasses import dataclass
 
 
+DEFAULT_DEV_JWT_SECRET = "dev-only-change-me-please-use-32-bytes!"
+
+
 def _csv(value: str) -> tuple[str, ...]:
     return tuple(
         item.strip()
@@ -14,9 +17,14 @@ def _csv(value: str) -> tuple[str, ...]:
 
 @dataclass(frozen=True)
 class Settings:
+    environment: str = os.getenv(
+        "GRAGRAPH_ENV",
+        "development",
+    )
+
     jwt_secret: str = os.getenv(
         "GRAGRAPH_JWT_SECRET",
-        "dev-only-change-me-please-use-32-bytes!",
+        DEFAULT_DEV_JWT_SECRET,
     )
     jwt_issuer: str = os.getenv(
         "GRAGRAPH_JWT_ISSUER",
@@ -139,5 +147,81 @@ class Settings:
         )
     )
 
+    def validate(self) -> None:
+        """Fail fast on deployment settings that can break correctness or auth."""
+        problems: list[str] = []
+
+        env = self.environment.strip().lower()
+        if env not in {"development", "test", "production"}:
+            problems.append(
+                "GRAGRAPH_ENV must be development, test, or production"
+            )
+
+        if not self.jwt_secret:
+            problems.append("GRAGRAPH_JWT_SECRET is required")
+        elif env == "production" and (
+            self.jwt_secret == DEFAULT_DEV_JWT_SECRET
+            or len(self.jwt_secret) < 32
+        ):
+            problems.append(
+                "GRAGRAPH_JWT_SECRET must be a non-default value of at least 32 characters in production"
+            )
+
+        if not self.jwt_issuer:
+            problems.append("GRAGRAPH_JWT_ISSUER is required")
+        if not self.jwt_audience:
+            problems.append("GRAGRAPH_JWT_AUDIENCE is required")
+
+        if self.embedding_dimension <= 0:
+            problems.append("EMBEDDING_DIMENSION must be greater than zero")
+
+        if bool(self.embedding_base_url) != bool(self.embedding_model):
+            problems.append(
+                "EMBEDDING_BASE_URL and EMBEDDING_MODEL must be set together"
+            )
+
+        if bool(self.vllm_base_url) != bool(self.vllm_model):
+            problems.append(
+                "VLLM_BASE_URL and VLLM_MODEL must be set together"
+            )
+
+        if bool(self.neo4j_uri) != bool(self.neo4j_password):
+            problems.append(
+                "NEO4J_URI and NEO4J_PASSWORD must be set together"
+            )
+
+        if self.security_ppl_threshold <= 0:
+            problems.append(
+                "SECURITY_PPL_THRESHOLD must be greater than zero"
+            )
+        if self.security_marker_threshold <= 0:
+            problems.append(
+                "SECURITY_MARKER_THRESHOLD must be greater than zero"
+            )
+        if self.rrf_k <= 0:
+            problems.append("RRF_K must be greater than zero")
+        if self.top_k <= 0:
+            problems.append("TOP_K must be greater than zero")
+        if self.vector_weight < 0 or self.graph_weight < 0:
+            problems.append(
+                "VECTOR_WEIGHT and GRAPH_WEIGHT cannot be negative"
+            )
+        if self.vector_weight + self.graph_weight <= 0:
+            problems.append(
+                "VECTOR_WEIGHT + GRAPH_WEIGHT must be greater than zero"
+            )
+
+        if not self.mcp_resource_url:
+            problems.append("MCP_RESOURCE_URL is required")
+        if not self.mcp_issuer_url:
+            problems.append("MCP_ISSUER_URL is required")
+
+        if problems:
+            raise ValueError(
+                "Invalid Enterprise GraphRAG configuration: "
+                + "; ".join(problems)
+            )
+
 
 settings = Settings()
+settings.validate()
