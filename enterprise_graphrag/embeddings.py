@@ -37,7 +37,13 @@ class HashEmbedder(Embedder):
 class OpenAICompatibleEmbedder(Embedder):
     """Embedding adapter for vLLM or another OpenAI-compatible server."""
 
-    def __init__(self, base_url: str, api_key: str, model: str) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        model: str,
+        dimension: int,
+    ) -> None:
         if not base_url or not model:
             raise ValueError(
                 "EMBEDDING_BASE_URL and EMBEDDING_MODEL are required"
@@ -45,7 +51,11 @@ class OpenAICompatibleEmbedder(Embedder):
         self.base_url = base_url.rstrip("/") + "/v1"
         self.api_key = api_key
         self.model = model
-        self.dimension = 1536
+        if dimension <= 0:
+            raise ValueError(
+                "embedding dimension must be greater than zero"
+            )
+        self.dimension = dimension
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         response = httpx.post(
@@ -61,7 +71,19 @@ class OpenAICompatibleEmbedder(Embedder):
         )
         vectors = [item["embedding"] for item in items]
         if vectors:
-            self.dimension = len(vectors[0])
+            actual_dimension = len(vectors[0])
+            if actual_dimension != self.dimension:
+                raise ValueError(
+                    "Embedding dimension mismatch: "
+                    f"configured={self.dimension}, actual={actual_dimension}"
+                )
+            if any(
+                len(vector) != self.dimension
+                for vector in vectors
+            ):
+                raise ValueError(
+                    "Embedding response contains inconsistent vector dimensions"
+                )
         return vectors
 
 
@@ -71,5 +93,6 @@ def build_embedder(settings) -> Embedder:
             settings.embedding_base_url,
             settings.embedding_api_key,
             settings.embedding_model,
+            settings.embedding_dimension,
         )
     return HashEmbedder(settings.embedding_dimension)
