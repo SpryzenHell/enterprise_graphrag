@@ -11,19 +11,49 @@ class Hit:
     text: str
     score: float
     source: str
+    metadata: dict
 
 
-def weighted_rrf(lists: dict[str, list[Hit]], weights: dict[str, float], k: int = 60, limit: int = 8) -> list[Hit]:
-    merged: dict[str, tuple[Hit, float, set[str]]] = {}
+def weighted_rrf(
+    lists: dict[str, list[Hit]],
+    weights: dict[str, float],
+    k: int = 60,
+    limit: int = 8,
+) -> list[Hit]:
+    merged = {}
+
     for source, hits in lists.items():
-        for rank, hit in enumerate(hits, 1):
-            old = merged.get(hit.doc_id)
-            score = weights.get(source, 1.0) / (k + rank)
-            if old:
-                merged[hit.doc_id] = (old[0], old[1] + score, old[2] | {source})
+        weight = float(weights.get(source, 1.0))
+        for rank, hit in enumerate(hits, start=1):
+            contribution = weight / (k + rank)
+            current = merged.get(hit.doc_id)
+            if current is None:
+                merged[hit.doc_id] = (hit, contribution, {source})
             else:
-                merged[hit.doc_id] = (hit, score, {source})
-    result = []
-    for hit, score, sources in sorted(merged.values(), key=lambda x: x[1], reverse=True)[:limit]:
-        result.append(Hit(hit.doc_id, hit.title, hit.tenant_id, hit.text, score, "+".join(sorted(sources))))
-    return result
+                previous, previous_score, sources = current
+                merged[hit.doc_id] = (
+                    previous,
+                    previous_score + contribution,
+                    sources | {source},
+                )
+
+    ranked = sorted(
+        merged.values(),
+        key=lambda item: (-item[1], item[0].doc_id),
+    )
+
+    return [
+        Hit(
+            doc_id=hit.doc_id,
+            title=hit.title,
+            tenant_id=hit.tenant_id,
+            text=hit.text,
+            score=float(score),
+            source="+".join(sorted(sources)),
+            metadata={
+                **hit.metadata,
+                "rrf_sources": sorted(sources),
+            },
+        )
+        for hit, score, sources in ranked[:limit]
+    ]
