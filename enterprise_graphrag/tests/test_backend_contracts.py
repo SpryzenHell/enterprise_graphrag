@@ -68,9 +68,10 @@ def test_vllm_prompt_logprob_ppl_contract(monkeypatch):
                     {
                         "prompt_logprobs": [
                             None,
-                            {"token-a": {"logprob": -1.0}},
-                            {"token-b": {"logprob": -1.5}},
-                        ]
+                            {"11": {"logprob": -1.0}},
+                            {"12": {"logprob": -1.5}},
+                        ],
+                        "prompt_token_ids": [10, 11, 12]
                     }
                 ]
             }
@@ -113,6 +114,8 @@ def test_neo4j_adapter_keeps_tenant_predicates(monkeypatch):
                     "title": "Acme Policy",
                     "text": "Acme policy",
                     "score": 2.0,
+                    "entity_key": "security",
+                    "entity_name": "Security",
                 }
 
                 class Rows:
