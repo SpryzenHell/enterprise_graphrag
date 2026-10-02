@@ -76,7 +76,7 @@ def test_neo4j_tenant_isolation():
 
         stale_hits = store.search(
             "acme",
-            "Security Operations",
+            "Security",
             10,
         )
         updated_hits = store.search(
