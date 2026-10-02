@@ -51,7 +51,7 @@ def test_neo4j_tenant_isolation():
 
         hits = store.search(
             "acme",
-            "Security Operations",
+            "Security",
             10,
         )
 
