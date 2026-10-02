@@ -91,6 +91,16 @@ class TenantFAISS:
         if not documents:
             return
 
+        # Treat doc_id as the tenant-local primary key. This makes ingestion
+        # idempotent and prevents a replayed batch from creating duplicates.
+        documents_by_id = {
+            document["doc_id"]: dict(document)
+            for document in documents
+        }
+        documents = list(documents_by_id.values())
+        if not documents:
+            return
+
         with self._lock:
             matrix = np.asarray(
                 self.embedder.embed(
@@ -106,6 +116,20 @@ class TenantFAISS:
             self.faiss.normalize_L2(matrix)
 
             index = self._load(tenant)
+            existing_ids: list[int] = []
+            existing_doc_ids = {
+                document["doc_id"]
+                for document in documents
+            }
+            for vector_id, existing in self.meta[tenant].items():
+                if (
+                    existing.get("doc_id")
+                    in existing_doc_ids
+                ):
+                    existing_ids.append(
+                        int(vector_id)
+                    )
+
             start = (
                 max(
                     (
@@ -121,10 +145,26 @@ class TenantFAISS:
                 start + len(documents),
                 dtype=np.int64,
             )
+
+            # Add replacements before removing the old vectors so a failed
+            # FAISS add does not leave the index missing the document.
             index.add_with_ids(
                 matrix,
                 ids,
             )
+
+            if existing_ids:
+                index.remove_ids(
+                    np.asarray(
+                        existing_ids,
+                        dtype=np.int64,
+                    )
+                )
+                for vector_id in existing_ids:
+                    self.meta[tenant].pop(
+                        str(vector_id),
+                        None,
+                    )
 
             for vector_id, document in zip(
                 ids.tolist(),
@@ -132,7 +172,7 @@ class TenantFAISS:
             ):
                 self.meta[tenant][
                     str(vector_id)
-                ] = dict(document)
+                ] = document
 
             index_path, meta_path = self._paths(tenant)
             self.faiss.write_index(
@@ -153,56 +193,58 @@ class TenantFAISS:
         query: str,
         limit: int = 8,
     ) -> list[Hit]:
-        query_vector = np.asarray(
-            self.embedder.embed([query]),
-            dtype="float32",
-        )
-        self.faiss.normalize_L2(
-            query_vector
-        )
-
-        index = self._load(tenant)
-        if index.ntotal == 0:
-            return []
-
-        scores, ids = index.search(
-            query_vector,
-            limit,
-        )
-        hits = []
-
-        for vector_id, score in zip(
-            ids[0].tolist(),
-            scores[0].tolist(),
-        ):
-            if vector_id < 0:
-                continue
-
-            document = self.meta[tenant].get(
-                str(vector_id)
+        with self._lock:
+            query_vector = np.asarray(
+                self.embedder.embed([query]),
+                dtype="float32",
             )
-            if document is None:
-                continue
+            self.faiss.normalize_L2(
+                query_vector
+            )
 
-            hits.append(
-                Hit(
-                    doc_id=document["doc_id"],
-                    title=document["title"],
-                    tenant_id=tenant,
-                    text=document["text"],
-                    score=float(score),
-                    source="vector",
-                    metadata=document,
+            index = self._load(tenant)
+            if index.ntotal == 0:
+                return []
+
+            scores, ids = index.search(
+                query_vector,
+                limit,
+            )
+            hits = []
+
+            for vector_id, score in zip(
+                ids[0].tolist(),
+                scores[0].tolist(),
+            ):
+                if vector_id < 0:
+                    continue
+
+                document = self.meta[tenant].get(
+                    str(vector_id)
                 )
-            )
+                if document is None:
+                    continue
 
-        return hits
+                hits.append(
+                    Hit(
+                        doc_id=document["doc_id"],
+                        title=document["title"],
+                        tenant_id=tenant,
+                        text=document["text"],
+                        score=float(score),
+                        source="vector",
+                        metadata=document,
+                    )
+                )
+
+            return hits
 
     def stats(self) -> dict:
-        return {
-            "backend": "FAISS HNSW",
-            "tenants": {
-                tenant: int(index.ntotal)
-                for tenant, index in self.indexes.items()
-            },
-        }
+        with self._lock:
+            return {
+                "backend": "FAISS HNSW",
+                "tenants": {
+                    tenant: int(index.ntotal)
+                    for tenant, index in self.indexes.items()
+                },
+            }
