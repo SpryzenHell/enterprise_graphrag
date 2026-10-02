@@ -236,7 +236,7 @@ def test_memory_graph_upsert_removes_stale_entities():
 
     old_entity_hits = graph.search(
         "acme",
-        "Security Operations",
+        "Security",
         5,
     )
     new_entity_hits = graph.search(
