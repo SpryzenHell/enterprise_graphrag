@@ -2,6 +2,7 @@ import types
 
 import httpx
 
+from enterprise_graphrag.embeddings import OpenAICompatibleEmbedder
 from enterprise_graphrag.llm import VllmAnswerModel
 from enterprise_graphrag.neo4j_store import Neo4jTenantStore
 from enterprise_graphrag.security import SecurityGateway
@@ -192,3 +193,41 @@ def test_neo4j_adapter_keeps_tenant_predicates(monkeypatch):
         and "tenant_id:$tenant" in query
         for query, params in cypher_calls
     )
+
+
+def test_embedding_dimension_is_enforced(monkeypatch):
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "data": [
+                    {
+                        "index": 0,
+                        "embedding": [0.1, 0.2, 0.3],
+                    }
+                ]
+            }
+
+    monkeypatch.setattr(
+        httpx,
+        "post",
+        lambda *args, **kwargs: Response(),
+    )
+
+    model = OpenAICompatibleEmbedder(
+        "http://localhost:8000",
+        "key",
+        "embedding-model",
+        4,
+    )
+
+    try:
+        model.embed(["hello"])
+    except ValueError as exc:
+        assert "Embedding dimension mismatch" in str(exc)
+        assert "configured=4" in str(exc)
+        assert "actual=3" in str(exc)
+    else:
+        raise AssertionError("embedding dimension mismatch was accepted")
