@@ -1,3 +1,5 @@
+> **Supported production runtime:** The current supported application is `enterprise_graphrag/`. The retained legacy GraphRAG/ACE/MCP trees are provenance only. Start with [enterprise_graphrag/README.md](enterprise_graphrag/README.md) and [docs/VALIDATION.md](docs/VALIDATION.md).
+
 # Enterprise GraphRAG Agent
 
 ## 🌟 Features & Architecture
