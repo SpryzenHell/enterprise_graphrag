@@ -1,3 +1,5 @@
+import time
+
 import jwt
 import pytest
 from fastapi import HTTPException
@@ -181,8 +183,6 @@ def test_top_k_upper_bound_is_rejected():
 
 
 def test_expired_token_is_rejected():
-    import time
-
     token = jwt.encode(
         {
             "sub": "u",
