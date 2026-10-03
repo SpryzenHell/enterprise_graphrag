@@ -101,6 +101,18 @@ class Settings:
         "MCP_ISSUER_URL",
         "http://127.0.0.1:8000",
     )
+    mcp_allowed_hosts: tuple[str, ...] = _csv(
+        os.getenv(
+            "MCP_ALLOWED_HOSTS",
+            "127.0.0.1:*,localhost:*,[::1]:*",
+        )
+    )
+    mcp_allowed_origins: tuple[str, ...] = _csv(
+        os.getenv(
+            "MCP_ALLOWED_ORIGINS",
+            "http://127.0.0.1:*,http://localhost:*,http://[::1]:*",
+        )
+    )
 
     security_ppl_threshold: float = float(
         os.getenv(
@@ -215,6 +227,10 @@ class Settings:
             problems.append("MCP_RESOURCE_URL is required")
         if not self.mcp_issuer_url:
             problems.append("MCP_ISSUER_URL is required")
+        if not self.mcp_allowed_hosts:
+            problems.append("MCP_ALLOWED_HOSTS must contain at least one host")
+        if not self.mcp_allowed_origins:
+            problems.append("MCP_ALLOWED_ORIGINS must contain at least one origin")
 
         if problems:
             raise ValueError(
