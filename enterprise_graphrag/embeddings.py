@@ -18,6 +18,10 @@ class HashEmbedder(Embedder):
     """Deterministic offline embeddings for CI and local demos."""
 
     def __init__(self, dimension: int = 384) -> None:
+        if dimension <= 0:
+            raise ValueError(
+                "embedding dimension must be greater than zero"
+            )
         self.dimension = dimension
 
     def _one(self, text: str) -> list[float]:
@@ -65,11 +69,43 @@ class OpenAICompatibleEmbedder(Embedder):
             timeout=120,
         )
         response.raise_for_status()
-        items = sorted(
-            response.json()["data"],
-            key=lambda item: item["index"],
-        )
-        vectors = [item["embedding"] for item in items]
+        payload = response.json()
+        items = payload.get("data")
+        if not isinstance(items, list):
+            raise ValueError(
+                "Embedding response data must be a list"
+            )
+        if len(items) != len(texts):
+            raise ValueError(
+                "Embedding response count mismatch: "
+                f"requested={len(texts)}, returned={len(items)}"
+            )
+
+        try:
+            items = sorted(
+                items,
+                key=lambda item: int(item["index"]),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError(
+                "Embedding response contains invalid item indexes"
+            ) from exc
+
+        expected_indexes = list(range(len(texts)))
+        actual_indexes = [
+            int(item["index"])
+            for item in items
+        ]
+        if actual_indexes != expected_indexes:
+            raise ValueError(
+                "Embedding response indexes are incomplete or duplicated"
+            )
+
+        vectors = [item.get("embedding") for item in items]
+        if any(not isinstance(vector, list) for vector in vectors):
+            raise ValueError(
+                "Embedding response contains invalid vectors"
+            )
         if vectors:
             actual_dimension = len(vectors[0])
             if actual_dimension != self.dimension:
