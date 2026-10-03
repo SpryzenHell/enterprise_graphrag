@@ -15,7 +15,7 @@ FastAPI -> JWT tenant context -> FAISS HNSW + Neo4j graph retrieval -> weighted 
 - Retrieved content is screened before answer generation.
 - When vLLM is configured, the security gateway can call /v1/completions with prompt_logprobs and calculate a perplexity signal.
 - vLLM exposes OpenAI-compatible chat and embedding APIs used by the answer and embedding adapters. citeturn486974search1turn486974search4
-- MCP uses the current Python SDK MCPServer surface, Streamable HTTP and first-class bearer token verification. The SDK supports a custom TokenVerifier plus AuthSettings for resource-server authentication. citeturn114184search0turn309280search3
+- MCP uses the validated Python SDK 2.2.0 MCPServer surface, Streamable HTTP and first-class bearer token verification. The SDK supports a custom TokenVerifier plus AuthSettings for resource-server authentication. citeturn944949search0
 - CI runs package compilation, deterministic tests, backend contract tests, a real Neo4j integration job and a labeled retrieval benchmark.
 
 ## Local validation
