@@ -13,6 +13,10 @@ services:
       NEO4J_USER: neo4j
       NEO4J_PASSWORD: ${NEO4J_PASSWORD:?set NEO4J_PASSWORD}
       NEO4J_DATABASE: neo4j
+      MCP_RESOURCE_URL: ${MCP_RESOURCE_URL:-http://localhost:8000/mcp/}
+      MCP_ISSUER_URL: ${MCP_ISSUER_URL:-http://localhost:8000}
+      MCP_ALLOWED_HOSTS: ${MCP_ALLOWED_HOSTS:-localhost:*,127.0.0.1:*}
+      MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS:-http://localhost:*,http://127.0.0.1:*}
       VLLM_BASE_URL: ${VLLM_BASE_URL:-}
       VLLM_API_KEY: ${VLLM_API_KEY:-}
       VLLM_MODEL: ${VLLM_MODEL:-}
