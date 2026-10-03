@@ -114,6 +114,35 @@ def test_production_rejects_loopback_service_urls():
         raise AssertionError("loopback production URLs were accepted")
 
 
+
+def test_production_accepts_explicit_external_urls():
+    config = Settings(
+        environment="production",
+        jwt_secret="ci-only-secret-change-me-please-32-bytes",
+        jwt_issuer="https://issuer.example",
+        mcp_resource_url="https://graphrag.example/mcp/",
+        mcp_issuer_url="https://issuer.example",
+        mcp_allowed_hosts=("graphrag.example:*",),
+        mcp_allowed_origins=("https://graphrag.example",),
+        allowed_origins=("https://graphrag.example",),
+    )
+    config.validate()
+
+
+def test_production_rejects_multi_value_jwt_issuer():
+    config = Settings(
+        environment="production",
+        jwt_secret="ci-only-secret-change-me-please-32-bytes",
+        jwt_issuer="https://issuer.example,https://other.example",
+        mcp_resource_url="https://graphrag.example/mcp/",
+        mcp_issuer_url="https://issuer.example",
+        mcp_allowed_hosts=("graphrag.example:*",),
+        mcp_allowed_origins=("https://graphrag.example",),
+        allowed_origins=("https://graphrag.example",),
+    )
+    with pytest.raises(ValueError, match="exactly one issuer URL"):
+        config.validate()
+
 def test_demo_token_cli_mints_token_in_test_mode(monkeypatch, capsys):
     import sys
 
