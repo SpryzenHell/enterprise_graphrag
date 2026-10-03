@@ -65,6 +65,11 @@ class TenantFAISS:
 
             index_path, meta_path = self._paths(tenant)
 
+            if index_path.exists() != meta_path.exists():
+                raise ValueError(
+                    f"Incomplete FAISS tenant storage for tenant={tenant}"
+                )
+
             if index_path.exists() and meta_path.exists():
                 index = self.faiss.read_index(
                     str(index_path)
@@ -74,6 +79,25 @@ class TenantFAISS:
                         encoding="utf-8"
                     )
                 )
+                if not isinstance(self.meta[tenant], dict):
+                    raise ValueError(
+                        f"Invalid FAISS metadata for tenant={tenant}"
+                    )
+                if index.ntotal != len(self.meta[tenant]):
+                    raise ValueError(
+                        f"FAISS index/metadata count mismatch for tenant={tenant}: "
+                        f"index={index.ntotal}, metadata={len(self.meta[tenant])}"
+                    )
+                try:
+                    vector_ids = [int(key) for key in self.meta[tenant]]
+                except (TypeError, ValueError) as exc:
+                    raise ValueError(
+                        f"Invalid FAISS metadata vector id for tenant={tenant}"
+                    ) from exc
+                if len(set(vector_ids)) != len(vector_ids):
+                    raise ValueError(
+                        f"Duplicate FAISS metadata vector ids for tenant={tenant}"
+                    )
                 if index.d != self.dimension:
                     raise ValueError(
                         f"FAISS dimension mismatch for tenant={tenant}: "
