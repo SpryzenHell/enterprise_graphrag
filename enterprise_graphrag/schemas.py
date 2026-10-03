@@ -82,10 +82,11 @@ def validate_documents(
                 f"document {doc_id!r} tenant_id does not match target tenant"
             )
 
-        normalized[doc_id] = {
-            "doc_id": doc_id,
-            "title": title,
-            "text": text,
-        }
+        normalized_doc = dict(document)
+        normalized_doc.pop(
+            "tenant_id",
+            None,
+        )
+        normalized[doc_id] = normalized_doc
 
     return list(normalized.values())
