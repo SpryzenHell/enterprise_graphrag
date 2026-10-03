@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import statistics
 import tempfile
 import time
 from pathlib import Path
@@ -213,7 +212,7 @@ def main() -> None:
         "graph",
         "hybrid_rrf",
     ):
-        metrics[name]["recall_at_5"] = (
+        metrics[name][f"recall_at_{k}"] = (
             metrics[name]["hits"] / count
         )
         metrics[name]["mrr"] = (
