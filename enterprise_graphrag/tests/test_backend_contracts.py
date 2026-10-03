@@ -307,3 +307,58 @@ def test_embedding_response_indexes_are_rejected_when_incomplete(monkeypatch):
         assert "indexes" in str(exc)
     else:
         raise AssertionError("invalid embedding indexes were accepted")
+
+
+def test_vllm_skips_generation_when_evidence_is_empty(monkeypatch):
+    called = {"value": False}
+
+    def fake_post(*args, **kwargs):
+        called["value"] = True
+        raise AssertionError("vLLM should not be called")
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    model = VllmAnswerModel(
+        "http://localhost:8000",
+        "key",
+        "served-model",
+    )
+    assert model.answer("question", []) == "No authorized evidence found."
+    assert called["value"] is False
+
+
+def test_vllm_malformed_response_is_rejected(monkeypatch):
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"choices": []}
+
+    monkeypatch.setattr(
+        httpx,
+        "post",
+        lambda *args, **kwargs: Response(),
+    )
+
+    model = VllmAnswerModel(
+        "http://localhost:8000",
+        "key",
+        "served-model",
+    )
+
+    try:
+        model.answer(
+            "question",
+            [
+                {
+                    "doc_id": "a1",
+                    "title": "Policy",
+                    "text": "Evidence.",
+                }
+            ],
+        )
+    except ValueError as exc:
+        assert "no choices" in str(exc)
+    else:
+        raise AssertionError("malformed vLLM response was accepted")
