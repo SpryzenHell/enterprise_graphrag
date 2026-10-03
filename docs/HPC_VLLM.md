@@ -127,3 +127,102 @@ Keep both inference and GraphRAG services on 127.0.0.1 unless your HPC networkin
 The vLLM documentation notes that API-key authentication does not protect every endpoint on its HTTP server, so a private binding or reverse proxy remains important even when a vLLM API key is configured.
 
 For production GraphRAG, use the enterprise identity provider for GraphRAG JWTs. The repository's demo token CLI is for development/test use only.
+
+
+## 10. GitHub Actions A100 runner
+
+The repository now includes `.github/workflows/gpu-validation.yml`. It is designed for a long-lived compute allocation where you manage the Slurm allocation and keep the runner process alive.
+
+The GPU workflow is intentionally separate from normal CI. It targets a custom `gpu-a100` self-hosted runner label, uses `contents: read`, disables checkout credential persistence, and does not run automatically on pull requests.
+
+GitHub self-hosted runners connect outbound to GitHub over HTTPS and can be routed by custom labels. GitHub also warns that self-hosted runners are not isolated clean environments and strongly recommends using them only with private repositories; for this public repository, keep the GPU workflow owner-gated and never put credentials in the repository or in checked-out files. See the GitHub Actions self-hosted runner security guidance.
+
+### Register the runner
+
+On GitHub, open:
+
+    Repository Settings -> Actions -> Runners -> New self-hosted runner
+
+Choose Linux / x64 and follow GitHub's generated commands for downloading and configuring the runner. Do not paste the one-time registration token into this repository or into chat.
+
+During registration, add the custom label:
+
+    gpu-a100
+
+A repository-level runner will also receive the standard `self-hosted`, `linux`, and `x64` labels.
+
+On the compute node, a typical persistent session is:
+
+    mkdir -p ~/actions-runner-enterprise-graphrag
+    cd ~/actions-runner-enterprise-graphrag
+
+Keep the runner process alive for the duration of your allocated compute session:
+
+    ./run.sh
+
+Using `tmux` is appropriate if your interactive shell may disconnect:
+
+    tmux new -s graphrag-runner
+    ./run.sh
+
+The runner must be connected and show as `Idle` in GitHub before a GPU job can be assigned.
+
+Before registering, verify outbound connectivity from the compute node. GitHub documents that self-hosted runners need outbound HTTPS access to GitHub:
+
+    curl -I https://github.com
+
+GitHub's runner application also provides a configuration connectivity check:
+
+    ./config.sh --check --url https://github.com/SpryzenHell/enterprise_graphrag
+
+### Prepare the Conda environment
+
+Use a dedicated environment for vLLM + this runtime so the existing `phase1`, `phase1_ltx`, `phase2_3d`, `phase2_orchestrator`, and `oec_deploy` environments remain untouched.
+
+The GPU workflow defaults to:
+
+    GRAGRAPH_CONDA_ENV=graphrag_vllm
+
+The runner workflow expects the Conda installation used in your current setup to be available at:
+
+    $HOME/Conda
+
+Inside the environment, install vLLM and the repository's Python dependencies. Then verify:
+
+    source "$HOME/Conda/bin/activate"
+    conda activate graphrag_vllm
+    vllm --version
+    python -c "import torch; print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0))"
+
+The workflow itself does not start vLLM because the model path, model ID, GPU placement, and serving options are deployment-specific. Start the private vLLM server on the compute node, preferably bound to loopback:
+
+    vllm serve <CHAT_MODEL> --host 127.0.0.1 --port 8001
+
+Then verify:
+
+    curl http://127.0.0.1:8001/v1/models
+
+### What the GPU workflow actually tests
+
+The GPU job is not just an installation check. It validates:
+
+    1. NVIDIA GPU visibility through nvidia-smi
+    2. CUDA availability through PyTorch
+    3. expected A100 hardware family and compute capability
+    4. the vLLM /v1/models contract
+    5. a real /v1/chat/completions request
+    6. a real /v1/completions prompt_logprobs + prompt_token_ids response
+    7. optional real /v1/embeddings validation, including dimension and finite values
+    8. the normal deterministic GraphRAG test suite
+    9. a real GPU-backed GraphRAG query through VllmAnswerModel
+    10. tenant isolation and retrieved-content injection blocking during that query
+
+The workflow writes `gpu-validation.json` and a JUnit test report, then uploads both as GitHub Actions artifacts.
+
+The tests deliberately avoid hard-coding generation text, latency, or throughput thresholds. Those properties vary by model, quantization, batch size, and server configuration. The current checks instead assert protocol correctness, non-empty generation, finite logprobs, CUDA visibility, retrieval correctness, tenant isolation, and security-boundary behavior.
+
+### Triggering the GPU validation
+
+On the current revamp branch, owner pushes automatically queue the GPU job. Manual `workflow_dispatch` is also available. The job is restricted to the current revamp branch and repository owner so ordinary pull requests cannot execute code on the self-hosted GPU runner.
+
+Use the GitHub Actions run result as the canonical record of whether the real compute-node validation passed.
