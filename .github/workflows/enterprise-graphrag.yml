@@ -114,6 +114,16 @@ jobs:
           curl --fail --silent http://127.0.0.1:8000/health
           curl --fail --silent http://127.0.0.1:8000/ready
 
+          TOKEN=$(docker exec enterprise-graphrag-ci python -c 'import os,jwt; print(jwt.encode({"sub":"ci-user","tenant_id":"acme","scope":"graphrag:query","iss":os.environ["GRAGRAPH_JWT_ISSUER"],"aud":os.environ["GRAGRAPH_JWT_AUDIENCE"]}, os.environ["GRAGRAPH_JWT_SECRET"], algorithm="HS256"))')
+          curl --fail --silent \
+            -H "Authorization: Bearer ${TOKEN}" \
+            http://127.0.0.1:8000/v1/tenant
+          curl --fail --silent \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"health check"}' \
+            http://127.0.0.1:8000/v1/query
+
       - name: Container logs on failure
         if: failure()
         run: docker logs enterprise-graphrag-ci
