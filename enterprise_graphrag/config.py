@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from urllib.parse import urlparse
 
 
 DEFAULT_DEV_JWT_SECRET = "dev-only-change-me-please-use-32-bytes!"
@@ -13,6 +14,10 @@ def _csv(value: str) -> tuple[str, ...]:
         for item in value.split(",")
         if item.strip()
     )
+
+
+def _hostname(url: str) -> str:
+    return (urlparse(url).hostname or "").lower()
 
 
 @dataclass(frozen=True)
@@ -183,12 +188,13 @@ class Settings:
             problems.append("GRAGRAPH_JWT_ISSUER is required")
         if not self.jwt_audience:
             problems.append("GRAGRAPH_JWT_AUDIENCE is required")
-        if env == "production" and any(
-            host in self.jwt_issuer.lower()
-            for host in ("localhost", "127.0.0.1", "[::1]")
+        jwt_issuer_host = _hostname(self.jwt_issuer)
+        if env == "production" and (
+            not jwt_issuer_host
+            or jwt_issuer_host in {"localhost", "127.0.0.1", "::1"}
         ):
             problems.append(
-                "GRAGRAPH_JWT_ISSUER must be an externally reachable issuer in production"
+                "GRAGRAPH_JWT_ISSUER must be an externally reachable HTTP(S) issuer in production"
             )
 
         if self.embedding_dimension <= 0:
@@ -234,19 +240,25 @@ class Settings:
             problems.append("MCP_RESOURCE_URL is required")
         if not self.mcp_issuer_url:
             problems.append("MCP_ISSUER_URL is required")
-        if env == "production" and any(
-            host in self.mcp_resource_url.lower()
-            for host in ("localhost", "127.0.0.1", "[::1]")
+        mcp_resource_host = _hostname(
+            self.mcp_resource_url
+        )
+        if env == "production" and (
+            not mcp_resource_host
+            or mcp_resource_host in {"localhost", "127.0.0.1", "::1"}
         ):
             problems.append(
-                "MCP_RESOURCE_URL must be externally reachable in production"
+                "MCP_RESOURCE_URL must be an externally reachable HTTP(S) URL in production"
             )
-        if env == "production" and any(
-            host in self.mcp_issuer_url.lower()
-            for host in ("localhost", "127.0.0.1", "[::1]")
+        mcp_issuer_host = _hostname(
+            self.mcp_issuer_url
+        )
+        if env == "production" and (
+            not mcp_issuer_host
+            or mcp_issuer_host in {"localhost", "127.0.0.1", "::1"}
         ):
             problems.append(
-                "MCP_ISSUER_URL must be externally reachable in production"
+                "MCP_ISSUER_URL must be an externally reachable HTTP(S) URL in production"
             )
         if not self.mcp_allowed_hosts:
             problems.append("MCP_ALLOWED_HOSTS must contain at least one host")
