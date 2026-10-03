@@ -31,9 +31,21 @@ class Settings:
         "development",
     )
 
+    jwt_mode: str = os.getenv(
+        "GRAGRAPH_JWT_MODE",
+        "shared_secret",
+    )
+    jwt_algorithm: str = os.getenv(
+        "GRAGRAPH_JWT_ALGORITHM",
+        "HS256",
+    )
     jwt_secret: str = os.getenv(
         "GRAGRAPH_JWT_SECRET",
         DEFAULT_DEV_JWT_SECRET,
+    )
+    jwt_jwks_url: str = os.getenv(
+        "GRAGRAPH_JWT_JWKS_URL",
+        "",
     )
     jwt_issuer: str = os.getenv(
         "GRAGRAPH_JWT_ISSUER",
@@ -178,20 +190,52 @@ class Settings:
                 "GRAGRAPH_ENV must be development, test, or production"
             )
 
-        if not self.jwt_secret:
-            problems.append("GRAGRAPH_JWT_SECRET is required")
-        elif env == "production" and (
-            self.jwt_secret == DEFAULT_DEV_JWT_SECRET
-            or len(self.jwt_secret) < 32
-        ):
+        allowed_jwt_modes = {"shared_secret", "jwks"}
+        asymmetric_algorithms = {
+            "RS256", "RS384", "RS512",
+            "PS256", "PS384", "PS512",
+            "ES256", "ES384", "ES512",
+            "EdDSA",
+        }
+        if self.jwt_mode not in allowed_jwt_modes:
+            problems.append("GRAGRAPH_JWT_MODE must be shared_secret or jwks")
+
+        if self.jwt_mode == "shared_secret":
+            if not self.jwt_secret:
+                problems.append("GRAGRAPH_JWT_SECRET is required in shared_secret mode")
+            if self.jwt_algorithm not in {"HS256", "HS384", "HS512"}:
+                problems.append(
+                    "GRAGRAPH_JWT_ALGORITHM must be HS256, HS384, or HS512 in shared_secret mode"
+                )
+            elif env == "production" and (
+                self.jwt_secret == DEFAULT_DEV_JWT_SECRET
+                or len(self.jwt_secret) < 32
+            ):
+                problems.append(
+                    "GRAGRAPH_JWT_SECRET must be a non-default value of at least 32 characters in production"
+                )
+        elif self.jwt_algorithm not in asymmetric_algorithms:
             problems.append(
-                "GRAGRAPH_JWT_SECRET must be a non-default value of at least 32 characters in production"
+                "GRAGRAPH_JWT_ALGORITHM must be an asymmetric signing algorithm in jwks mode"
             )
 
         if not self.jwt_issuer:
             problems.append("GRAGRAPH_JWT_ISSUER is required")
         if not self.jwt_audience:
             problems.append("GRAGRAPH_JWT_AUDIENCE is required")
+        if self.jwt_mode == "jwks" and not self.jwt_jwks_url:
+            problems.append("GRAGRAPH_JWT_JWKS_URL is required in jwks mode")
+        jwks_parsed = urlparse(self.jwt_jwks_url)
+        jwks_host = _hostname(self.jwt_jwks_url)
+        if self.jwt_jwks_url and env == "production" and (
+            jwks_parsed.scheme != "https"
+            or not jwks_host
+            or jwks_host in {"localhost", "127.0.0.1", "::1"}
+        ):
+            problems.append(
+                "GRAGRAPH_JWT_JWKS_URL must be an externally reachable HTTPS URL in production"
+            )
+
         jwt_issuer_parsed = urlparse(self.jwt_issuer)
         jwt_issuer_host = _hostname(self.jwt_issuer)
         if env == "production" and (
