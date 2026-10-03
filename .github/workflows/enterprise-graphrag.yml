@@ -119,7 +119,7 @@ jobs:
             --token "${TOKEN}" \
             --tenant acme \
             --query "incident records" \
-            --expected-doc-id a1
+            --expected-doc-id acme-retention
 
       - name: Container logs on failure
         if: failure()
@@ -168,7 +168,7 @@ jobs:
               --token "${TOKEN}" \
               --tenant acme \
               --query "incident records" \
-              --expected-doc-id a1
+              --expected-doc-id acme-retention
 
       - name: Full-stack logs on failure
         if: failure()
