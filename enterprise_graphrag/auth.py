@@ -54,7 +54,7 @@ def principal_from_token(token: str) -> TenantPrincipal:
     except jwt.PyJWTError as exc:
         raise HTTPException(
             status_code=401,
-            detail=f"invalid access token: {exc}",
+            detail="invalid access token",
         ) from exc
 
     subject = payload.get("sub")
