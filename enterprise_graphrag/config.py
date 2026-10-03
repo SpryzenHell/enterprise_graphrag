@@ -4,6 +4,10 @@ import os
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 DEFAULT_DEV_JWT_SECRET = "dev-only-change-me-please-use-32-bytes!"
 
@@ -115,7 +119,7 @@ class Settings:
     mcp_allowed_origins: tuple[str, ...] = _csv(
         os.getenv(
             "MCP_ALLOWED_ORIGINS",
-            "http://127.0.0.1:*,http://localhost:*,http://[::1]:*",
+            "http://127.0.0.1:8000,http://localhost:8000",
         )
     )
 
