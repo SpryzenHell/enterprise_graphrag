@@ -34,7 +34,8 @@ include = ["enterprise_graphrag*"]
 testpaths = ["enterprise_graphrag/tests"]
 addopts = ["--import-mode=importlib"]
 markers = [
-  "integration: tests that require live external infrastructure"
+  "integration: tests that require live external infrastructure",
+  "gpu: tests that require a CUDA-enabled GPU and/or live vLLM"
 ]
 
 [tool.setuptools.package-data]
