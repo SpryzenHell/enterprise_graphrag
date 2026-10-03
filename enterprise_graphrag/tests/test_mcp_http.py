@@ -186,3 +186,96 @@ def test_mcp_authenticated_tool_call_uses_jwt_tenant(tmp_path):
             citation["doc_id"] == "acme-mcp"
             for citation in structured["citations"]
         )
+
+
+def test_mcp_query_cannot_cross_tenant(tmp_path):
+    acme_token = issue_demo_token(
+        "mcp-user",
+        "acme",
+        ["graphrag:query"],
+    )
+    vector = TenantFAISS(
+        str(tmp_path / "faiss-cross-tenant"),
+        HashEmbedder(32),
+    )
+    retriever = HybridRetriever(
+        vector=vector,
+        graph=TenantMemoryGraph(),
+        security=SecurityGateway(),
+        vector_weight=0.55,
+        graph_weight=0.45,
+        rrf_k=60,
+    )
+    agent = EnterpriseGraphRAGAgent(
+        retriever,
+        ExtractiveAnswerModel(),
+    )
+    agent.retriever.add(
+        "acme",
+        [
+            {
+                "doc_id": "acme-1",
+                "title": "Acme Policy",
+                "text": "Acme incident retention is 365 days.",
+            }
+        ],
+    )
+    agent.retriever.add(
+        "globex",
+        [
+            {
+                "doc_id": "globex-1",
+                "title": "Globex Policy",
+                "text": "Globex incident retention is 90 days.",
+            }
+        ],
+    )
+
+    with TestClient(create_app(agent)) as client:
+        headers = {
+            "Authorization": f"Bearer {acme_token}",
+            "Accept": "application/json, text/event-stream",
+            "Content-Type": "application/json",
+            "Mcp-Protocol-Version": "2025-06-18",
+            "Host": "localhost:8000",
+        }
+        init = client.post(
+            "/mcp/",
+            headers=headers,
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-06-18",
+                    "capabilities": {},
+                    "clientInfo": {"name": "ci-test", "version": "0.1.0"},
+                },
+            },
+        )
+        assert init.status_code == 200
+
+        response = client.post(
+            "/mcp/",
+            headers=headers,
+            json={
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {
+                    "name": "hybrid_search",
+                    "arguments": {"query": "Globex Policy", "top_k": 5},
+                },
+            },
+        )
+        assert response.status_code == 200
+        structured = (response.json()["result"].get("structuredContent") or {})
+        assert structured["trace"]["tenant_id"] == "acme"
+        assert all(
+            citation["tenant_id"] == "acme"
+            for citation in structured["citations"]
+        )
+        assert all(
+            citation["doc_id"] != "globex-1"
+            for citation in structured["citations"]
+        )
