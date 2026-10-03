@@ -46,6 +46,7 @@ class TenantFAISS:
         return (
             self.root / f"{key}.faiss",
             self.root / f"{key}.json",
+            self.root / f"{key}.manifest.json",
         )
 
     def _new_index(self):
@@ -63,22 +64,70 @@ class TenantFAISS:
             if tenant in self.indexes:
                 return self.indexes[tenant]
 
-            index_path, meta_path = self._paths(tenant)
+            index_path, meta_path, manifest_path = self._paths(
+                tenant
+            )
+            paths = (
+                index_path,
+                meta_path,
+                manifest_path,
+            )
+            present = [
+                path.exists()
+                for path in paths
+            ]
 
-            if index_path.exists() != meta_path.exists():
+            if any(present) and not all(present):
                 raise ValueError(
                     f"Incomplete FAISS tenant storage for tenant={tenant}"
                 )
 
-            if index_path.exists() and meta_path.exists():
-                index = self.faiss.read_index(
-                    str(index_path)
-                )
-                self.meta[tenant] = json.loads(
-                    meta_path.read_text(
-                        encoding="utf-8"
+            if all(present):
+                try:
+                    manifest = json.loads(
+                        manifest_path.read_text(
+                            encoding="utf-8"
+                        )
                     )
-                )
+                    expected_index_sha = manifest["index_sha256"]
+                    expected_meta_sha = manifest["metadata_sha256"]
+
+                    index = self.faiss.read_index(
+                        str(index_path)
+                    )
+                    metadata_bytes = meta_path.read_bytes()
+
+                    actual_index_sha = self._sha256_file(
+                        index_path
+                    )
+                    actual_meta_sha = hashlib.sha256(
+                        metadata_bytes
+                    ).hexdigest()
+
+                    if (
+                        actual_index_sha != expected_index_sha
+                        or actual_meta_sha != expected_meta_sha
+                    ):
+                        raise ValueError(
+                            f"FAISS manifest checksum mismatch for tenant={tenant}"
+                        )
+
+                    self.meta[tenant] = json.loads(
+                        metadata_bytes.decode("utf-8")
+                    )
+                except (
+                    OSError,
+                    KeyError,
+                    json.JSONDecodeError,
+                    TypeError,
+                    ValueError,
+                ) as exc:
+                    if isinstance(exc, ValueError) and "FAISS manifest" in str(exc):
+                        raise
+                    raise ValueError(
+                        f"Invalid FAISS tenant storage for tenant={tenant}"
+                    ) from exc
+
                 if not isinstance(self.meta[tenant], dict):
                     raise ValueError(
                         f"Invalid FAISS metadata for tenant={tenant}"
@@ -142,56 +191,95 @@ class TenantFAISS:
         self.faiss.normalize_L2(matrix)
         return matrix
 
+    @staticmethod
+    def _sha256_file(path: Path) -> str:
+        digest = hashlib.sha256()
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+
     def _persist(
         self,
         tenant: str,
         index,
         metadata: dict[str, dict],
     ) -> None:
-        # Persist both artifacts through temporary files. Replace metadata
-        # first, then the index: after a crash the metadata may reference vectors
-        # not yet visible in FAISS, but FAISS will never expose new vector IDs
-        # without matching metadata, and the next ID allocation cannot reuse them.
-        index_path, meta_path = self._paths(tenant)
-        index_fd, index_tmp = tempfile.mkstemp(
-            dir=self.root,
-            prefix=index_path.name + ".",
-            suffix=".tmp",
+        # Write index/metadata to temp files, then atomically publish a manifest
+        # last. Readers accept a tenant only when both artifacts match the
+        # manifest checksums, preventing mixed-generation state after crashes.
+        index_path, meta_path, manifest_path = self._paths(
+            tenant
         )
-        meta_fd, meta_tmp = tempfile.mkstemp(
-            dir=self.root,
-            prefix=meta_path.name + ".",
-            suffix=".tmp",
-        )
-        os.close(index_fd)
-        os.close(meta_fd)
+        temp_paths = []
+        fds = []
 
         try:
+            for target in (
+                index_path,
+                meta_path,
+                manifest_path,
+            ):
+                fd, tmp = tempfile.mkstemp(
+                    dir=self.root,
+                    prefix=target.name + ".",
+                    suffix=".tmp",
+                )
+                os.close(fd)
+                fds.append(fd)
+                temp_paths.append(tmp)
+
+            index_tmp, meta_tmp, manifest_tmp = temp_paths
+
             self.faiss.write_index(
                 index,
                 index_tmp,
             )
             Path(index_tmp).chmod(0o600)
 
-            Path(meta_tmp).write_text(
+            metadata_bytes = json.dumps(
+                metadata,
+                indent=2,
+            ).encode("utf-8")
+            Path(meta_tmp).write_bytes(
+                metadata_bytes
+            )
+            Path(meta_tmp).chmod(0o600)
+
+            manifest = {
+                "version": 1,
+                "index_sha256": self._sha256_file(
+                    Path(index_tmp)
+                ),
+                "metadata_sha256": hashlib.sha256(
+                    metadata_bytes
+                ).hexdigest(),
+                "count": len(metadata),
+                "dimension": self.dimension,
+            }
+            Path(manifest_tmp).write_text(
                 json.dumps(
-                    metadata,
+                    manifest,
                     indent=2,
                 ),
                 encoding="utf-8",
             )
-            Path(meta_tmp).chmod(0o600)
+            Path(manifest_tmp).chmod(0o600)
 
+            os.replace(
+                index_tmp,
+                index_path,
+            )
             os.replace(
                 meta_tmp,
                 meta_path,
             )
             os.replace(
-                index_tmp,
-                index_path,
+                manifest_tmp,
+                manifest_path,
             )
         finally:
-            for tmp_path in (index_tmp, meta_tmp):
+            for tmp_path in temp_paths:
                 try:
                     os.unlink(tmp_path)
                 except FileNotFoundError:
