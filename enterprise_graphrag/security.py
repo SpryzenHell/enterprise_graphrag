@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import re
+import unicodedata
 
 import httpx
 
@@ -148,11 +149,27 @@ class SecurityGateway:
         ):
             return None
 
+    @staticmethod
+    def _normalize(text: str) -> str:
+        # Normalize compatibility characters and strip zero-width controls so
+        # obvious prompt-injection phrases cannot evade marker detection by
+        # Unicode formatting tricks.
+        normalized = unicodedata.normalize(
+            "NFKC",
+            text,
+        )
+        return "".join(
+            char
+            for char in normalized
+            if char not in "\u200b\u200c\u200d\ufeff"
+        )
+
     def inspect(
         self,
         text: str,
         direct: bool = False,
     ) -> dict:
+        text = self._normalize(text)
         marker_count = sum(
             len(
                 pattern.findall(text)
