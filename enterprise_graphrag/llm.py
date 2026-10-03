@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import httpx
 
+from .errors import BackendUnavailable
+
 
 class AnswerModel:
     def answer(self, query: str, contexts: list[dict]) -> str:
