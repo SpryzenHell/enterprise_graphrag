@@ -54,7 +54,16 @@ The MCP endpoint is /mcp/. It uses the Authorization bearer token from the HTTP 
 
 The MCP tool does not accept a tenant ID parameter. Tenant identity comes from the verified token, preventing a caller from selecting another tenant in the tool arguments.
 
-## 9. Run automated evidence
+## 9. Probe a running deployment
+
+After starting the API, the reusable runtime probe checks liveness, readiness, authenticated tenant context, and (when supplied) a query:
+
+    TOKEN=$(python -m enterprise_graphrag.token --subject demo-user --tenant acme --scope graphrag:query)
+    python scripts/runtime_probe.py --base-url http://127.0.0.1:8000 --token "$TOKEN" --tenant acme --query "How long does Acme retain incident records?"
+
+In production, supply a token issued by the enterprise identity provider instead of using the development token CLI.
+
+## 10. Run automated evidence
 
     pytest -q enterprise_graphrag/tests
     python scripts/evaluate_enterprise.py
