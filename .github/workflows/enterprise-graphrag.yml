@@ -111,12 +111,14 @@ jobs:
             fi
             sleep 2
           done
+          docker exec enterprise-graphrag-ci python scripts/build_demo_index.py
           TOKEN=$(docker exec enterprise-graphrag-ci python -c 'import os,jwt; print(jwt.encode({"sub":"ci-user","tenant_id":"acme","scope":"graphrag:query","iss":os.environ["GRAGRAPH_JWT_ISSUER"],"aud":os.environ["GRAGRAPH_JWT_AUDIENCE"]}, os.environ["GRAGRAPH_JWT_SECRET"], algorithm="HS256"))')
           docker exec enterprise-graphrag-ci python scripts/runtime_probe.py \
             --base-url http://127.0.0.1:8000 \
             --token "${TOKEN}" \
             --tenant acme \
-            --query "health check"
+            --query "incident records" \
+            --expected-doc-id a1
 
       - name: Container logs on failure
         if: failure()
@@ -158,12 +160,14 @@ jobs:
 
       - name: Authenticated full-stack query
         run: |
+          docker compose -f docker-compose.enterprise.yml exec -T app             python scripts/build_demo_index.py
           TOKEN=$(docker compose -f docker-compose.enterprise.yml exec -T app             python -c 'import os,jwt; print(jwt.encode({"sub":"ci-user","tenant_id":"acme","scope":"graphrag:query","iss":os.environ["GRAGRAPH_JWT_ISSUER"],"aud":os.environ["GRAGRAPH_JWT_AUDIENCE"]}, os.environ["GRAGRAPH_JWT_SECRET"], algorithm="HS256"))')
           docker compose -f docker-compose.enterprise.yml exec -T app             python scripts/runtime_probe.py \
               --base-url http://localhost:8000 \
               --token "${TOKEN}" \
               --tenant acme \
-              --query "health check"
+              --query "incident records" \
+              --expected-doc-id a1
 
       - name: Full-stack logs on failure
         if: failure()
