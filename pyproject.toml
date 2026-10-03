@@ -16,7 +16,7 @@ dependencies = [
   "numpy>=1.26,<3",
   "faiss-cpu>=1.8,<2",
   "neo4j>=5,<7",
-  "mcp>=2,<3",
+  "mcp==2.2.0",
 ]
 
 [project.optional-dependencies]
