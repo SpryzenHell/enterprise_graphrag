@@ -195,6 +195,7 @@ def create_app(
     )
     def query(
         request: QueryRequest,
+        http_request: Request,
         principal: TenantPrincipal = Depends(
             require_query_access
         ),
@@ -204,7 +205,11 @@ def create_app(
             request.query,
             request.top_k,
         )
-        result["trace"]["request_id"] = request.state.request_id
+        result["trace"]["request_id"] = getattr(
+            http_request.state,
+            "request_id",
+            "",
+        )
         return QueryResponse.model_validate(result)
 
     if mcp_app is not None:
