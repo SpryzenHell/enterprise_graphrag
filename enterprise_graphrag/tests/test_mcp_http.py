@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 from enterprise_graphrag.agent import EnterpriseGraphRAGAgent
 from enterprise_graphrag.api import create_app
+from enterprise_graphrag.auth import issue_demo_token
 from enterprise_graphrag.embeddings import HashEmbedder
 from enterprise_graphrag.llm import ExtractiveAnswerModel
 from enterprise_graphrag.retrieval import HybridRetriever, TenantMemoryGraph
@@ -62,19 +63,13 @@ def test_mcp_http_route_requires_bearer_token(tmp_path):
 
 
 def test_mcp_authenticated_tool_call_uses_jwt_tenant(tmp_path):
-    application = build_test_app(tmp_path)
     token = issue_demo_token(
         "mcp-user",
         "acme",
         ["graphrag:query"],
     )
 
-    application.router.lifespan_context
-
     # Seed data through the same supported retriever used by the API.
-    runtime_agent = application
-    # The app factory closes over the runtime; use a direct test agent for
-    # deterministic retrieval setup, then mount it in a fresh app.
     vector = TenantFAISS(
         str(tmp_path / "mcp-fresh-faiss"),
         HashEmbedder(32),
