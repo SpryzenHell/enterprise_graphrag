@@ -188,9 +188,11 @@ class Settings:
             problems.append("GRAGRAPH_JWT_ISSUER is required")
         if not self.jwt_audience:
             problems.append("GRAGRAPH_JWT_AUDIENCE is required")
+        jwt_issuer_parsed = urlparse(self.jwt_issuer)
         jwt_issuer_host = _hostname(self.jwt_issuer)
         if env == "production" and (
-            not jwt_issuer_host
+            jwt_issuer_parsed.scheme not in {"http", "https"}
+            or not jwt_issuer_host
             or jwt_issuer_host in {"localhost", "127.0.0.1", "::1"}
         ):
             problems.append(
@@ -243,8 +245,12 @@ class Settings:
         mcp_resource_host = _hostname(
             self.mcp_resource_url
         )
+        mcp_resource_parsed = urlparse(
+            self.mcp_resource_url
+        )
         if env == "production" and (
-            not mcp_resource_host
+            mcp_resource_parsed.scheme not in {"http", "https"}
+            or not mcp_resource_host
             or mcp_resource_host in {"localhost", "127.0.0.1", "::1"}
         ):
             problems.append(
@@ -253,8 +259,12 @@ class Settings:
         mcp_issuer_host = _hostname(
             self.mcp_issuer_url
         )
+        mcp_issuer_parsed = urlparse(
+            self.mcp_issuer_url
+        )
         if env == "production" and (
-            not mcp_issuer_host
+            mcp_issuer_parsed.scheme not in {"http", "https"}
+            or not mcp_issuer_host
             or mcp_issuer_host in {"localhost", "127.0.0.1", "::1"}
         ):
             problems.append(
