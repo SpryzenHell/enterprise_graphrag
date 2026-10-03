@@ -1,6 +1,9 @@
 name: enterprise-graphrag-gpu-validation
 
 on:
+  push:
+    branches:
+      - "revamp/enterprise-graphrag-productionize"
   workflow_dispatch:
     inputs:
       conda_env:
@@ -48,6 +51,10 @@ concurrency:
 
 jobs:
   gpu-validation:
+    # This runner is a long-lived private HPC resource. Until the workflow is
+    # merged to the default branch, only owner pushes to the trusted revamp
+    # branch may execute code on it.
+    if: github.ref == 'refs/heads/revamp/enterprise-graphrag-productionize' && github.actor == github.repository_owner
     runs-on: [self-hosted, linux, x64, gpu-a100]
     timeout-minutes: 45
     env:
