@@ -131,7 +131,7 @@ jobs:
             sleep 2
           done
           docker exec enterprise-graphrag-ci python scripts/build_demo_index.py
-          TOKEN=$(docker exec enterprise-graphrag-ci python -c 'import os,jwt; print(jwt.encode({"sub":"ci-user","tenant_id":"acme","scope":"graphrag:query","iss":os.environ["GRAGRAPH_JWT_ISSUER"],"aud":os.environ["GRAGRAPH_JWT_AUDIENCE"]}, os.environ["GRAGRAPH_JWT_SECRET"], algorithm="HS256"))')
+          TOKEN=$(docker exec enterprise-graphrag-ci python -c 'import os,jwt,time; print(jwt.encode({"sub":"ci-user","tenant_id":"acme","scope":"graphrag:query","iss":os.environ["GRAGRAPH_JWT_ISSUER"],"aud":os.environ["GRAGRAPH_JWT_AUDIENCE"],"exp":int(time.time())+3600}, os.environ["GRAGRAPH_JWT_SECRET"], algorithm="HS256"))')
           docker exec enterprise-graphrag-ci python scripts/runtime_probe.py \
             --base-url http://127.0.0.1:8000 \
             --token "${TOKEN}" \
