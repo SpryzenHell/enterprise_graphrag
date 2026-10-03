@@ -302,3 +302,31 @@ def test_faiss_upsert_is_idempotent(tmp_path):
     assert [hit.doc_id for hit in hits] == ["doc-1"]
     assert hits[0].title == "Final Policy"
     assert hits[0].text == "Final retention policy for Acme."
+
+
+def test_memory_graph_excludes_zero_score_documents():
+    graph = TenantMemoryGraph()
+    graph.add(
+        "acme",
+        {
+            "doc_id": "doc-1",
+            "title": "Finance Policy",
+            "text": "Finance Operations owns incident response.",
+        },
+    )
+    graph.add(
+        "acme",
+        {
+            "doc_id": "doc-2",
+            "title": "Security Policy",
+            "text": "Security Operations owns access reviews.",
+        },
+    )
+
+    hits = graph.search(
+        "acme",
+        "completely-unrelated-term",
+        5,
+    )
+
+    assert hits == []
