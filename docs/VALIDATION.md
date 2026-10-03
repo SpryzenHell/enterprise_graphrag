@@ -36,7 +36,9 @@ Use the provider probe against the target OpenAI-compatible endpoint:
       --embedding-model "$EMBEDDING_MODEL" \
       --embedding-dimension "$EMBEDDING_DIMENSION"
 
-The probe verifies Chat Completions, Embeddings, and prompt-logprob support, including observed-token logprobs and the configured embedding dimension. It reports per-operation latency but does not replace an application-level accuracy/security evaluation.
+The provider key is optional for a private/local vLLM server. The probe verifies Chat Completions, Embeddings, and prompt-logprob support, including observed-token logprobs and the configured embedding dimension. It reports per-operation latency but does not replace an application-level accuracy/security evaluation.
+
+For a VPN-only HPC/DGX deployment, see [HPC_VLLM.md](HPC_VLLM.md) for the private same-node and SSH port-forwarding setup.
 
 ## Application runtime probe
 
