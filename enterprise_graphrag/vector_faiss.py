@@ -111,17 +111,34 @@ class TenantFAISS:
             return index
 
     def _embed(self, documents: list[dict]) -> np.ndarray:
+        vectors = self.embedder.embed(
+            [
+                doc["title"]
+                + "\n"
+                + doc["text"]
+                for doc in documents
+            ]
+        )
+        if len(vectors) != len(documents):
+            raise ValueError(
+                "Embedding count mismatch during indexing: "
+                f"documents={len(documents)}, vectors={len(vectors)}"
+            )
+
         matrix = np.asarray(
-            self.embedder.embed(
-                [
-                    doc["title"]
-                    + "\n"
-                    + doc["text"]
-                    for doc in documents
-                ]
-            ),
+            vectors,
             dtype="float32",
         )
+        if matrix.ndim != 2 or matrix.shape[1] != self.dimension:
+            raise ValueError(
+                "Embedding matrix dimension mismatch: "
+                f"expected=(*,{self.dimension}), actual={matrix.shape}"
+            )
+        if not np.isfinite(matrix).all():
+            raise ValueError(
+                "Embedding matrix contains non-finite values"
+            )
+
         self.faiss.normalize_L2(matrix)
         return matrix
 
