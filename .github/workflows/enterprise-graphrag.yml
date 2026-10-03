@@ -106,6 +106,7 @@ jobs:
 
       - name: Health and readiness smoke test
         run: |
+          test "$(docker exec enterprise-graphrag-ci id -u)" = "10001"
           for i in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:8000/health > /tmp/health.json; then
               break
