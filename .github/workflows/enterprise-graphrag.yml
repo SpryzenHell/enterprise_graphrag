@@ -100,7 +100,7 @@ jobs:
             -e GRAGRAPH_JWT_AUDIENCE=enterprise-graphrag-api \
             -e MCP_RESOURCE_URL=https://graphrag.example.invalid/mcp/ \
             -e MCP_ISSUER_URL=https://graphrag.example.invalid \
-            -e MCP_ALLOWED_HOSTS=graphrag.example.invalid:* \
+            -e MCP_ALLOWED_HOSTS=graphrag.example.invalid:*,localhost:8000 \
             -e MCP_ALLOWED_ORIGINS=https://graphrag.example.invalid \
             enterprise-graphrag:ci
 
@@ -120,6 +120,12 @@ jobs:
             --tenant acme \
             --query "incident records" \
             --expected-doc-id acme-retention
+          docker exec enterprise-graphrag-ci python scripts/mcp_probe.py \
+            --url http://127.0.0.1:8000/mcp/ \
+            --token "${TOKEN}" \
+            --tenant acme \
+            --query "incident records" \
+            --expected-doc-id acme-retention
 
       - name: Container logs on failure
         if: failure()
@@ -135,13 +141,13 @@ jobs:
     env:
       GRAGRAPH_ENV: production
       GRAGRAPH_JWT_SECRET: ci-only-secret-change-me-please-32-bytes
-      GRAGRAPH_JWT_ISSUER: https://graphrag.example.invalid
+      GRAGRAPH_JWT_ISSUER: https://graphrag.example.invalid,http://localhost:8000
       GRAGRAPH_JWT_AUDIENCE: enterprise-graphrag-api
       NEO4J_PASSWORD: testpassword
       MCP_RESOURCE_URL: https://graphrag.example.invalid/mcp/
-      MCP_ISSUER_URL: https://graphrag.example.invalid
-      MCP_ALLOWED_HOSTS: graphrag.example.invalid:*
-      MCP_ALLOWED_ORIGINS: https://graphrag.example.invalid
+      MCP_ISSUER_URL: https://graphrag.example.invalid,http://localhost:8000
+      MCP_ALLOWED_HOSTS: graphrag.example.invalid:*,localhost:8000
+      MCP_ALLOWED_ORIGINS: https://graphrag.example.invalid,http://localhost:8000
     steps:
       - uses: actions/checkout@v4
 
@@ -165,6 +171,12 @@ jobs:
           TOKEN=$(docker compose -f docker-compose.enterprise.yml exec -T app             python -c 'import os,jwt; print(jwt.encode({"sub":"ci-user","tenant_id":"acme","scope":"graphrag:query","iss":os.environ["GRAGRAPH_JWT_ISSUER"],"aud":os.environ["GRAGRAPH_JWT_AUDIENCE"]}, os.environ["GRAGRAPH_JWT_SECRET"], algorithm="HS256"))')
           docker compose -f docker-compose.enterprise.yml exec -T app             python scripts/runtime_probe.py \
               --base-url http://localhost:8000 \
+              --token "${TOKEN}" \
+              --tenant acme \
+              --query "incident records" \
+              --expected-doc-id acme-retention
+          docker compose -f docker-compose.enterprise.yml exec -T app             python scripts/mcp_probe.py \
+              --url http://localhost:8000/mcp/ \
               --token "${TOKEN}" \
               --tenant acme \
               --query "incident records" \
