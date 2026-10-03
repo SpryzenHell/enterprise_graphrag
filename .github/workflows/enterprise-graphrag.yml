@@ -121,3 +121,40 @@ jobs:
       - name: Stop container
         if: always()
         run: docker rm -f enterprise-graphrag-ci
+
+
+  compose-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start full stack
+        env:
+          GRAGRAPH_ENV: production
+          GRAGRAPH_JWT_SECRET: ci-only-secret-change-me-please-32-bytes
+          GRAGRAPH_JWT_ISSUER: https://graphrag.example.invalid
+          NEO4J_PASSWORD: testpassword
+          MCP_RESOURCE_URL: https://graphrag.example.invalid/mcp/
+          MCP_ISSUER_URL: https://graphrag.example.invalid
+          MCP_ALLOWED_HOSTS: graphrag.example.invalid:*
+          MCP_ALLOWED_ORIGINS: https://graphrag.example.invalid
+        run: docker compose -f docker-compose.enterprise.yml up -d --build
+
+      - name: Wait for full-stack readiness
+        run: |
+          for i in $(seq 1 45); do
+            if curl --fail --silent http://127.0.0.1:8000/ready; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose -f docker-compose.enterprise.yml ps
+          exit 1
+
+      - name: Full-stack logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.enterprise.yml logs --no-color
+
+      - name: Stop full stack
+        if: always()
+        run: docker compose -f docker-compose.enterprise.yml down -v
