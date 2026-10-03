@@ -1,3 +1,5 @@
+import hashlib
+import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -373,8 +375,21 @@ def test_faiss_metadata_count_mismatch_fails_closed(tmp_path):
         ],
     )
     _, meta_path, manifest_path = store._paths("acme")
-    meta_path.write_text("{}", encoding="utf-8")
-    manifest_path.unlink()
+    meta_bytes = b"{}"
+    meta_path.write_bytes(meta_bytes)
+    manifest = json.loads(
+        manifest_path.read_text(
+            encoding="utf-8"
+        )
+    )
+    manifest["metadata_sha256"] = hashlib.sha256(
+        meta_bytes
+    ).hexdigest()
+    manifest["count"] = 0
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2),
+        encoding="utf-8",
+    )
 
     fresh = TenantFAISS(
         str(tmp_path / "faiss"),
