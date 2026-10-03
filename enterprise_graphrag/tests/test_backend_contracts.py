@@ -3,6 +3,7 @@ import types
 import httpx
 
 from enterprise_graphrag.embeddings import OpenAICompatibleEmbedder
+from enterprise_graphrag.errors import BackendUnavailable
 from enterprise_graphrag.llm import VllmAnswerModel
 from enterprise_graphrag.neo4j_store import Neo4jTenantStore
 from enterprise_graphrag.security import SecurityGateway
@@ -362,3 +363,32 @@ def test_vllm_malformed_response_is_rejected(monkeypatch):
         assert "no choices" in str(exc)
     else:
         raise AssertionError("malformed vLLM response was accepted")
+
+
+def test_vllm_transport_failure_is_explicit(monkeypatch):
+    def fake_post(*args, **kwargs):
+        raise httpx.ConnectError("connection failed")
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    model = VllmAnswerModel(
+        "http://localhost:8000",
+        "key",
+        "served-model",
+    )
+
+    try:
+        model.answer(
+            "question",
+            [
+                {
+                    "doc_id": "a1",
+                    "title": "Policy",
+                    "text": "Evidence.",
+                }
+            ],
+        )
+    except BackendUnavailable as exc:
+        assert "vLLM answer backend is unavailable" in str(exc)
+    else:
+        raise AssertionError("vLLM transport failure was not surfaced")
