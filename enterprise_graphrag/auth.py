@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+import time
 
 import jwt
 from fastapi import Depends, Header, HTTPException
@@ -33,6 +34,7 @@ def issue_demo_token(subject: str, tenant_id: str, scopes: list[str]) -> str:
             "scope": " ".join(scopes),
             "iss": settings.jwt_issuer,
             "aud": settings.jwt_audience,
+            "exp": int(time.time()) + 3600,
         },
         settings.jwt_secret,
         algorithm=settings.jwt_algorithm,
@@ -47,7 +49,7 @@ def principal_from_token(token: str) -> TenantPrincipal:
             algorithms=[settings.jwt_algorithm],
             issuer=settings.jwt_issuer,
             audience=settings.jwt_audience,
-            options={"require": ["sub", "tenant_id", "iss", "aud"]},
+            options={"require": ["sub", "tenant_id", "iss", "aud", "exp"]},
         )
     except jwt.PyJWTError as exc:
         raise HTTPException(
