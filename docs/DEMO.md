@@ -18,6 +18,16 @@ For the deterministic local demo, leave Neo4j and vLLM variables empty.
 
 This creates tenant-partitioned FAISS indexes and populates the in-memory graph.
 
+For a larger JSONL corpus, use the streaming ingester instead:
+
+    python scripts/index_corpus.py --corpus ./enterprise_data/corpus.jsonl --batch-size 64
+
+To index selected tenants only, repeat the filter:
+
+    python scripts/index_corpus.py --tenant acme --tenant globex
+
+The streaming ingester preserves the tenant boundary and avoids loading the full corpus into memory.
+
 ## 4. Start the API
 
     python -m enterprise_graphrag.run --host 127.0.0.1 --port 8000
@@ -80,3 +90,15 @@ For Neo4j:
 Then set the Neo4j environment variables and run the demo indexing command.
 
 For vLLM, set VLLM_BASE_URL, VLLM_MODEL and VLLM_API_KEY to an OpenAI-compatible inference server. The retrieval and security contract stays the same. vLLM supports the Completions, Chat Completions and Embeddings APIs used by this runtime. citeturn486974search1
+
+## Enterprise JWT mode
+
+The deterministic demo uses the local shared-secret token mode. A production deployment can use an enterprise IdP's JWKS endpoint instead:
+
+    GRAGRAPH_JWT_MODE=jwks
+    GRAGRAPH_JWT_ALGORITHM=RS256
+    GRAGRAPH_JWT_ISSUER=https://<issuer>
+    GRAGRAPH_JWT_AUDIENCE=<audience>
+    GRAGRAPH_JWT_JWKS_URL=https://<issuer>/.well-known/jwks.json
+
+In JWKS mode, the demo token CLI is disabled; GraphRAG expects tokens issued by the configured identity provider. Keep the JWKS endpoint HTTPS-only in production.
