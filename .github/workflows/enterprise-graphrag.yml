@@ -96,6 +96,11 @@ jobs:
             -p 8000:8000 \
             -e GRAGRAPH_ENV=production \
             -e GRAGRAPH_JWT_SECRET=ci-only-secret-change-me-please-32-bytes \
+            -e GRAGRAPH_JWT_ISSUER=https://graphrag.example.invalid \
+            -e MCP_RESOURCE_URL=https://graphrag.example.invalid/mcp/ \
+            -e MCP_ISSUER_URL=https://graphrag.example.invalid \
+            -e MCP_ALLOWED_HOSTS=graphrag.example.invalid:* \
+            -e MCP_ALLOWED_ORIGINS=https://graphrag.example.invalid \
             enterprise-graphrag:ci
 
       - name: Health and readiness smoke test
