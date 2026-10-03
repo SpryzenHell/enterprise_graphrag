@@ -49,3 +49,16 @@ After the service is running:
       --query "representative question"
 
 This verifies liveness, readiness, authenticated tenant context, and that returned citations do not cross the supplied tenant boundary.
+
+
+## Authenticated MCP probe
+
+After the API is running and the same tenant JWT is available:
+
+    python scripts/mcp_probe.py \
+      --url "$GRAGRAPH_BASE_URL/mcp/" \
+      --token "$ENTERPRISE_IDP_ACCESS_TOKEN" \
+      --tenant "$TENANT_ID" \
+      --query "representative question"
+
+The probe verifies MCP initialization, tool discovery, authenticated `hybrid_search`, JWT-derived tenant identity, citation tenant isolation, and an optional expected document.
