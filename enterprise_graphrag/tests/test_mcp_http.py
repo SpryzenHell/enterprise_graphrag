@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from enterprise_graphrag.agent import EnterpriseGraphRAGAgent
 from enterprise_graphrag.api import create_app
 from enterprise_graphrag.embeddings import HashEmbedder
-from enterprise_graphraggraphrag.llm import ExtractiveAnswerModel
+from enterprise_graphrag.llm import ExtractiveAnswerModel
 from enterprise_graphrag.retrieval import HybridRetriever, TenantMemoryGraph
 from enterprise_graphrag.security import SecurityGateway
 from enterprise_graphrag.vector_faiss import TenantFAISS
