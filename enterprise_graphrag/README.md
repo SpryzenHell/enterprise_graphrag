@@ -54,6 +54,10 @@ Set NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD and NEO4J_DATABASE.
 
 The adapter uses parameterized Cypher, explicit database selection and tenant-aware document/entity identity.
 
+### Enterprise JWT verification
+
+For development and deterministic CI, the runtime uses a shared-secret JWT verifier. For production, configure GRAGRAPH_JWT_MODE=jwks with an asymmetric signing algorithm and the identity provider's HTTPS JWKS endpoint. The demo-token CLI is disabled in JWKS mode.
+
 ### vLLM
 
 vLLM's OpenAI-compatible server provides the Completions, Chat Completions and Embeddings APIs. prompt_logprobs are supported on the Completions API and are used here only as one security signal. citeturn486974search1turn486974search4
@@ -63,6 +67,10 @@ vLLM's OpenAI-compatible server provides the Completions, Chat Completions and E
 The current MCP Python SDK supports MCPServer, Streamable HTTP and a TokenVerifier/AuthSettings resource-server pattern. The configured verifier validates the same JWT used by the API and makes tenant_id available to the MCP tool layer. citeturn114184search0turn309280search3
 
 For a deployed hostname, set MCP_RESOURCE_URL to the exact public MCP URL. The SDK's transport security should be configured with the real served host as part of production deployment. citeturn114184search4
+
+## Corpus ingestion
+
+For small demos, scripts/build_demo_index.py indexes the checked-in fixture. For real datasets, scripts/index_corpus.py streams JSONL records in bounded per-tenant batches and supports an optional tenant allowlist.
 
 ## Evidence boundary
 
