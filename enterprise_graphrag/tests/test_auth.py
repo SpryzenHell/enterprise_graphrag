@@ -326,3 +326,39 @@ def test_jwks_mode_disables_demo_token_minting(monkeypatch):
 
     with pytest.raises(RuntimeError, match="Demo tokens"):
         auth_module.issue_demo_token("u", "acme", ["graphrag:query"])
+
+
+def test_production_rejects_wildcard_mcp_allowlists():
+    config = Settings(
+        environment="production",
+        jwt_secret="ci-only-secret-change-me-please-32-bytes",
+        jwt_issuer="https://issuer.example",
+        mcp_resource_url="https://graphrag.example/mcp/",
+        mcp_issuer_url="https://issuer.example",
+        mcp_allowed_hosts=("*",),
+        mcp_allowed_origins=("*",),
+        allowed_origins=("*",),
+    )
+    with pytest.raises(ValueError) as exc:
+        config.validate()
+    message = str(exc.value)
+    assert "MCP_ALLOWED_HOSTS" in message
+    assert "MCP_ALLOWED_ORIGINS" in message
+    assert "ALLOWED_ORIGINS" in message
+
+
+def test_production_rejects_loopback_mcp_allowlists():
+    config = Settings(
+        environment="production",
+        jwt_secret="ci-only-secret-change-me-please-32-bytes",
+        jwt_issuer="https://issuer.example",
+        mcp_resource_url="https://graphrag.example/mcp/",
+        mcp_issuer_url="https://issuer.example",
+        mcp_allowed_hosts=("localhost:*",),
+        mcp_allowed_origins=("http://127.0.0.1:8000",),
+    )
+    with pytest.raises(ValueError) as exc:
+        config.validate()
+    message = str(exc.value)
+    assert "MCP_ALLOWED_HOSTS" in message
+    assert "MCP_ALLOWED_ORIGINS" in message
