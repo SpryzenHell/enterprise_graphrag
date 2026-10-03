@@ -438,3 +438,48 @@ def test_retrieved_malicious_title_is_blocked(tmp_path):
         citation["doc_id"] != "title-evil"
         for citation in result["citations"]
     )
+
+
+def test_ingestion_rejects_cross_tenant_document(tmp_path):
+    agent = build_agent(tmp_path)
+
+    try:
+        agent.retriever.add(
+            "acme",
+            [
+                {
+                    "doc_id": "wrong-tenant",
+                    "title": "Policy",
+                    "text": "Acme policy.",
+                    "tenant_id": "globex",
+                }
+            ],
+        )
+    except ValueError as exc:
+        assert "tenant_id does not match" in str(exc)
+    else:
+        raise AssertionError("cross-tenant document was accepted")
+
+
+def test_ingestion_rejects_empty_document_fields(tmp_path):
+    agent = build_agent(tmp_path)
+
+    for field, value in (
+        ("doc_id", ""),
+        ("title", ""),
+        ("text", ""),
+    ):
+        document = {
+            "doc_id": "doc-1",
+            "title": "Policy",
+            "text": "Evidence.",
+        }
+        document[field] = value
+
+        try:
+            agent.retriever.add("acme", [document])
+        except ValueError:
+            continue
+        raise AssertionError(
+            f"empty document field {field!r} was accepted"
+        )
