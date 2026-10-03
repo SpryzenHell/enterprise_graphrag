@@ -231,3 +231,79 @@ def test_embedding_dimension_is_enforced(monkeypatch):
         assert "actual=3" in str(exc)
     else:
         raise AssertionError("embedding dimension mismatch was accepted")
+
+
+def test_embedding_response_count_mismatch_is_rejected(monkeypatch):
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "data": [
+                    {
+                        "index": 0,
+                        "embedding": [0.1, 0.2],
+                    }
+                ]
+            }
+
+    monkeypatch.setattr(
+        httpx,
+        "post",
+        lambda *args, **kwargs: Response(),
+    )
+
+    model = OpenAICompatibleEmbedder(
+        "http://localhost:8000",
+        "key",
+        "embedding-model",
+        2,
+    )
+
+    try:
+        model.embed(["one", "two"])
+    except ValueError as exc:
+        assert "count mismatch" in str(exc)
+    else:
+        raise AssertionError("partial embedding response was accepted")
+
+
+def test_embedding_response_indexes_are_rejected_when_incomplete(monkeypatch):
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "data": [
+                    {
+                        "index": 0,
+                        "embedding": [0.1, 0.2],
+                    },
+                    {
+                        "index": 2,
+                        "embedding": [0.3, 0.4],
+                    },
+                ]
+            }
+
+    monkeypatch.setattr(
+        httpx,
+        "post",
+        lambda *args, **kwargs: Response(),
+    )
+
+    model = OpenAICompatibleEmbedder(
+        "http://localhost:8000",
+        "key",
+        "embedding-model",
+        2,
+    )
+
+    try:
+        model.embed(["one", "two"])
+    except ValueError as exc:
+        assert "indexes" in str(exc)
+    else:
+        raise AssertionError("invalid embedding indexes were accepted")
