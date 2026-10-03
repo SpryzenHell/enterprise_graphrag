@@ -178,3 +178,65 @@ def test_top_k_upper_bound_is_rejected():
         assert "TOP_K must be between 1 and 50" in str(exc)
     else:
         raise AssertionError("TOP_K above API limit was accepted")
+
+
+def test_expired_token_is_rejected():
+    import time
+
+    token = jwt.encode(
+        {
+            "sub": "u",
+            "tenant_id": "acme",
+            "scope": "graphrag:query",
+            "iss": settings.jwt_issuer,
+            "aud": settings.jwt_audience,
+            "exp": int(time.time()) - 1,
+        },
+        settings.jwt_secret,
+        algorithm="HS256",
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        principal_from_token(token)
+
+    assert exc.value.status_code == 401
+
+
+def test_api_scope_is_enforced():
+    from fastapi.testclient import TestClient
+
+    from enterprise_graphrag.agent import EnterpriseGraphRAGAgent
+    from enterprise_graphrag.api import create_app
+    from enterprise_graphrag.embeddings import HashEmbedder
+    from enterprise_graphrag.llm import ExtractiveAnswerModel
+    from enterprise_graphrag.retrieval import HybridRetriever, TenantMemoryGraph
+    from enterprise_graphrag.security import SecurityGateway
+    from enterprise_graphrag.vector_faiss import TenantFAISS
+
+    import tempfile
+    from pathlib import Path
+
+    with tempfile.TemporaryDirectory() as root:
+        vector = TenantFAISS(str(Path(root) / "faiss"), HashEmbedder(32))
+        agent = EnterpriseGraphRAGAgent(
+            HybridRetriever(
+                vector=vector,
+                graph=TenantMemoryGraph(),
+                security=SecurityGateway(),
+                vector_weight=0.55,
+                graph_weight=0.45,
+                rrf_k=60,
+            ),
+            ExtractiveAnswerModel(),
+        )
+        client = TestClient(create_app(agent))
+        token = issue_demo_token("u", "acme", ["other:scope"])
+
+        response = client.post(
+            "/v1/query",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"query": "policy"},
+        )
+
+        assert response.status_code == 403
+        assert "graphrag:query" in response.json()["detail"]
