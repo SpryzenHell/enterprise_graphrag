@@ -44,3 +44,48 @@ class QueryResponse(BaseModel):
     security: SecurityDecision
     trace: dict[str, Any]
     graph: dict[str, Any]
+
+
+def validate_documents(
+    tenant_id: str,
+    documents: list[dict],
+) -> list[dict]:
+    if not isinstance(tenant_id, str) or not tenant_id.strip():
+        raise ValueError("tenant_id must be a non-empty string")
+
+    normalized: dict[str, dict] = {}
+    for document in documents:
+        if not isinstance(document, dict):
+            raise ValueError("each document must be an object")
+
+        doc_id = document.get("doc_id")
+        title = document.get("title")
+        text = document.get("text")
+
+        if not isinstance(doc_id, str) or not doc_id.strip():
+            raise ValueError("document doc_id must be a non-empty string")
+        if not isinstance(title, str) or not title.strip():
+            raise ValueError(
+                f"document {doc_id!r} title must be a non-empty string"
+            )
+        if not isinstance(text, str) or not text.strip():
+            raise ValueError(
+                f"document {doc_id!r} text must be a non-empty string"
+            )
+
+        embedded_tenant = document.get("tenant_id")
+        if (
+            embedded_tenant is not None
+            and embedded_tenant != tenant_id
+        ):
+            raise ValueError(
+                f"document {doc_id!r} tenant_id does not match target tenant"
+            )
+
+        normalized[doc_id] = {
+            "doc_id": doc_id,
+            "title": title,
+            "text": text,
+        }
+
+    return list(normalized.values())
