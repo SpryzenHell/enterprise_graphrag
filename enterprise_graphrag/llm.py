@@ -68,9 +68,10 @@ class VllmAnswerModel(AnswerModel):
             for item in contexts
         )
 
-        response = httpx.post(
-            f"{self.base_url}/chat/completions",
-            headers={"Authorization": f"Bearer {self.api_key}"},
+        try:
+            response = httpx.post(
+                f"{self.base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {self.api_key}"},
             json={
                 "model": self.model,
                 "temperature": 0.0,
@@ -93,8 +94,13 @@ class VllmAnswerModel(AnswerModel):
                 ],
             },
             timeout=120,
-        )
-        response.raise_for_status()
+            )
+            response.raise_for_status()
+        except (OSError, httpx.HTTPError) as exc:
+            raise BackendUnavailable(
+                "vLLM answer backend is unavailable"
+            ) from exc
+
         payload = response.json()
         choices = payload.get("choices")
         if not isinstance(choices, list) or not choices:
