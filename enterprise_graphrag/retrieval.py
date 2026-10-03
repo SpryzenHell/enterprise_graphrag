@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import threading
 from collections import defaultdict
 
 from .fusion import Hit, weighted_rrf
@@ -16,6 +17,7 @@ class TenantMemoryGraph:
     )
 
     def __init__(self) -> None:
+        self._lock = threading.RLock()
         self.docs = defaultdict(dict)
         self.entities = defaultdict(
             lambda: defaultdict(set)
@@ -23,6 +25,17 @@ class TenantMemoryGraph:
         self.doc_entities = defaultdict(dict)
 
     def add(
+        self,
+        tenant: str,
+        doc: dict,
+    ) -> None:
+        with self._lock:
+            self._add_locked(
+                tenant,
+                doc,
+            )
+
+    def _add_locked(
         self,
         tenant: str,
         doc: dict,
@@ -112,6 +125,17 @@ class TenantMemoryGraph:
         ]
 
     def trace(
+        self,
+        tenant: str,
+        doc_ids: list[str],
+    ) -> dict:
+        with self._lock:
+            return self._trace_locked(
+                tenant,
+                doc_ids,
+            )
+
+    def _trace_locked(
         self,
         tenant: str,
         doc_ids: list[str],
