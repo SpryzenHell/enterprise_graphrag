@@ -80,3 +80,17 @@ def test_negative_retrieval_weight_is_rejected():
         assert "cannot be negative" in str(exc)
     else:
         raise AssertionError("negative retrieval weight was accepted")
+
+
+def test_empty_mcp_allowlist_is_rejected():
+    config = Settings(
+        environment="test",
+        mcp_allowed_hosts=(),
+        mcp_allowed_origins=("http://localhost:*",),
+    )
+    try:
+        config.validate()
+    except ValueError as exc:
+        assert "MCP_ALLOWED_HOSTS" in str(exc)
+    else:
+        raise AssertionError("empty MCP host allowlist was accepted")
