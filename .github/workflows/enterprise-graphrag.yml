@@ -169,6 +169,10 @@ jobs:
         if: failure()
         run: docker compose -f docker-compose.enterprise.yml logs --no-color
 
+      - name: Full-stack status on failure
+        if: failure()
+        run: docker compose -f docker-compose.enterprise.yml ps
+
       - name: Stop full stack
         if: always()
         run: docker compose -f docker-compose.enterprise.yml down -v
