@@ -153,8 +153,21 @@ A repository-level runner will also receive the standard `self-hosted`, `linux`,
 
 On the compute node, a typical persistent session is:
 
-    mkdir -p ~/actions-runner-enterprise-graphrag
-    cd ~/actions-runner-enterprise-graphrag
+    mkdir -p ~/gpu/actions-runner-enterprise-graphrag
+    cd ~/gpu/actions-runner-enterprise-graphrag
+
+### HPC network bootstrap
+
+On this compute node, network access is available only after the site's `core_config` module has been imported. This must happen before any command that performs network access.
+
+The required bootstrap is:
+
+    source "$HOME/Conda/bin/activate"
+    python -c "import core_config"
+
+Run that first in the shell that will perform GitHub runner setup and in the shell that will start the runner. Do not put a network-dependent command before it.
+
+The runner process should inherit the environment/configuration established by this bootstrap. GitHub's runner itself requires outbound HTTPS connectivity, so this bootstrap must also be in effect before `./config.sh` or `./run.sh` is started.
 
 Keep the runner process alive for the duration of your allocated compute session:
 
@@ -226,3 +239,12 @@ The tests deliberately avoid hard-coding generation text, latency, or throughput
 On the current revamp branch, owner pushes automatically queue the GPU job. Manual `workflow_dispatch` is also available. The job is restricted to the current revamp branch and repository owner so ordinary pull requests cannot execute code on the self-hosted GPU runner.
 
 Use the GitHub Actions run result as the canonical record of whether the real compute-node validation passed.
+
+
+### Important HPC network rule
+
+Do not run `curl`, `wget`, `pip install`, `git fetch`, GitHub runner configuration, or other network-dependent commands on the compute node before:
+
+    python -c "import core_config"
+
+Treat `import core_config` as the first network-enabling step in every new compute-node shell. The repository workflow cannot retroactively bootstrap the GitHub runner's own network connection because runner communication and checkout happen before workflow steps; bootstrap the runner's parent shell/process first.
