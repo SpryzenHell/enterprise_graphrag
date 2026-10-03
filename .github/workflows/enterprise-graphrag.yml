@@ -111,14 +111,16 @@ jobs:
         run: |
           docker run -d --name enterprise-graphrag-ci \
             -p 8000:8000 \
+            --add-host graphrag.example.invalid:127.0.0.1 \
             -e GRAGRAPH_ENV=production \
             -e GRAGRAPH_JWT_SECRET=ci-only-secret-change-me-please-32-bytes \
             -e GRAGRAPH_JWT_ISSUER=https://graphrag.example.invalid \
             -e GRAGRAPH_JWT_AUDIENCE=enterprise-graphrag-api \
             -e MCP_RESOURCE_URL=https://graphrag.example.invalid/mcp/ \
             -e MCP_ISSUER_URL=https://graphrag.example.invalid \
-            -e MCP_ALLOWED_HOSTS=graphrag.example.invalid:*,localhost:8000,127.0.0.1:* \
-            -e MCP_ALLOWED_ORIGINS=https://graphrag.example.invalid,http://127.0.0.1:8000 \
+            -e MCP_ALLOWED_HOSTS=graphrag.example.invalid:* \
+            -e MCP_ALLOWED_ORIGINS=https://graphrag.example.invalid \
+            -e ALLOWED_ORIGINS=https://graphrag.example.invalid \
             enterprise-graphrag:ci
 
       - name: Health and readiness smoke test
@@ -133,13 +135,13 @@ jobs:
           docker exec enterprise-graphrag-ci python scripts/build_demo_index.py
           TOKEN=$(docker exec enterprise-graphrag-ci python -c 'import os,jwt,time; print(jwt.encode({"sub":"ci-user","tenant_id":"acme","scope":"graphrag:query","iss":os.environ["GRAGRAPH_JWT_ISSUER"],"aud":os.environ["GRAGRAPH_JWT_AUDIENCE"],"exp":int(time.time())+3600}, os.environ["GRAGRAPH_JWT_SECRET"], algorithm="HS256"))')
           docker exec enterprise-graphrag-ci python scripts/runtime_probe.py \
-            --base-url http://127.0.0.1:8000 \
+            --base-url http://graphrag.example.invalid:8000 \
             --token "${TOKEN}" \
             --tenant acme \
             --query "incident records" \
             --expected-doc-id acme-retention
           docker exec enterprise-graphrag-ci python scripts/mcp_probe.py \
-            --url http://127.0.0.1:8000/mcp/ \
+            --url http://graphrag.example.invalid:8000/mcp/ \
             --token "${TOKEN}" \
             --tenant acme \
             --query "incident records" \
@@ -159,13 +161,14 @@ jobs:
     env:
       GRAGRAPH_ENV: production
       GRAGRAPH_JWT_SECRET: ci-only-secret-change-me-please-32-bytes
-      GRAGRAPH_JWT_ISSUER: https://graphrag.example.invalid,http://localhost:8000
+      GRAGRAPH_JWT_ISSUER: https://graphrag.example.invalid
       GRAGRAPH_JWT_AUDIENCE: enterprise-graphrag-api
       NEO4J_PASSWORD: testpassword
       MCP_RESOURCE_URL: https://graphrag.example.invalid/mcp/
-      MCP_ISSUER_URL: https://graphrag.example.invalid,http://localhost:8000
-      MCP_ALLOWED_HOSTS: graphrag.example.invalid:*,localhost:8000,127.0.0.1:*
-      MCP_ALLOWED_ORIGINS: https://graphrag.example.invalid,http://localhost:8000,http://127.0.0.1:8000
+      MCP_ISSUER_URL: https://graphrag.example.invalid
+      MCP_ALLOWED_HOSTS: graphrag.example.invalid:*
+      MCP_ALLOWED_ORIGINS: https://graphrag.example.invalid
+      ALLOWED_ORIGINS: https://graphrag.example.invalid
     steps:
       - uses: actions/checkout@v4
 
