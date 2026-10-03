@@ -340,7 +340,7 @@ def test_faiss_partial_persistence_fails_closed(tmp_path):
         str(tmp_path / "faiss"),
         HashEmbedder(64),
     )
-    index_path, meta_path = store._paths("acme")
+    index_path, meta_path, manifest_path = store._paths("acme")
 
     index_path.write_bytes(b"not-a-real-index")
 
@@ -372,8 +372,9 @@ def test_faiss_metadata_count_mismatch_fails_closed(tmp_path):
             }
         ],
     )
-    _, meta_path = store._paths("acme")
+    _, meta_path, manifest_path = store._paths("acme")
     meta_path.write_text("{}", encoding="utf-8")
+    manifest_path.unlink()
 
     fresh = TenantFAISS(
         str(tmp_path / "faiss"),
