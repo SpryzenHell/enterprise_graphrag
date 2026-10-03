@@ -1,5 +1,9 @@
 name: enterprise-graphrag
 
+concurrency:
+  group: enterprise-graphrag-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: ["**"]
