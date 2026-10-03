@@ -86,9 +86,11 @@ def test_auth_and_health(tmp_path):
             build_agent(tmp_path)
         )
     )
-    assert client.get(
-        "/health"
-    ).status_code == 200
+    health = client.get("/health")
+    assert health.status_code == 200
+    assert health.headers["X-Request-ID"]
+    assert health.headers["X-Content-Type-Options"] == "nosniff"
+    assert health.headers["X-Frame-Options"] == "DENY"
     assert client.get(
         "/"
     ).status_code == 200
@@ -127,7 +129,9 @@ def test_rls_and_retrieved_injection_filter(tmp_path):
     )
 
     assert response.status_code == 200
+    assert response.headers["X-Request-ID"]
     body = response.json()
+    assert body["trace"]["request_id"] == response.headers["X-Request-ID"]
     assert body["citations"]
     assert all(
         citation["tenant_id"] == "acme"
