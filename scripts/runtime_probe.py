@@ -46,6 +46,11 @@ def main() -> None:
         default="",
     )
     parser.add_argument(
+        "--expected-doc-id",
+        default="",
+        help="Require this document ID in authenticated query citations.",
+    )
+    parser.add_argument(
         "--timeout",
         type=float,
         default=10.0,
@@ -132,6 +137,16 @@ def main() -> None:
                     raise RuntimeError(
                         "Query response citations must be a list"
                     )
+
+                if args.expected_doc_id:
+                    if not any(
+                        citation.get("doc_id") == args.expected_doc_id
+                        for citation in citations
+                    ):
+                        raise RuntimeError(
+                            "Expected citation was not returned: "
+                            + args.expected_doc_id
+                        )
 
                 if args.tenant:
                     leaked = [
