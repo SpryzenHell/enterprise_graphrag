@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from pathlib import Path
+from uuid import uuid4
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -72,6 +73,19 @@ def create_app(
         lifespan=lifespan,
     )
 
+    @application.middleware("http")
+    async def operational_headers(
+        request: Request,
+        call_next,
+    ):
+        request_id = uuid4().hex
+        request.state.request_id = request_id
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["X-Frame-Options"] = "DENY"
+        return response
     application.add_middleware(
         CORSMiddleware,
         allow_origins=list(settings.allowed_origins),
@@ -185,13 +199,13 @@ def create_app(
             require_query_access
         ),
     ) -> QueryResponse:
-        return QueryResponse.model_validate(
-            runtime.query(
-                principal,
-                request.query,
-                request.top_k,
-            )
+        result = runtime.query(
+            principal,
+            request.query,
+            request.top_k,
         )
+        result["trace"]["request_id"] = request.state.request_id
+        return QueryResponse.model_validate(result)
 
     if mcp_app is not None:
         application.mount(
