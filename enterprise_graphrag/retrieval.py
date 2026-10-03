@@ -85,10 +85,12 @@ class TenantMemoryGraph:
             haystack = (
                 doc["title"] + " " + doc["text"]
             ).lower()
-            scores[doc_id] += 0.25 * sum(
+            lexical_overlap = sum(
                 term in haystack
                 for term in terms
             )
+            if lexical_overlap:
+                scores[doc_id] += 0.25 * lexical_overlap
 
         ranked = sorted(
             scores.items(),
