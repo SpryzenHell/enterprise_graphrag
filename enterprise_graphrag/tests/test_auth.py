@@ -165,3 +165,16 @@ def test_demo_token_cli_refuses_production(monkeypatch):
         assert "Refusing to mint" in str(exc)
     else:
         raise AssertionError("production demo-token minting was allowed")
+
+
+def test_top_k_upper_bound_is_rejected():
+    config = Settings(
+        environment="test",
+        top_k=51,
+    )
+    try:
+        config.validate()
+    except ValueError as exc:
+        assert "TOP_K must be between 1 and 50" in str(exc)
+    else:
+        raise AssertionError("TOP_K above API limit was accepted")
