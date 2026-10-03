@@ -25,19 +25,15 @@ def create_app(
     mcp = None
     mcp_app = None
 
-    try:
-        from .mcp_server import create_mcp_server
+    from .mcp_server import create_mcp_server
 
-        mcp = create_mcp_server(runtime)
-        mcp_app = mcp.streamable_http_app(
-            streamable_http_path="/",
-            json_response=True,
-            stateless_http=True,
-            host="127.0.0.1",
-        )
-    except (ImportError, RuntimeError):
-        mcp = None
-        mcp_app = None
+    mcp = create_mcp_server(runtime)
+    mcp_app = mcp.streamable_http_app(
+        streamable_http_path="/",
+        json_response=True,
+        stateless_http=True,
+        host="0.0.0.0",
+    )
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
