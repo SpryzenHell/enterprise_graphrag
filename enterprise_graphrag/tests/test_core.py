@@ -330,3 +330,56 @@ def test_memory_graph_excludes_zero_score_documents():
     )
 
     assert hits == []
+
+
+def test_faiss_partial_persistence_fails_closed(tmp_path):
+    store = TenantFAISS(
+        str(tmp_path / "faiss"),
+        HashEmbedder(64),
+    )
+    index_path, meta_path = store._paths("acme")
+
+    index_path.write_bytes(b"not-a-real-index")
+
+    fresh = TenantFAISS(
+        str(tmp_path / "faiss"),
+        HashEmbedder(64),
+    )
+
+    try:
+        fresh.search("acme", "policy", 5)
+    except ValueError as exc:
+        assert "Incomplete FAISS tenant storage" in str(exc)
+    else:
+        raise AssertionError("partial FAISS storage was silently accepted")
+
+
+def test_faiss_metadata_count_mismatch_fails_closed(tmp_path):
+    store = TenantFAISS(
+        str(tmp_path / "faiss"),
+        HashEmbedder(64),
+    )
+    store.add(
+        "acme",
+        [
+            {
+                "doc_id": "doc-1",
+                "title": "Policy",
+                "text": "Retention policy.",
+            }
+        ],
+    )
+    _, meta_path = store._paths("acme")
+    meta_path.write_text("{}", encoding="utf-8")
+
+    fresh = TenantFAISS(
+        str(tmp_path / "faiss"),
+        HashEmbedder(64),
+    )
+
+    try:
+        fresh.search("acme", "policy", 5)
+    except ValueError as exc:
+        assert "count mismatch" in str(exc)
+    else:
+        raise AssertionError("corrupt FAISS metadata was silently accepted")
