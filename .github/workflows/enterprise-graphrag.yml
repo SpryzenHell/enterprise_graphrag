@@ -100,8 +100,8 @@ jobs:
             -e GRAGRAPH_JWT_AUDIENCE=enterprise-graphrag-api \
             -e MCP_RESOURCE_URL=https://graphrag.example.invalid/mcp/ \
             -e MCP_ISSUER_URL=https://graphrag.example.invalid \
-            -e MCP_ALLOWED_HOSTS=graphrag.example.invalid:*,localhost:8000 \
-            -e MCP_ALLOWED_ORIGINS=https://graphrag.example.invalid \
+            -e MCP_ALLOWED_HOSTS=graphrag.example.invalid:*,localhost:8000,127.0.0.1:* \
+            -e MCP_ALLOWED_ORIGINS=https://graphrag.example.invalid,http://127.0.0.1:8000 \
             enterprise-graphrag:ci
 
       - name: Health and readiness smoke test
@@ -146,8 +146,8 @@ jobs:
       NEO4J_PASSWORD: testpassword
       MCP_RESOURCE_URL: https://graphrag.example.invalid/mcp/
       MCP_ISSUER_URL: https://graphrag.example.invalid,http://localhost:8000
-      MCP_ALLOWED_HOSTS: graphrag.example.invalid:*,localhost:8000
-      MCP_ALLOWED_ORIGINS: https://graphrag.example.invalid,http://localhost:8000
+      MCP_ALLOWED_HOSTS: graphrag.example.invalid:*,localhost:8000,127.0.0.1:*
+      MCP_ALLOWED_ORIGINS: https://graphrag.example.invalid,http://localhost:8000,http://127.0.0.1:8000
     steps:
       - uses: actions/checkout@v4
 
@@ -157,7 +157,7 @@ jobs:
       - name: Wait for full-stack readiness
         run: |
           for i in $(seq 1 45); do
-            if docker compose -f docker-compose.enterprise.yml exec -T app               python scripts/runtime_probe.py --base-url http://localhost:8000; then
+            if docker compose -f docker-compose.enterprise.yml exec -T app python scripts/runtime_probe.py --base-url http://localhost:8000; then
               exit 0
             fi
             sleep 2
@@ -167,15 +167,15 @@ jobs:
 
       - name: Authenticated full-stack query
         run: |
-          docker compose -f docker-compose.enterprise.yml exec -T app             python scripts/build_demo_index.py
-          TOKEN=$(docker compose -f docker-compose.enterprise.yml exec -T app             python -c 'import os,jwt; print(jwt.encode({"sub":"ci-user","tenant_id":"acme","scope":"graphrag:query","iss":os.environ["GRAGRAPH_JWT_ISSUER"],"aud":os.environ["GRAGRAPH_JWT_AUDIENCE"]}, os.environ["GRAGRAPH_JWT_SECRET"], algorithm="HS256"))')
-          docker compose -f docker-compose.enterprise.yml exec -T app             python scripts/runtime_probe.py \
+          docker compose -f docker-compose.enterprise.yml exec -T app python scripts/build_demo_index.py
+          TOKEN=$(docker compose -f docker-compose.enterprise.yml exec -T app python -c 'import os,jwt; print(jwt.encode({"sub":"ci-user","tenant_id":"acme","scope":"graphrag:query","iss":os.environ["GRAGRAPH_JWT_ISSUER"],"aud":os.environ["GRAGRAPH_JWT_AUDIENCE"]}, os.environ["GRAGRAPH_JWT_SECRET"], algorithm="HS256"))')
+          docker compose -f docker-compose.enterprise.yml exec -T app python scripts/runtime_probe.py \
               --base-url http://localhost:8000 \
               --token "${TOKEN}" \
               --tenant acme \
               --query "incident records" \
               --expected-doc-id acme-retention
-          docker compose -f docker-compose.enterprise.yml exec -T app             python scripts/mcp_probe.py \
+          docker compose -f docker-compose.enterprise.yml exec -T app python scripts/mcp_probe.py \
               --url http://localhost:8000/mcp/ \
               --token "${TOKEN}" \
               --tenant acme \
