@@ -97,6 +97,7 @@ jobs:
             -e GRAGRAPH_ENV=production \
             -e GRAGRAPH_JWT_SECRET=ci-only-secret-change-me-please-32-bytes \
             -e GRAGRAPH_JWT_ISSUER=https://graphrag.example.invalid \
+            -e GRAGRAPH_JWT_AUDIENCE=enterprise-graphrag-api \
             -e MCP_RESOURCE_URL=https://graphrag.example.invalid/mcp/ \
             -e MCP_ISSUER_URL=https://graphrag.example.invalid \
             -e MCP_ALLOWED_HOSTS=graphrag.example.invalid:* \
