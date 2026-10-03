@@ -6,6 +6,8 @@ import re
 
 import httpx
 
+from .errors import BackendUnavailable
+
 
 class Embedder:
     dimension: int
@@ -62,13 +64,18 @@ class OpenAICompatibleEmbedder(Embedder):
         self.dimension = dimension
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        response = httpx.post(
-            f"{self.base_url}/embeddings",
-            headers={"Authorization": f"Bearer {self.api_key}"},
-            json={"model": self.model, "input": texts},
-            timeout=120,
-        )
-        response.raise_for_status()
+        try:
+            response = httpx.post(
+                f"{self.base_url}/embeddings",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                json={"model": self.model, "input": texts},
+                timeout=120,
+            )
+            response.raise_for_status()
+        except (OSError, httpx.HTTPError) as exc:
+            raise BackendUnavailable(
+                "embedding backend is unavailable"
+            ) from exc
         payload = response.json()
         if not isinstance(payload, dict):
             raise ValueError(
