@@ -362,3 +362,22 @@ def test_production_rejects_loopback_mcp_allowlists():
     message = str(exc.value)
     assert "MCP_ALLOWED_HOSTS" in message
     assert "MCP_ALLOWED_ORIGINS" in message
+
+
+def test_missing_expiration_is_rejected():
+    token = jwt.encode(
+        {
+            "sub": "u",
+            "tenant_id": "acme",
+            "scope": "graphrag:query",
+            "iss": settings.jwt_issuer,
+            "aud": settings.jwt_audience,
+        },
+        settings.jwt_secret,
+        algorithm=settings.jwt_algorithm,
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        principal_from_token(token)
+
+    assert exc.value.status_code == 401
