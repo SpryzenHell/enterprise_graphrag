@@ -227,8 +227,8 @@ class Settings:
             )
         if self.rrf_k <= 0:
             problems.append("RRF_K must be greater than zero")
-        if self.top_k <= 0:
-            problems.append("TOP_K must be greater than zero")
+        if self.top_k < 1 or self.top_k > 50:
+            problems.append("TOP_K must be between 1 and 50")
         if self.vector_weight < 0 or self.graph_weight < 0:
             problems.append(
                 "VECTOR_WEIGHT and GRAPH_WEIGHT cannot be negative"
