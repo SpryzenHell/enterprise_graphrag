@@ -235,7 +235,7 @@ class HybridRetriever:
                 continue
 
             decision = self.security.inspect(
-                hit.text,
+                hit.title + "\n" + hit.text,
                 direct=False,
             )
             if decision["allowed"]:
