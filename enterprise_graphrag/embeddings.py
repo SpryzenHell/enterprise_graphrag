@@ -70,6 +70,10 @@ class OpenAICompatibleEmbedder(Embedder):
         )
         response.raise_for_status()
         payload = response.json()
+        if not isinstance(payload, dict):
+            raise ValueError(
+                "Embedding response must be a JSON object"
+            )
         items = payload.get("data")
         if not isinstance(items, list):
             raise ValueError(
