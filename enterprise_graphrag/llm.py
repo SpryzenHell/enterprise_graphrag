@@ -58,6 +58,9 @@ class VllmAnswerModel(AnswerModel):
         self.model = model
 
     def answer(self, query: str, contexts: list[dict]) -> str:
+        if not contexts:
+            return "No authorized evidence found."
+
         evidence = "\n\n".join(
             f"[{item['doc_id']}] {item['title']}\n{item['text']}"
             for item in contexts
@@ -90,7 +93,23 @@ class VllmAnswerModel(AnswerModel):
             timeout=120,
         )
         response.raise_for_status()
-        return response.json()["choices"][0]["message"]["content"]
+        payload = response.json()
+        choices = payload.get("choices")
+        if not isinstance(choices, list) or not choices:
+            raise ValueError(
+                "vLLM response contains no choices"
+            )
+        message = choices[0].get("message")
+        if not isinstance(message, dict):
+            raise ValueError(
+                "vLLM response choice contains no message"
+            )
+        content = message.get("content")
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError(
+                "vLLM response message contains no text content"
+            )
+        return content
 
 
 def build_answer_model(settings) -> AnswerModel:
