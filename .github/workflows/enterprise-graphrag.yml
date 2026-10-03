@@ -18,6 +18,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-enterprise.txt
+          python -m pip check
 
       - name: Compile
         run: python -m compileall enterprise_graphrag scripts
@@ -80,6 +81,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Validate Compose configuration
+        env:
+          GRAGRAPH_JWT_SECRET: ci-only-secret-change-me-please-32-bytes
+          NEO4J_PASSWORD: testpassword
+        run: docker compose -f docker-compose.enterprise.yml config
+
       - name: Build production image
         run: docker build -f Dockerfile.enterprise -t enterprise-graphrag:ci .
 
@@ -87,7 +94,7 @@ jobs:
         run: |
           docker run -d --name enterprise-graphrag-ci \
             -p 8000:8000 \
-            -e GRAGRAPH_ENV=development \
+            -e GRAGRAPH_ENV=production \
             -e GRAGRAPH_JWT_SECRET=ci-only-secret-change-me-please-32-bytes \
             enterprise-graphrag:ci
 
