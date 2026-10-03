@@ -1,9 +1,21 @@
 from __future__ import annotations
 
-from pydantic import AnyHttpUrl
+from typing import Any, Annotated
+
+from pydantic import AnyHttpUrl, BaseModel, Field
 
 from .auth import principal_from_token
 from .config import settings
+
+
+class MCPQueryResult(BaseModel):
+    """Stable typed result contract exposed through MCP structuredContent."""
+
+    answer: str
+    citations: list[dict[str, Any]]
+    security: dict[str, Any]
+    trace: dict[str, Any]
+    graph: dict[str, Any]
 
 
 def create_mcp_server(agent):
@@ -58,11 +70,11 @@ def create_mcp_server(agent):
         ),
     )
 
-    @mcp.tool()
+    @mcp.tool(structured_output=True)
     def hybrid_search(
-        query: str,
-        top_k: int = 8,
-    ) -> dict:
+        query: Annotated[str, Field(min_length=1, max_length=4000)],
+        top_k: Annotated[int, Field(ge=1, le=50)] = 8,
+    ) -> MCPQueryResult:
         """Run tenant-scoped hybrid vector + graph retrieval."""
         access_token = get_access_token()
 
@@ -91,10 +103,12 @@ def create_mcp_server(agent):
                 "tenant identity mismatch"
             )
 
-        return agent.query(
-            principal,
-            query,
-            top_k,
+        return MCPQueryResult.model_validate(
+            agent.query(
+                principal,
+                query,
+                top_k,
+            )
         )
 
     @mcp.resource("graphrag://capabilities")
