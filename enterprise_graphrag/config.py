@@ -183,6 +183,13 @@ class Settings:
             problems.append("GRAGRAPH_JWT_ISSUER is required")
         if not self.jwt_audience:
             problems.append("GRAGRAPH_JWT_AUDIENCE is required")
+        if env == "production" and any(
+            host in self.jwt_issuer.lower()
+            for host in ("localhost", "127.0.0.1", "[::1]")
+        ):
+            problems.append(
+                "GRAGRAPH_JWT_ISSUER must be an externally reachable issuer in production"
+            )
 
         if self.embedding_dimension <= 0:
             problems.append("EMBEDDING_DIMENSION must be greater than zero")
@@ -227,6 +234,20 @@ class Settings:
             problems.append("MCP_RESOURCE_URL is required")
         if not self.mcp_issuer_url:
             problems.append("MCP_ISSUER_URL is required")
+        if env == "production" and any(
+            host in self.mcp_resource_url.lower()
+            for host in ("localhost", "127.0.0.1", "[::1]")
+        ):
+            problems.append(
+                "MCP_RESOURCE_URL must be externally reachable in production"
+            )
+        if env == "production" and any(
+            host in self.mcp_issuer_url.lower()
+            for host in ("localhost", "127.0.0.1", "[::1]")
+        ):
+            problems.append(
+                "MCP_ISSUER_URL must be externally reachable in production"
+            )
         if not self.mcp_allowed_hosts:
             problems.append("MCP_ALLOWED_HOSTS must contain at least one host")
         if not self.mcp_allowed_origins:
