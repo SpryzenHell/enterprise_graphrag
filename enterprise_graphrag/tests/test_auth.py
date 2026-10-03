@@ -110,3 +110,58 @@ def test_production_rejects_loopback_service_urls():
         assert "MCP_ISSUER_URL" in message
     else:
         raise AssertionError("loopback production URLs were accepted")
+
+
+def test_demo_token_cli_mints_token_in_test_mode(monkeypatch, capsys):
+    import sys
+
+    import enterprise_graphrag.token as token_cli
+
+    monkeypatch.setattr(
+        token_cli,
+        "settings",
+        Settings(environment="test"),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "enterprise-graphrag-token",
+            "--subject",
+            "cli-user",
+            "--tenant",
+            "acme",
+        ],
+    )
+
+    token_cli.main()
+
+    token_value = capsys.readouterr().out.strip()
+    assert token_value
+    principal = principal_from_token(token_value)
+    assert principal.subject == "cli-user"
+    assert principal.tenant_id == "acme"
+    assert principal.can("graphrag:query")
+
+
+def test_demo_token_cli_refuses_production(monkeypatch):
+    import enterprise_graphrag.token as token_cli
+
+    monkeypatch.setattr(
+        token_cli,
+        "settings",
+        Settings(
+            environment="production",
+            jwt_secret="ci-only-secret-change-me-please-32-bytes",
+            jwt_issuer="https://graphrag.example.invalid",
+            mcp_resource_url="https://graphrag.example.invalid/mcp/",
+            mcp_issuer_url="https://graphrag.example.invalid",
+        ),
+    )
+
+    try:
+        token_cli.main()
+    except SystemExit as exc:
+        assert "Refusing to mint" in str(exc)
+    else:
+        raise AssertionError("production demo-token minting was allowed")
