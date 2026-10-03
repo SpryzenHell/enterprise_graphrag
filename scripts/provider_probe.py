@@ -31,7 +31,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--api-key",
-        required=True,
+        default="",
+        help="Optional provider API key; omit for local unauthenticated vLLM.",
     )
     parser.add_argument(
         "--chat-model",
@@ -56,10 +57,9 @@ def main() -> None:
         raise SystemExit("--embedding-dimension must be at least 1")
 
     base_url = args.base_url.rstrip("/")
-    headers = {
-        "Authorization": f"Bearer {args.api_key}",
-        "Content-Type": "application/json",
-    }
+    headers = {"Content-Type": "application/json"}
+    if args.api_key:
+        headers["Authorization"] = f"Bearer {args.api_key}"
 
     report: dict[str, object] = {
         "base_url": base_url,
