@@ -23,3 +23,29 @@ Before describing the project as production-deployed or putting performance/secu
 - representative benign and indirect-injection corpora.
 
 Record Recall@K, MRR/nDCG, end-to-end latency, throughput, and security detection/false-positive rates from those runs. Do not derive those numbers from the small deterministic fixture.
+
+
+## Real inference provider probe
+
+Use the provider probe against the target OpenAI-compatible endpoint:
+
+    python scripts/provider_probe.py \
+      --base-url "$VLLM_BASE_URL" \
+      --api-key "$VLLM_API_KEY" \
+      --chat-model "$VLLM_MODEL" \
+      --embedding-model "$EMBEDDING_MODEL" \
+      --embedding-dimension "$EMBEDDING_DIMENSION"
+
+The probe verifies Chat Completions, Embeddings, and prompt-logprob support, including observed-token logprobs and the configured embedding dimension. It reports per-operation latency but does not replace an application-level accuracy/security evaluation.
+
+## Application runtime probe
+
+After the service is running:
+
+    python scripts/runtime_probe.py \
+      --base-url "$GRAGRAPH_BASE_URL" \
+      --token "$ENTERPRISE_IDP_ACCESS_TOKEN" \
+      --tenant "$TENANT_ID" \
+      --query "representative question"
+
+This verifies liveness, readiness, authenticated tenant context, and that returned citations do not cross the supplied tenant boundary.
