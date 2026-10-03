@@ -72,9 +72,14 @@ def main() -> None:
             "GET",
             f"{base_url}/health",
         )
+        if health.get("status") != "ok":
+            raise RuntimeError(
+                f"Health check returned unexpected status: {health.get('status')!r}"
+            )
         results["checks"]["health"] = {
             "status": health.get("status"),
             "latency_ms": round(health_ms, 3),
+            "mcp_enabled": health.get("mcp_enabled"),
         }
 
         ready, ready_ms = request_json(
@@ -82,6 +87,10 @@ def main() -> None:
             "GET",
             f"{base_url}/ready",
         )
+        if ready.get("status") != "ready":
+            raise RuntimeError(
+                f"Readiness check returned unexpected status: {ready.get('status')!r}"
+            )
         results["checks"]["ready"] = {
             "status": ready.get("status"),
             "latency_ms": round(ready_ms, 3),
