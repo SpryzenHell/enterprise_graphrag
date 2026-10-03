@@ -240,3 +240,89 @@ def test_api_scope_is_enforced():
 
         assert response.status_code == 403
         assert "graphrag:query" in response.json()["detail"]
+
+
+def test_jwks_token_verification_uses_signing_key(monkeypatch):
+    import jwt as pyjwt
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from enterprise_graphrag import auth as auth_module
+
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    public_key = private_key.public_key()
+    token = pyjwt.encode(
+        {
+            "sub": "jwks-user",
+            "tenant_id": "acme",
+            "scope": "graphrag:query",
+            "iss": "https://issuer.example",
+            "aud": "enterprise-graphrag-api",
+            "exp": int(time.time()) + 300,
+        },
+        private_key,
+        algorithm="RS256",
+        headers={"kid": "test-key"},
+    )
+
+    class FakeJWK:
+        key = public_key
+
+    class FakeClient:
+        def __init__(self, url, **kwargs):
+            assert url == "https://issuer.example/.well-known/jwks.json"
+
+        def get_signing_key_from_jwt(self, supplied_token):
+            assert supplied_token == token
+            return FakeJWK()
+
+    monkeypatch.setattr(auth_module, "PyJWKClient", FakeClient)
+    auth_module._jwks_client.cache_clear()
+    monkeypatch.setattr(
+        auth_module,
+        "settings",
+        Settings(
+            environment="test",
+            jwt_mode="jwks",
+            jwt_algorithm="RS256",
+            jwt_secret="",
+            jwt_jwks_url="https://issuer.example/.well-known/jwks.json",
+            jwt_issuer="https://issuer.example",
+            jwt_audience="enterprise-graphrag-api",
+        ),
+    )
+
+    principal = auth_module.principal_from_token(token)
+    assert principal.subject == "jwks-user"
+    assert principal.tenant_id == "acme"
+    assert principal.can("graphrag:query")
+
+
+def test_jwks_configuration_requires_url():
+    config = Settings(
+        environment="test",
+        jwt_mode="jwks",
+        jwt_algorithm="RS256",
+        jwt_secret="",
+        jwt_jwks_url="",
+    )
+    with pytest.raises(ValueError, match="GRAGRAPH_JWT_JWKS_URL"):
+        config.validate()
+
+
+def test_jwks_mode_disables_demo_token_minting(monkeypatch):
+    import enterprise_graphrag.auth as auth_module
+
+    monkeypatch.setattr(
+        auth_module,
+        "settings",
+        Settings(
+            environment="test",
+            jwt_mode="jwks",
+            jwt_algorithm="RS256",
+            jwt_secret="",
+            jwt_jwks_url="https://issuer.example/.well-known/jwks.json",
+            jwt_issuer="https://issuer.example",
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="Demo tokens"):
+        auth_module.issue_demo_token("u", "acme", ["graphrag:query"])
