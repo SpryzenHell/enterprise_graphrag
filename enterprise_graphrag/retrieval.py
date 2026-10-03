@@ -78,6 +78,19 @@ class TenantMemoryGraph:
         query: str,
         limit: int,
     ) -> list[Hit]:
+        with self._lock:
+            return self._search_locked(
+                tenant,
+                query,
+                limit,
+            )
+
+    def _search_locked(
+        self,
+        tenant: str,
+        query: str,
+        limit: int,
+    ) -> list[Hit]:
         terms = {
             token.lower()
             for token in re.findall(
