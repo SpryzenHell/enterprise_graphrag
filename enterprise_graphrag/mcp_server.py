@@ -16,9 +16,6 @@ def create_mcp_server(agent):
         TokenVerifier,
     )
     from mcp.server.auth.settings import AuthSettings
-    from mcp.server.transport_security import (
-        TransportSecuritySettings,
-    )
 
     class JWTTokenVerifier(TokenVerifier):
         async def verify_token(
@@ -58,15 +55,6 @@ def create_mcp_server(agent):
             ),
             required_scopes=["graphrag:query"],
             validate_token_resource=False,
-        ),
-        transport_security=TransportSecuritySettings(
-            enable_dns_rebinding_protection=True,
-            allowed_hosts=list(
-                settings.mcp_allowed_hosts
-            ),
-            allowed_origins=list(
-                settings.mcp_allowed_origins
-            ),
         ),
     )
 
