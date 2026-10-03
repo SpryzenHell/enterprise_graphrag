@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import argparse
 import json
+import statistics
 import tempfile
+import time
 from pathlib import Path
 
 from enterprise_graphrag.embeddings import HashEmbedder
@@ -13,11 +16,14 @@ from enterprise_graphrag.security import SecurityGateway
 from enterprise_graphrag.vector_faiss import TenantFAISS
 
 
-def load_fixture():
+def load_fixture(
+    corpus_path: str,
+    questions_path: str,
+):
     corpus = {}
 
     for line in Path(
-        "enterprise_data/corpus.jsonl"
+        corpus_path
     ).read_text(
         encoding="utf-8"
     ).splitlines():
@@ -32,7 +38,7 @@ def load_fixture():
 
     questions = json.loads(
         Path(
-            "enterprise_data/eval_questions.json"
+            questions_path
         ).read_text(
             encoding="utf-8"
         )
@@ -53,8 +59,47 @@ def reciprocal_rank(
     return 0.0
 
 
+def percentile(values: list[float], fraction: float) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    index = min(
+        int((len(ordered) - 1) * fraction),
+        len(ordered) - 1,
+    )
+    return float(ordered[index])
+
+
 def main() -> None:
-    corpus, questions = load_fixture()
+    parser = argparse.ArgumentParser(
+        description="Benchmark tenant-scoped vector, graph, and hybrid retrieval."
+    )
+    parser.add_argument(
+        "--corpus",
+        default="enterprise_data/corpus.jsonl",
+    )
+    parser.add_argument(
+        "--questions",
+        default="enterprise_data/eval_questions.json",
+    )
+    parser.add_argument(
+        "--output",
+        default="enterprise_data/benchmark.json",
+    )
+    parser.add_argument(
+        "--k",
+        type=int,
+        default=5,
+    )
+    args = parser.parse_args()
+
+    if args.k < 1:
+        raise SystemExit("--k must be at least 1")
+
+    corpus, questions = load_fixture(
+        args.corpus,
+        args.questions,
+    )
 
     root = Path(
         tempfile.mkdtemp(
@@ -85,9 +130,14 @@ def main() -> None:
             documents,
         )
 
-    k = 5
+    k = args.k
+    latency = {
+        "vector_ms": [],
+        "graph_ms": [],
+        "hybrid_rrf_ms": [],
+    }
     metrics = {
-        "dataset": "enterprise_data/eval_questions.json",
+        "dataset": str(args.questions),
         "k": k,
         "questions": len(questions),
         "vector": {
@@ -109,20 +159,34 @@ def main() -> None:
         query = question["query"]
         expected = question["expected_doc_id"]
 
+        start = time.perf_counter()
         vector_hits = retriever.vector.search(
             tenant,
             query,
             k,
         )
+        latency["vector_ms"].append(
+            (time.perf_counter() - start) * 1000
+        )
+
+        start = time.perf_counter()
         graph_hits = retriever.graph.search(
             tenant,
             query,
             k,
         )
+        latency["graph_ms"].append(
+            (time.perf_counter() - start) * 1000
+        )
+
+        start = time.perf_counter()
         hybrid_hits, _, _, _ = retriever.search(
             tenant,
             query,
             k,
+        )
+        latency["hybrid_rrf_ms"].append(
+            (time.perf_counter() - start) * 1000
         )
 
         for name, hits in (
@@ -156,9 +220,16 @@ def main() -> None:
             metrics[name]["mrr"] / count
         )
 
-    output = Path(
-        "enterprise_data/benchmark.json"
-    )
+    metrics["latency_ms"] = {
+        name: {
+            "p50": percentile(values, 0.50),
+            "p95": percentile(values, 0.95),
+            "max": max(values, default=0.0),
+        }
+        for name, values in latency.items()
+    }
+
+    output = Path(args.output)
     output.write_text(
         json.dumps(
             metrics,
