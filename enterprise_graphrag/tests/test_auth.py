@@ -94,3 +94,19 @@ def test_empty_mcp_allowlist_is_rejected():
         assert "MCP_ALLOWED_HOSTS" in str(exc)
     else:
         raise AssertionError("empty MCP host allowlist was accepted")
+
+
+def test_production_rejects_loopback_service_urls():
+    config = Settings(
+        environment="production",
+        jwt_secret="ci-only-secret-change-me-please-32-bytes",
+    )
+    try:
+        config.validate()
+    except ValueError as exc:
+        message = str(exc)
+        assert "GRAGRAPH_JWT_ISSUER" in message
+        assert "MCP_RESOURCE_URL" in message
+        assert "MCP_ISSUER_URL" in message
+    else:
+        raise AssertionError("loopback production URLs were accepted")
