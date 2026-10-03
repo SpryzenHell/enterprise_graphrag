@@ -7,6 +7,10 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 
+from mcp.server.transport_security import (
+    TransportSecuritySettings,
+)
+
 from .agent import EnterpriseGraphRAGAgent, build_agent
 from .auth import require_query_access
 from .config import settings
@@ -34,6 +38,15 @@ def create_app(
         json_response=True,
         stateless_http=True,
         host="0.0.0.0",
+        transport_security=TransportSecuritySettings(
+            enable_dns_rebinding_protection=True,
+            allowed_hosts=list(
+                settings.mcp_allowed_hosts
+            ),
+            allowed_origins=list(
+                settings.mcp_allowed_origins
+            ),
+        ),
     )
 
     @asynccontextmanager
