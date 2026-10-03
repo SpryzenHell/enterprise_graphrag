@@ -36,8 +36,6 @@ services:
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8000}
     ports:
       - "8000:8000"
-    extra_hosts:
-      - "graphrag.example.invalid:127.0.0.1"
     healthcheck:
       test:
         ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/ready', timeout=2)\""]
