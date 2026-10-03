@@ -4,6 +4,7 @@ import re
 from collections import defaultdict
 
 from .fusion import Hit, weighted_rrf
+from .schemas import validate_documents
 from .security import SecurityGateway
 
 
@@ -181,15 +182,25 @@ class HybridRetriever:
         tenant: str,
         documents: list[dict],
     ) -> None:
-        for document in documents:
+        normalized = validate_documents(
+            tenant,
+            documents,
+        )
+        if not normalized:
+            return
+
+        # Perform external/vector work before mutating the graph fallback.
+        # This prevents embedding/provider failures from leaving a graph-only
+        # document that was never successfully indexed in the vector backend.
+        self.vector.add(
+            tenant,
+            normalized,
+        )
+        for document in normalized:
             self.graph.add(
                 tenant,
                 document,
             )
-        self.vector.add(
-            tenant,
-            documents,
-        )
 
     def search(
         self,
