@@ -392,3 +392,23 @@ def test_vllm_transport_failure_is_explicit(monkeypatch):
         assert "vLLM answer backend is unavailable" in str(exc)
     else:
         raise AssertionError("vLLM transport failure was not surfaced")
+
+def test_embedding_transport_failure_is_explicit(monkeypatch):
+    def fake_post(*args, **kwargs):
+        raise httpx.ConnectError("connection failed")
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    model = OpenAICompatibleEmbedder(
+        "http://localhost:8000",
+        "key",
+        "embedding-model",
+        2,
+    )
+
+    try:
+        model.embed(["question"])
+    except BackendUnavailable as exc:
+        assert "embedding backend is unavailable" in str(exc)
+    else:
+        raise AssertionError("embedding transport failure was not surfaced")
