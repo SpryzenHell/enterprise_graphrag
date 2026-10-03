@@ -111,18 +111,12 @@ jobs:
             fi
             sleep 2
           done
-          curl --fail --silent http://127.0.0.1:8000/health
-          curl --fail --silent http://127.0.0.1:8000/ready
-
           TOKEN=$(docker exec enterprise-graphrag-ci python -c 'import os,jwt; print(jwt.encode({"sub":"ci-user","tenant_id":"acme","scope":"graphrag:query","iss":os.environ["GRAGRAPH_JWT_ISSUER"],"aud":os.environ["GRAGRAPH_JWT_AUDIENCE"]}, os.environ["GRAGRAPH_JWT_SECRET"], algorithm="HS256"))')
-          curl --fail --silent \
-            -H "Authorization: Bearer ${TOKEN}" \
-            http://127.0.0.1:8000/v1/tenant
-          curl --fail --silent \
-            -H "Authorization: Bearer ${TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d '{"query":"health check"}' \
-            http://127.0.0.1:8000/v1/query
+          docker exec enterprise-graphrag-ci python scripts/runtime_probe.py \
+            --base-url http://127.0.0.1:8000 \
+            --token "${TOKEN}" \
+            --tenant acme \
+            --query "health check"
 
       - name: Container logs on failure
         if: failure()
@@ -151,15 +145,33 @@ jobs:
         run: docker compose -f docker-compose.enterprise.yml up -d --build
 
       - name: Wait for full-stack readiness
+        env:
+          GRAGRAPH_JWT_SECRET: ci-only-secret-change-me-please-32-bytes
+          GRAGRAPH_JWT_ISSUER: https://graphrag.example.invalid
+          GRAGRAPH_JWT_AUDIENCE: enterprise-graphrag-api
+          NEO4J_PASSWORD: testpassword
+          MCP_RESOURCE_URL: https://graphrag.example.invalid/mcp/
+          MCP_ISSUER_URL: https://graphrag.example.invalid
+          MCP_ALLOWED_HOSTS: graphrag.example.invalid:*
+          MCP_ALLOWED_ORIGINS: https://graphrag.example.invalid
         run: |
           for i in $(seq 1 45); do
-            if curl --fail --silent http://127.0.0.1:8000/ready; then
+            if docker compose -f docker-compose.enterprise.yml exec -T app               python scripts/runtime_probe.py --base-url http://localhost:8000; then
               exit 0
             fi
             sleep 2
           done
           docker compose -f docker-compose.enterprise.yml ps
           exit 1
+
+      - name: Authenticated full-stack query
+        run: |
+          TOKEN=$(docker compose -f docker-compose.enterprise.yml exec -T app             python -c 'import os,jwt; print(jwt.encode({"sub":"ci-user","tenant_id":"acme","scope":"graphrag:query","iss":os.environ["GRAGRAPH_JWT_ISSUER"],"aud":os.environ["GRAGRAPH_JWT_AUDIENCE"]}, os.environ["GRAGRAPH_JWT_SECRET"], algorithm="HS256"))')
+          docker compose -f docker-compose.enterprise.yml exec -T app             python scripts/runtime_probe.py \
+              --base-url http://localhost:8000 \
+              --token "${TOKEN}" \
+              --tenant acme \
+              --query "health check"
 
       - name: Full-stack logs on failure
         if: failure()
