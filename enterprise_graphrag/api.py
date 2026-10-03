@@ -3,13 +3,14 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from .agent import EnterpriseGraphRAGAgent, build_agent
 from .auth import require_query_access
 from .config import settings
+from .errors import BackendUnavailable
 from .schemas import QueryRequest, QueryResponse, TenantPrincipal
 
 
@@ -71,6 +72,19 @@ def create_app(
         ],
         expose_headers=["Mcp-Session-Id"],
     )
+
+    @application.exception_handler(BackendUnavailable)
+    async def backend_unavailable(
+        _request: Request,
+        exc: BackendUnavailable,
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": str(exc),
+                "status": "backend_unavailable",
+            },
+        )
 
     @application.get(
         "/",
