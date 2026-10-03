@@ -23,6 +23,19 @@ jobs:
       - name: Compile
         run: python -m compileall enterprise_graphrag scripts
 
+      - name: Build package
+        run: |
+          python -m pip wheel . --no-deps -w /tmp/enterprise-dist
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          wheel = next(Path("/tmp/enterprise-dist").glob("*.whl"))
+          with ZipFile(wheel) as archive:
+              names = set(archive.namelist())
+          assert any(name.endswith("enterprise_graphrag/static/index.html") for name in names)
+          print(wheel)
+          PY
+
       - name: Tests
         run: pytest -q enterprise_graphrag/tests -m "not integration"
 
