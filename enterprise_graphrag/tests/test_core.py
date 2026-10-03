@@ -93,6 +93,9 @@ def test_auth_and_health(tmp_path):
     assert client.get(
         "/ready"
     ).status_code == 200
+    assert client.get(
+        "/health"
+    ).json()["mcp_enabled"] is True
     assert client.post(
         "/v1/query",
         json={"query": "policy"},
