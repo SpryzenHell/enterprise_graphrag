@@ -24,6 +24,13 @@ def _hostname(url: str) -> str:
     return (urlparse(url).hostname or "").lower()
 
 
+def _allowlist_hostname(value: str) -> str:
+    return (urlparse(f"//{value}").hostname or "").lower()
+
+
+LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
+
+
 @dataclass(frozen=True)
 class Settings:
     environment: str = os.getenv(
@@ -221,6 +228,8 @@ class Settings:
 
         if not self.jwt_issuer:
             problems.append("GRAGRAPH_JWT_ISSUER is required")
+        elif "," in self.jwt_issuer:
+            problems.append("GRAGRAPH_JWT_ISSUER must contain exactly one issuer URL")
         if not self.jwt_audience:
             problems.append("GRAGRAPH_JWT_AUDIENCE is required")
         if self.jwt_mode == "jwks" and not self.jwt_jwks_url:
@@ -327,7 +336,7 @@ class Settings:
             if any(host == "*" for host in self.mcp_allowed_hosts):
                 problems.append("MCP_ALLOWED_HOSTS cannot contain * in production")
             if any(
-                host.lower() in {"localhost:*", "127.0.0.1:*", "[::1]:*"}
+                _allowlist_hostname(host) in LOOPBACK_HOSTS
                 for host in self.mcp_allowed_hosts
             ):
                 problems.append(
@@ -336,9 +345,7 @@ class Settings:
             if any(origin == "*" for origin in self.mcp_allowed_origins):
                 problems.append("MCP_ALLOWED_ORIGINS cannot contain * in production")
             if any(
-                origin.lower().startswith(
-                    ("http://localhost", "http://127.0.0.1", "http://[::1]")
-                )
+                _hostname(origin) in LOOPBACK_HOSTS
                 for origin in self.mcp_allowed_origins
             ):
                 problems.append(
@@ -346,6 +353,13 @@ class Settings:
                 )
             if any(origin == "*" for origin in self.allowed_origins):
                 problems.append("ALLOWED_ORIGINS cannot contain * in production")
+            if any(
+                _hostname(origin) in LOOPBACK_HOSTS
+                for origin in self.allowed_origins
+            ):
+                problems.append(
+                    "ALLOWED_ORIGINS cannot allow loopback origins in production"
+                )
 
         if problems:
             raise ValueError(
