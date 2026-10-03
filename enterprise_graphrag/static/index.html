@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Enterprise GraphRAG</title>
+<style>
+:root{font-family:Inter,system-ui,sans-serif;color:#eef2ff;background:#080d16}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at top,#17243a,#080d16 60%)}
+main{max-width:1100px;margin:auto;padding:36px 20px 60px}
+header{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}
+h1{font-size:38px;margin:4px 0}.eyebrow{font-size:11px;letter-spacing:.18em;color:#7dd3fc}
+p,small{color:#99abc5}.status{border:1px solid #263854;padding:9px 12px;border-radius:12px;background:#111a29}
+.panel{margin-top:18px;border:1px solid #22324e;border-radius:16px;background:#0d1625dd;padding:18px}
+label{display:grid;gap:7px;color:#afbed2;font-size:13px;margin-bottom:14px}
+input,textarea{width:100%;padding:11px;border-radius:10px;border:1px solid #2d405f;background:#08101d;color:#f7f9fc;box-sizing:border-box;font:inherit}
+button{border:0;border-radius:10px;padding:11px 15px;background:#38bdf8;color:#05121b;font-weight:800;cursor:pointer}
+.grid{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}.answer{font-size:18px;line-height:1.6;min-height:130px}
+.badge{padding:4px 8px;border-radius:999px;background:#263449;font-size:11px;font-weight:800}.ok{background:#113d2f;color:#77e4ae}.bad{background:#4b1e27;color:#ff9aa9}
+.card{margin-top:10px;padding:12px;border-radius:11px;border:1px solid #273b5b;background:#0a1422}
+pre{white-space:pre-wrap;font-size:12px;line-height:1.45;color:#b7c7dd}
+.node{display:inline-block;margin:5px;padding:7px 10px;border-radius:999px;background:#122238;border:1px solid #2b4364;font-size:12px}
+.node.entity{background:#103037;border-color:#24545d;color:#92e9ef}
+@media(max-width:800px){.grid{grid-template-columns:1fr}header{display:block}.status{margin-top:12px}}
+</style>
+</head>
+<body>
+<main>
+<header>
+<div>
+<div class="eyebrow">ENTERPRISE AI • ZERO TRUST RETRIEVAL</div>
+<h1>GraphRAG Control Plane</h1>
+<p>FAISS HNSW + graph retrieval + weighted RRF + retrieval security gateway.</p>
+</div>
+<div class="status" id="health">checking...</div>
+</header>
+
+<section class="panel">
+<label>JWT bearer token<input id="token" placeholder="Paste a development or enterprise JWT"></label>
+<label>Question<textarea id="query" rows="4">How long does Acme retain incident records?</textarea></label>
+<button id="run">Run query</button>
+</section>
+
+<section class="grid">
+<section class="panel"><div><b>Answer</b> <span id="badge" class="badge">—</span></div><div id="answer" class="answer">No query run yet.</div></section>
+<section class="panel"><b>Execution trace</b><pre id="trace">{}</pre></section>
+</section>
+
+<section class="panel"><b>Citations</b><div id="citations"></div></section>
+<section class="panel"><b>Evidence graph</b><div id="graph"></div></section>
+</main>
+
+<script>
+const byId = function(id){ return document.getElementById(id); };
+
+async function loadHealth(){
+  const response = await fetch('/health');
+  const data = await response.json();
+  byId('health').textContent =
+    data.status + ' • ' + data.vector_backend + ' • ' + data.graph_backend;
+}
+
+function renderCitations(items){
+  const root = byId('citations');
+  root.innerHTML = '';
+  for(const citation of (items || [])){
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    const title = document.createElement('b');
+    title.textContent =
+      '[' + citation.rank + '] ' + citation.title;
+
+    const meta = document.createElement('small');
+    meta.textContent =
+      citation.doc_id +
+      ' • score=' +
+      Number(citation.score).toFixed(6) +
+      ' • ' +
+      citation.sources.join(', ');
+
+    const snippet = document.createElement('p');
+    snippet.textContent = citation.snippet;
+
+    card.appendChild(title);
+    card.appendChild(meta);
+    card.appendChild(snippet);
+    root.appendChild(card);
+  }
+}
+
+function renderGraph(graph){
+  const root = byId('graph');
+  root.innerHTML = '';
+
+  for(const node of ((graph && graph.nodes) || [])){
+    const element = document.createElement('span');
+    element.className =
+      'node' + (node.type === 'entity' ? ' entity' : '');
+    element.textContent = node.label;
+    element.title = node.id;
+    root.appendChild(element);
+  }
+}
+
+async function runQuery(){
+  const token = byId('token').value.trim();
+  const query = byId('query').value.trim();
+
+  const response = await fetch('/v1/query', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + token
+    },
+    body: JSON.stringify({query: query})
+  });
+
+  const data = await response.json();
+
+  if(!response.ok){
+    byId('answer').textContent =
+      data.detail || JSON.stringify(data);
+    return;
+  }
+
+  byId('answer').textContent = data.answer;
+
+  const allowed =
+    Boolean(data.security && data.security.allowed);
+
+  byId('badge').textContent =
+    allowed ? 'ALLOWED' : 'BLOCKED';
+  byId('badge').className =
+    'badge ' + (allowed ? 'ok' : 'bad');
+
+  byId('trace').textContent =
+    JSON.stringify(data.trace, null, 2);
+
+  renderCitations(data.citations);
+  renderGraph(data.graph);
+}
+
+byId('run').addEventListener('click', runQuery);
+loadHealth();
+</script>
+</body>
+</html>

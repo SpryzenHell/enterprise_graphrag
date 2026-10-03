@@ -1,0 +1,29 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV GRAGRAPH_FAISS_DIR=/data/faiss
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY pyproject.toml ./
+COPY enterprise_graphrag ./enterprise_graphrag
+RUN python -m pip install --no-cache-dir --upgrade pip \
+    && python -m pip install --no-cache-dir .
+
+COPY scripts ./scripts
+COPY enterprise_data/corpus.jsonl ./enterprise_data/corpus.jsonl
+COPY enterprise_data/eval_questions.json ./enterprise_data/eval_questions.json
+
+RUN mkdir -p /data/faiss \
+    && chown -R 10001:10001 /app /data
+
+USER 10001:10001
+
+EXPOSE 8000
+
+CMD ["python", "-m", "enterprise_graphrag.run", "--host", "0.0.0.0", "--port", "8000"]

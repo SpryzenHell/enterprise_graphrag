@@ -25,3 +25,17 @@ demos/__pycache__/
 demos/AceAF/layers/Testingu.py
 
 /**/*/.gragEnv
+
+# --- Enterprise GraphRAG ---
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+
+.env
+.env.*
+!.env.enterprise.example
+
+enterprise_data/faiss/
+enterprise_data/evaluation.json
+enterprise_data/benchmark.json

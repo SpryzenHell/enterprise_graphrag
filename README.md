@@ -1,3 +1,5 @@
+> **Supported production runtime:** The current supported application is `enterprise_graphrag/`. The retained legacy GraphRAG/ACE/MCP trees are provenance only. Start with [enterprise_graphrag/README.md](enterprise_graphrag/README.md) and [docs/VALIDATION.md](docs/VALIDATION.md).
+
 # Enterprise GraphRAG Agent
 
 ## 🌟 Features & Architecture
@@ -221,3 +223,10 @@ This project is licensed under the Pirate-Emperor License. See the [LICENSE](LIC
 Thank you for visiting this project!
 
 ---
+## Supported Enterprise GraphRAG Runtime
+
+The repository also includes a clean production-oriented runtime under enterprise_graphrag/. The supported path provides signed JWT tenant context, tenant-partitioned FAISS HNSW retrieval, tenant-aware Neo4j graph retrieval, weighted RRF, retrieval-time prompt-injection screening, optional vLLM generation/PPL scoring, MCP Streamable HTTP, a FastAPI API, a browser demo, deterministic tests, and a labeled retrieval benchmark.
+
+The older merged GraphRAG, MCP CLI and ACE-derived source trees are retained for provenance. They are not the supported application entrypoint.
+
+See docs/DEMO.md for the reproducible walkthrough and docs/VALIDATION.md for the evidence/measurement boundary.
