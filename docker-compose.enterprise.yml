@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile.enterprise
     environment:
-      GRAGRAPH_ENV: ${GRAGRAPH_ENV:-production}
+      GRAGRAPH_ENV: ${GRAGRAPH_ENV:-development}
       GRAGRAPH_JWT_SECRET: ${GRAGRAPH_JWT_SECRET:?set GRAGRAPH_JWT_SECRET}
       GRAGRAPH_JWT_ISSUER: ${GRAGRAPH_JWT_ISSUER:-http://localhost:8000}
       GRAGRAPH_JWT_AUDIENCE: ${GRAGRAPH_JWT_AUDIENCE:-enterprise-graphrag-api}
