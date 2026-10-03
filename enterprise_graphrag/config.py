@@ -323,6 +323,30 @@ class Settings:
         if not self.mcp_allowed_origins:
             problems.append("MCP_ALLOWED_ORIGINS must contain at least one origin")
 
+        if env == "production":
+            if any(host == "*" for host in self.mcp_allowed_hosts):
+                problems.append("MCP_ALLOWED_HOSTS cannot contain * in production")
+            if any(
+                host.lower() in {"localhost:*", "127.0.0.1:*", "[::1]:*"}
+                for host in self.mcp_allowed_hosts
+            ):
+                problems.append(
+                    "MCP_ALLOWED_HOSTS cannot allow loopback hosts in production"
+                )
+            if any(origin == "*" for origin in self.mcp_allowed_origins):
+                problems.append("MCP_ALLOWED_ORIGINS cannot contain * in production")
+            if any(
+                origin.lower().startswith(
+                    ("http://localhost", "http://127.0.0.1", "http://[::1]")
+                )
+                for origin in self.mcp_allowed_origins
+            ):
+                problems.append(
+                    "MCP_ALLOWED_ORIGINS cannot allow loopback origins in production"
+                )
+            if any(origin == "*" for origin in self.allowed_origins):
+                problems.append("ALLOWED_ORIGINS cannot contain * in production")
+
         if problems:
             raise ValueError(
                 "Invalid Enterprise GraphRAG configuration: "
