@@ -10,14 +10,19 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY pyproject.toml requirements-enterprise.txt ./
+COPY pyproject.toml ./
 COPY enterprise_graphrag ./enterprise_graphrag
 RUN python -m pip install --no-cache-dir --upgrade pip \
-    && python -m pip install --no-cache-dir -r requirements-enterprise.txt
+    && python -m pip install --no-cache-dir .
 
 COPY scripts ./scripts
 COPY enterprise_data/corpus.jsonl ./enterprise_data/corpus.jsonl
 COPY enterprise_data/eval_questions.json ./enterprise_data/eval_questions.json
+
+RUN mkdir -p /data/faiss \
+    && chown -R 10001:10001 /app /data
+
+USER 10001:10001
 
 EXPOSE 8000
 
