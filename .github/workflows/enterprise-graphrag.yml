@@ -111,7 +111,7 @@ jobs:
         env:
           GRAGRAPH_JWT_SECRET: ci-only-secret-change-me-please-32-bytes
           NEO4J_PASSWORD: testpassword
-        run: docker compose -f docker-compose.enterprise.yml config
+        run: docker compose -f docker-compose.enterprise.yml -f .github/ci/compose-production-smoke.yml config
 
       - name: Build production image
         run: docker build -f Dockerfile.enterprise -t enterprise-graphrag:ci .
@@ -184,30 +184,30 @@ jobs:
           persist-credentials: false
 
       - name: Start full stack
-        run: docker compose -f docker-compose.enterprise.yml up -d --build
+        run: docker compose -f docker-compose.enterprise.yml -f .github/ci/compose-production-smoke.yml up -d --build
 
       - name: Wait for full-stack readiness
         run: |
           for i in $(seq 1 45); do
-            if docker compose -f docker-compose.enterprise.yml exec -T app python scripts/runtime_probe.py --base-url http://graphrag.example.invalid:8000; then
+            if docker compose -f docker-compose.enterprise.yml -f .github/ci/compose-production-smoke.yml exec -T app python scripts/runtime_probe.py --base-url http://graphrag.example.invalid:8000; then
               exit 0
             fi
             sleep 2
           done
-          docker compose -f docker-compose.enterprise.yml ps
+          docker compose -f docker-compose.enterprise.yml -f .github/ci/compose-production-smoke.yml ps
           exit 1
 
       - name: Authenticated full-stack query
         run: |
-          docker compose -f docker-compose.enterprise.yml exec -T app python scripts/build_demo_index.py
-          TOKEN=$(docker compose -f docker-compose.enterprise.yml exec -T app python -c 'import os,jwt; print(jwt.encode({"sub":"ci-user","tenant_id":"acme","scope":"graphrag:query","iss":os.environ["GRAGRAPH_JWT_ISSUER"],"aud":os.environ["GRAGRAPH_JWT_AUDIENCE"]}, os.environ["GRAGRAPH_JWT_SECRET"], algorithm="HS256"))')
-          docker compose -f docker-compose.enterprise.yml exec -T app python scripts/runtime_probe.py \
+          docker compose -f docker-compose.enterprise.yml -f .github/ci/compose-production-smoke.yml exec -T app python scripts/build_demo_index.py
+          TOKEN=$(docker compose -f docker-compose.enterprise.yml -f .github/ci/compose-production-smoke.yml exec -T app python -c 'import os,jwt; print(jwt.encode({"sub":"ci-user","tenant_id":"acme","scope":"graphrag:query","iss":os.environ["GRAGRAPH_JWT_ISSUER"],"aud":os.environ["GRAGRAPH_JWT_AUDIENCE"]}, os.environ["GRAGRAPH_JWT_SECRET"], algorithm="HS256"))')
+          docker compose -f docker-compose.enterprise.yml -f .github/ci/compose-production-smoke.yml exec -T app python scripts/runtime_probe.py \
               --base-url http://graphrag.example.invalid:8000 \
               --token "${TOKEN}" \
               --tenant acme \
               --query "incident records" \
               --expected-doc-id acme-retention
-          docker compose -f docker-compose.enterprise.yml exec -T app python scripts/mcp_probe.py \
+          docker compose -f docker-compose.enterprise.yml -f .github/ci/compose-production-smoke.yml exec -T app python scripts/mcp_probe.py \
               --url http://graphrag.example.invalid:8000/mcp/ \
               --token "${TOKEN}" \
               --tenant acme \
@@ -216,12 +216,12 @@ jobs:
 
       - name: Full-stack logs on failure
         if: failure()
-        run: docker compose -f docker-compose.enterprise.yml logs --no-color
+        run: docker compose -f docker-compose.enterprise.yml -f .github/ci/compose-production-smoke.yml logs --no-color
 
       - name: Full-stack status on failure
         if: failure()
-        run: docker compose -f docker-compose.enterprise.yml ps
+        run: docker compose -f docker-compose.enterprise.yml -f .github/ci/compose-production-smoke.yml ps
 
       - name: Stop full stack
         if: always()
-        run: docker compose -f docker-compose.enterprise.yml down -v
+        run: docker compose -f docker-compose.enterprise.yml -f .github/ci/compose-production-smoke.yml down -v
