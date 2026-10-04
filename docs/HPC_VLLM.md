@@ -38,11 +38,12 @@ The vLLM OpenAI-compatible server exposes /v1/chat/completions, /v1/completions,
 
 Example generation server:
 
-    vllm serve <CHAT_MODEL>       --host 127.0.0.1       --port 8001       --api-key "<VLLM_KEY>"
+    export VLLM_API_KEY="<VLLM_KEY>"
+    vllm serve <CHAT_MODEL> --host 127.0.0.1 --port 8001
 
 Check it from the same DGX node:
 
-    curl       -H "Authorization: Bearer <VLLM_KEY>"       http://127.0.0.1:8001/v1/models
+    curl -H "Authorization: Bearer ${VLLM_API_KEY}" http://127.0.0.1:8001/v1/models
 
 Do not put the real key in source control.
 
