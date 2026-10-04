@@ -68,12 +68,14 @@ class VllmAnswerModel(AnswerModel):
             for item in contexts
         )
 
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
         try:
             response = httpx.post(
                 f"{self.base_url}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {self.api_key}"
-                },
+                headers=headers,
                 json={
                     "model": self.model,
                     "temperature": 0.0,
