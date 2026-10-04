@@ -460,7 +460,8 @@ Keep vLLM private on an HPC node whenever possible. The repository documentation
 A real provider check can be run with:
 
 ```bash
-export VLLM_API_KEY="<provider-key-or-empty>"
+export VLLM_API_KEY="<generation-key-or-empty>"
+export EMBEDDING_API_KEY="<embedding-key-or-empty>"
 python scripts/provider_probe.py \
   --base-url "$VLLM_BASE_URL" \
   --chat-model "$VLLM_MODEL" \
