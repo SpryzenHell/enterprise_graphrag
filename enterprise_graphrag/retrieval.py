@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import json
+import os
 import re
+import tempfile
 import threading
 from collections import defaultdict
+from pathlib import Path
 
 from .fusion import Hit, weighted_rrf
 from .schemas import validate_documents
@@ -16,13 +20,16 @@ class TenantMemoryGraph:
         r"\b[A-Z][A-Za-z0-9&.-]{2,}\b"
     )
 
-    def __init__(self) -> None:
+    def __init__(self, persistence_path: str | None = None) -> None:
         self._lock = threading.RLock()
+        self.persistence_path = Path(persistence_path) if persistence_path else None
         self.docs = defaultdict(dict)
         self.entities = defaultdict(
             lambda: defaultdict(set)
         )
         self.doc_entities = defaultdict(dict)
+        if self.persistence_path is not None:
+            self._load_persisted()
 
     def add(
         self,
@@ -34,6 +41,64 @@ class TenantMemoryGraph:
                 tenant,
                 doc,
             )
+            self._persist()
+
+    def _load_persisted(self) -> None:
+        path = self.persistence_path
+        if path is None or not path.exists():
+            return
+
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ValueError(
+                f"Invalid persisted memory graph: {path}"
+            ) from exc
+
+        if not isinstance(payload, dict):
+            raise ValueError(
+                f"Invalid persisted memory graph: {path}"
+            )
+
+        for tenant, documents in payload.items():
+            if not isinstance(tenant, str) or not isinstance(documents, list):
+                raise ValueError(
+                    f"Invalid persisted memory graph tenant data: {path}"
+                )
+            for document in documents:
+                if not isinstance(document, dict):
+                    raise ValueError(
+                        f"Invalid persisted memory graph document: {path}"
+                    )
+                self._add_locked(tenant, document)
+
+    def _persist(self) -> None:
+        path = self.persistence_path
+        if path is None:
+            return
+
+        path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            tenant: list(documents.values())
+            for tenant, documents in self.docs.items()
+        }
+        fd, temp_name = tempfile.mkstemp(
+            dir=path.parent,
+            prefix=path.name + ".",
+            suffix=".tmp",
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                json.dump(payload, handle, indent=2)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.chmod(temp_name, 0o600)
+            os.replace(temp_name, path)
+        finally:
+            try:
+                os.unlink(temp_name)
+            except FileNotFoundError:
+                pass
 
     def _add_locked(
         self,
