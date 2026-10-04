@@ -602,7 +602,8 @@ scripts/
 ├── mcp_probe.py
 ├── provider_probe.py
 ├── runtime_probe.py
-└── gpu_probe.py
+├── gpu_probe.py
+└── start_hpc_runner.sh
 
 docs/
 ├── DEMO.md
