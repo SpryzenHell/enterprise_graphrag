@@ -91,7 +91,7 @@ From the repository root:
 
     python scripts/provider_probe.py       --base-url "$VLLM_BASE_URL"       --api-key "$VLLM_API_KEY"       --chat-model "$VLLM_MODEL"       --embedding-model "$EMBEDDING_MODEL"       --embedding-dimension "$EMBEDDING_DIMENSION"
 
-This checks chat completions, embeddings, and observed prompt-token logprobs before attempting the full GraphRAG application.
+This checks chat completions, embeddings, and observed prompt-token logprobs before attempting the full GraphRAG application. Set `EMBEDDING_API_KEY` separately when the embedding service uses a different credential.
 
 ## 6. Access GraphRAG from your laptop without opening an HPC port
 
