@@ -135,6 +135,15 @@ class OpenAICompatibleEmbedder(Embedder):
                 raise ValueError(
                     "Embedding response contains inconsistent vector dimensions"
                 )
+            if any(
+                not isinstance(value, (int, float))
+                or not math.isfinite(float(value))
+                for vector in vectors
+                for value in vector
+            ):
+                raise ValueError(
+                    "Embedding response contains non-finite or invalid values"
+                )
         return vectors
 
 
