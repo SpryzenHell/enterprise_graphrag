@@ -159,5 +159,7 @@ def build_answer_model(settings) -> AnswerModel:
             settings.vllm_base_url,
             settings.vllm_api_key,
             settings.vllm_model,
+            settings.vllm_max_context_chars,
+            settings.vllm_max_document_chars,
         )
     return ExtractiveAnswerModel()
