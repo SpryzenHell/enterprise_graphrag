@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 @dataclass(frozen=True)
@@ -19,6 +19,13 @@ class TenantPrincipal:
 class QueryRequest(BaseModel):
     query: str = Field(min_length=1, max_length=4000)
     top_k: int | None = Field(default=None, ge=1, le=50)
+
+    @field_validator("query")
+    @classmethod
+    def query_must_not_be_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("query must not be blank")
+        return value
 
 
 class Citation(BaseModel):
