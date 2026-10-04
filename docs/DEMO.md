@@ -16,7 +16,7 @@ For the deterministic local demo, leave Neo4j and vLLM variables empty.
 
     python scripts/build_demo_index.py
 
-This creates tenant-partitioned FAISS indexes and populates the in-memory graph.
+This creates tenant-partitioned FAISS indexes and persists the local memory graph under the configured FAISS data directory. The later API process reuses that same graph state.
 
 For a larger JSONL corpus, use the streaming ingester instead:
 
