@@ -234,6 +234,20 @@ def test_demo_token_cli_refuses_production(monkeypatch):
         raise AssertionError("production demo-token minting was allowed")
 
 
+
+
+def test_invalid_vllm_context_limits_are_rejected():
+    config = Settings(
+        environment="test",
+        vllm_max_context_chars=100,
+        vllm_max_document_chars=101,
+    )
+    with pytest.raises(
+        ValueError,
+        match="cannot exceed",
+    ):
+        config.validate()
+
 def test_top_k_upper_bound_is_rejected():
     config = Settings(
         environment="test",
