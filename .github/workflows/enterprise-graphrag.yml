@@ -55,7 +55,7 @@ jobs:
         run: python scripts/benchmark_retrieval.py
 
       - name: Upload evidence
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: enterprise-graphrag-evidence
           path: |
