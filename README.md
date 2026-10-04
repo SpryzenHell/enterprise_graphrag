@@ -274,6 +274,10 @@ Every data-bearing request requires:
 
 The same tenant identity is used by the FastAPI query path and the MCP tool path.
 
+<p align="center">
+  <img src="docs/assets/tenant-isolation.svg" alt="Tenant isolation through JWT, FAISS and Neo4j" width="1050">
+</p>
+
 The Neo4j adapter uses explicit tenant predicates on document/entity lookup and trace operations. The FAISS backend uses one index per tenant.
 
 Cross-tenant regression tests are part of the standard test suite.
@@ -293,6 +297,10 @@ The server exposes:
 - resource: `graphrag://capabilities`
 - prompt: `grounded_query`
 - tool: `hybrid_search`
+
+<p align="center">
+  <img src="docs/assets/mcp-flow.svg" alt="MCP authentication and GraphRAG request flow" width="1100">
+</p>
 
 The reusable MCP probe is:
 
