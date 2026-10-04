@@ -22,7 +22,7 @@ FastAPI -> JWT tenant context -> FAISS HNSW + Neo4j graph retrieval -> weighted 
 
     python -m pip install -r requirements-enterprise.txt
     python -m compileall enterprise_graphrag scripts
-    pytest -q enterprise_graphrag/tests
+    pytest -q enterprise_graphrag/tests -m "not integration and not gpu"
     python scripts/evaluate_enterprise.py
     python scripts/benchmark_retrieval.py
 
