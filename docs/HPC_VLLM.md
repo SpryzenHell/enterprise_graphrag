@@ -16,6 +16,22 @@ This project does not require the vLLM server to be publicly reachable. For a pr
 
 Keep the inference service bound to the compute node's loopback interface whenever possible. Do not expose vLLM or GraphRAG directly to the internet just to make the integration test work.
 
+## 0. HPC network bootstrap
+
+On this HPC environment, network access is enabled by importing `core_config.py` from your home directory. This must happen before any network-dependent command in a new compute-node shell, including model downloads, `curl`, `git`, `pip`, or GitHub runner commands.
+
+Run:
+
+    source "$HOME/Conda/bin/activate"
+    cd "$HOME"
+    python -c "import core_config"
+
+Keep that bootstrap in effect for the shell or process that performs the network operation. The repository provides executable wrappers that run the import in the same process before starting the command:
+
+    ./scripts/with_hpc_network.sh <network-command> [arguments...]
+
+For the GitHub runner, use `scripts/configure_hpc_runner.sh` and `scripts/start_hpc_runner.sh` so the runner itself inherits the bootstrapped environment.
+
 ## 1. Start vLLM on the DGX node
 
 The vLLM OpenAI-compatible server exposes /v1/chat/completions, /v1/completions, and /v1/embeddings for the corresponding model types.
@@ -163,6 +179,7 @@ On this compute node, network access is available only after the site's `core_co
 The required bootstrap is:
 
     source "$HOME/Conda/bin/activate"
+    cd "$HOME"
     python -c "import core_config"
 
 Run that first in the shell that will perform GitHub runner setup and in the shell that will start the runner. Do not put a network-dependent command before it.
