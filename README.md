@@ -222,13 +222,13 @@ The API also returns an `X-Request-ID` response header. The same identifier is i
 
 The web application is intentionally small. It is served directly by FastAPI and does not require a second frontend build.
 
-The figure is a static rendering of the supported browser UI using values from the checked-in deterministic corpus. It is documentation material, not a live production screenshot.
+The images below show the supported browser UI with values taken from the checked-in deterministic corpus. They are documentation snapshots of the application state used by the local demo.
 
 <p align="center">
   <img src="docs/assets/application-query.svg" alt="Enterprise GraphRAG browser application with an Acme query" width="1100">
 </p>
 
-The following figure represents a valid application state for a direct prompt-injection request. The text, blocked response and trace fields are taken directly from the supported security path.
+The second image shows the corresponding blocked state for a direct prompt-injection request. The request text and blocked response match the security path exercised by the deterministic tests.
 
 <p align="center">
   <img src="docs/assets/application-blocked.svg" alt="Enterprise GraphRAG browser application showing a blocked prompt-injection request" width="1100">
@@ -385,7 +385,7 @@ export NEO4J_PASSWORD='testpassword'
 docker compose -f docker-compose.enterprise.yml up -d
 ```
 
-The application waits on Neo4j health before starting.
+The application waits for Neo4j to report healthy before the Compose stack is considered ready.
 
 The Neo4j adapter:
 
@@ -524,7 +524,7 @@ The checked-in benchmark contains four labeled questions: two for Acme and two f
   <img src="docs/assets/benchmark.svg" alt="Retrieval benchmark for the checked-in four-question fixture" width="900">
 </p>
 
-The current four-question fixture produces Recall@5 = 1.0 and MRR = 1.0 for vector, graph and hybrid retrieval. These values describe the checked-in fixture only. They are not production retrieval-quality claims.
+The current four-question fixture produces Recall@5 = 1.0 and MRR = 1.0 for vector, graph and hybrid retrieval. These figures describe only the checked-in fixture and should not be used as production retrieval-quality numbers.
 
 ## Runtime probes
 
@@ -593,7 +593,7 @@ The GPU workflow is intended for a compute node that you already have allocated.
    These wrappers use `core_config` before invoking the runner process. `tmux` can be used to keep the runner attached to the allocated node.
 5. In GitHub, confirm the runner is **Idle** and carries the `gpu-a100` label.
 
-The normal CPU CI does not use the self-hosted runner. The GPU workflow is owner-gated and executes only on the trusted revamp branch or through `workflow_dispatch`.
+The normal CI uses GitHub-hosted runners. The GPU workflow is separate and is restricted to the trusted revamp branch/owner and manual dispatch.
 
 The GPU runner does not need to expose vLLM publicly. The workflow expects a private service on `127.0.0.1:8001` and can optionally use a separate private embedding service.
 
