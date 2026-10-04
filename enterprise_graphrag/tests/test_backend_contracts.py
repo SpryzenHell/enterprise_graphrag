@@ -551,3 +551,58 @@ def test_local_vllm_adapters_omit_empty_auth_header(monkeypatch):
         [{"doc_id": "a1", "title": "Policy", "text": "Evidence."}],
     ) == "ok"
     assert "Authorization" not in captured[0][1]["headers"]
+
+
+def test_vllm_context_budget_is_enforced(monkeypatch):
+    captured = {}
+
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": "grounded",
+                        }
+                    }
+                ]
+            }
+
+    def fake_post(url, **kwargs):
+        captured["json"] = kwargs["json"]
+        return Response()
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+
+    model = VllmAnswerModel(
+        "http://localhost:8000",
+        "key",
+        "served-model",
+        max_context_chars=100,
+        max_document_chars=60,
+    )
+    model.answer(
+        "question",
+        [
+            {
+                "doc_id": "a1",
+                "title": "Policy",
+                "text": "A" * 300,
+            },
+            {
+                "doc_id": "a2",
+                "title": "Policy 2",
+                "text": "B" * 300,
+            },
+        ],
+    )
+
+    evidence = captured["json"]["messages"][1]["content"].split(
+        "Evidence:\\n",
+        1,
+    )[1]
+    assert len(evidence) <= 100
+    assert "[a1] Policy" in evidence
