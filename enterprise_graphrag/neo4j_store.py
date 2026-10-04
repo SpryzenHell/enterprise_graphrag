@@ -189,28 +189,32 @@ class Neo4jTenantStore:
             )
             for row in rows:
                 document_id = row["doc_id"]
-                entity_id = (
-                    f"entity:{tenant}:{row['entity_key']}"
-                )
                 nodes[document_id] = {
                     "id": document_id,
                     "label": row["title"],
                     "type": "document",
                     "tenant_id": tenant,
                 }
-                nodes[entity_id] = {
-                    "id": entity_id,
-                    "label": row["entity_name"],
-                    "type": "entity",
-                    "tenant_id": tenant,
-                }
-                edges.append(
-                    {
-                        "source": document_id,
-                        "target": entity_id,
-                        "type": "MENTIONS",
+
+                entity_key = row.get("entity_key")
+                entity_name = row.get("entity_name")
+                if entity_key is not None and entity_name is not None:
+                    entity_id = (
+                        f"entity:{tenant}:{entity_key}"
+                    )
+                    nodes[entity_id] = {
+                        "id": entity_id,
+                        "label": entity_name,
+                        "type": "entity",
+                        "tenant_id": tenant,
                     }
-                )
+                    edges.append(
+                        {
+                            "source": document_id,
+                            "target": entity_id,
+                            "type": "MENTIONS",
+                        }
+                    )
 
         return {
             "nodes": list(nodes.values()),
