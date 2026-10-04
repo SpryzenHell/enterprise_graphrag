@@ -313,6 +313,26 @@ def test_faiss_upsert_is_idempotent(tmp_path):
     assert hits[0].text == "Final retention policy for Acme."
 
 
+
+def test_memory_graph_persists_between_process_instances(tmp_path):
+    graph_path = tmp_path / "memory_graph.json"
+
+    graph = TenantMemoryGraph(str(graph_path))
+    graph.add(
+        "acme",
+        {
+            "doc_id": "doc-1",
+            "title": "Acme Policy",
+            "text": "Acme Security Operations owns incident response.",
+        },
+    )
+
+    restored = TenantMemoryGraph(str(graph_path))
+    hits = restored.search("acme", "Security Operations", 5)
+
+    assert [hit.doc_id for hit in hits] == ["doc-1"]
+    assert hits[0].tenant_id == "acme"
+
 def test_memory_graph_excludes_zero_score_documents():
     graph = TenantMemoryGraph()
     graph.add(
