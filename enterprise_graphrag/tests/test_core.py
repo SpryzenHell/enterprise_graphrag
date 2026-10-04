@@ -503,3 +503,78 @@ def test_ingestion_rejects_empty_document_fields(tmp_path):
         raise AssertionError(
             f"empty document field {field!r} was accepted"
         )
+
+def test_faiss_manifest_count_mismatch_is_rejected(tmp_path):
+    store = TenantFAISS(
+        str(tmp_path / "faiss"),
+        HashEmbedder(64),
+    )
+    store.add(
+        "acme",
+        [
+            {
+                "doc_id": "doc-1",
+                "title": "Policy",
+                "text": "Retention policy.",
+            }
+        ],
+    )
+    _, _, manifest_path = store._paths("acme")
+    manifest = json.loads(
+        manifest_path.read_text(encoding="utf-8")
+    )
+    manifest["count"] = 0
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2),
+        encoding="utf-8",
+    )
+
+    fresh = TenantFAISS(
+        str(tmp_path / "faiss"),
+        HashEmbedder(64),
+    )
+
+    try:
+        fresh.search("acme", "policy", 5)
+    except ValueError as exc:
+        assert "manifest count mismatch" in str(exc)
+    else:
+        raise AssertionError("invalid FAISS manifest count was accepted")
+
+
+def test_faiss_manifest_dimension_mismatch_is_rejected(tmp_path):
+    store = TenantFAISS(
+        str(tmp_path / "faiss"),
+        HashEmbedder(64),
+    )
+    store.add(
+        "acme",
+        [
+            {
+                "doc_id": "doc-1",
+                "title": "Policy",
+                "text": "Retention policy.",
+            }
+        ],
+    )
+    _, _, manifest_path = store._paths("acme")
+    manifest = json.loads(
+        manifest_path.read_text(encoding="utf-8")
+    )
+    manifest["dimension"] = 128
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2),
+        encoding="utf-8",
+    )
+
+    fresh = TenantFAISS(
+        str(tmp_path / "faiss"),
+        HashEmbedder(64),
+    )
+
+    try:
+        fresh.search("acme", "policy", 5)
+    except ValueError as exc:
+        assert "manifest dimension mismatch" in str(exc)
+    else:
+        raise AssertionError("invalid FAISS manifest dimension was accepted")
