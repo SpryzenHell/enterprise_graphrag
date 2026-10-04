@@ -41,6 +41,19 @@ def issue_demo_token(subject: str, tenant_id: str, scopes: list[str]) -> str:
     )
 
 
+def _scope_claims(payload: dict) -> frozenset[str]:
+    raw = payload.get("scope", payload.get("scp", ""))
+    if isinstance(raw, str):
+        return frozenset(item for item in raw.split() if item)
+    if isinstance(raw, (list, tuple, set)):
+        return frozenset(
+            item.strip()
+            for item in raw
+            if isinstance(item, str) and item.strip()
+        )
+    return frozenset()
+
+
 def principal_from_token(token: str) -> TenantPrincipal:
     try:
         payload = jwt.decode(
@@ -68,7 +81,7 @@ def principal_from_token(token: str) -> TenantPrincipal:
     return TenantPrincipal(
         subject=subject,
         tenant_id=tenant_id,
-        scopes=frozenset(str(payload.get("scope", "")).split()),
+        scopes=_scope_claims(payload),
     )
 
 
