@@ -97,26 +97,42 @@ jobs:
       - name: Install repository in isolated GPU environment
         run: |
           source "$HOME/Conda/bin/activate"
-          conda run --no-capture-output -n "$GRAGRAPH_CONDA_ENV"             python -m pip install -e ".[dev]"
-          conda run --no-capture-output -n "$GRAGRAPH_CONDA_ENV"             python -m pip check
+          conda run --no-capture-output -n "$GRAGRAPH_CONDA_ENV" \
+            python -m pip install -e ".[dev]"
+          conda run --no-capture-output -n "$GRAGRAPH_CONDA_ENV" \
+            python -m pip check
 
       - name: Run deterministic regression suite
         run: |
           source "$HOME/Conda/bin/activate"
-          conda run --no-capture-output -n "$GRAGRAPH_CONDA_ENV"             pytest -q enterprise_graphrag/tests -m "not integration and not gpu"
+          conda run --no-capture-output -n "$GRAGRAPH_CONDA_ENV" \
+            pytest -q enterprise_graphrag/tests \
+            -m "not integration and not gpu"
 
       - name: Validate real A100 + vLLM provider
         run: |
           source "$HOME/Conda/bin/activate"
-          conda run --no-capture-output -n "$GRAGRAPH_CONDA_ENV"             python scripts/gpu_probe.py               --vllm-base-url "$GPU_TEST_VLLM_BASE_URL"               --vllm-api-key "$GPU_TEST_VLLM_API_KEY"               --chat-model "$GPU_TEST_VLLM_MODEL"               --embedding-base-url "$GPU_TEST_EMBEDDING_BASE_URL"               --embedding-api-key "$GPU_TEST_EMBEDDING_API_KEY"               --embedding-model "$GPU_TEST_EMBEDDING_MODEL"               --embedding-dimension "$GPU_TEST_EMBEDDING_DIMENSION"               --expected-gpu-name "$GPU_TEST_EXPECTED_GPU_NAME"               --output gpu-validation.json
+          conda run --no-capture-output -n "$GRAGRAPH_CONDA_ENV" \
+            python scripts/gpu_probe.py \
+              --vllm-base-url "$GPU_TEST_VLLM_BASE_URL" \
+              --vllm-api-key "$GPU_TEST_VLLM_API_KEY" \
+              --chat-model "$GPU_TEST_VLLM_MODEL" \
+              --embedding-base-url "$GPU_TEST_EMBEDDING_BASE_URL" \
+              --embedding-api-key "$GPU_TEST_EMBEDDING_API_KEY" \
+              --embedding-model "$GPU_TEST_EMBEDDING_MODEL" \
+              --embedding-dimension "$GPU_TEST_EMBEDDING_DIMENSION" \
+              --expected-gpu-name "$GPU_TEST_EXPECTED_GPU_NAME" \
+              --output gpu-validation.json
 
       - name: Run GPU integration contracts
         run: |
           source "$HOME/Conda/bin/activate"
-          conda run --no-capture-output -n "$GRAGRAPH_CONDA_ENV"             pytest -q enterprise_graphrag/tests/test_gpu_contracts.py             --junitxml=gpu-tests.xml
+          conda run --no-capture-output -n "$GRAGRAPH_CONDA_ENV" \
+            pytest -q enterprise_graphrag/tests/test_gpu_contracts.py \
+            --junitxml=gpu-tests.xml
 
       - name: Upload GPU evidence
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: enterprise-graphrag-gpu-evidence
           path: |
