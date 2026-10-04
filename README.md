@@ -488,10 +488,10 @@ The production deployment still requires real identity-provider, inference and d
 
 ## Tests
 
-Run the normal test suite:
+Run the deterministic test suite:
 
 ```bash
-pytest -q enterprise_graphrag/tests
+pytest -q enterprise_graphrag/tests -m "not integration and not gpu"
 ```
 
 Run only the deterministic suite:
@@ -551,6 +551,53 @@ python scripts/runtime_probe.py \
 The MCP probe performs an equivalent protocol-level check against the Streamable HTTP endpoint.
 
 ## GPU / A100 validation
+
+### Self-hosted A100 runner setup
+
+The GPU workflow is intended for a compute node that you already have allocated. The repository does not manage Slurm.
+
+1. On GitHub, open **Settings → Actions → Runners → New self-hosted runner** and select Linux/x64.
+2. Create the runner directory on the compute node:
+
+   ```bash
+   mkdir -p ~/gpu/actions-runner-enterprise-graphrag
+   cd ~/gpu/actions-runner-enterprise-graphrag
+   ```
+
+3. Follow GitHub's generated commands to download and extract the current runner release. Do not copy a registration token into the repository or into documentation.
+4. Before any network-dependent runner command, activate the site's Conda installation and import the HPC network bootstrap:
+
+   ```bash
+   source "$HOME/Conda/bin/activate"
+   cd "$HOME"
+   python -c "import core_config"
+   ```
+
+   For this environment, `core_config` is mandatory before network access. The repository provides wrappers that keep the imported configuration in the same process that executes the runner.
+
+   From a checkout of this repository, register the runner with:
+
+   ```bash
+   ./scripts/configure_hpc_runner.sh \
+     --url https://github.com/SpryzenHell/enterprise_graphrag \
+     --token <one-time-registration-token> \
+     --labels gpu-a100
+   ```
+
+   Start it with:
+
+   ```bash
+   ./scripts/start_hpc_runner.sh
+   ```
+
+   These wrappers use `core_config` before invoking the runner process. `tmux` can be used to keep the runner attached to the allocated node.
+5. In GitHub, confirm the runner is **Idle** and carries the `gpu-a100` label.
+
+The normal CPU CI does not use the self-hosted runner. The GPU workflow is owner-gated and executes only on the trusted revamp branch or through `workflow_dispatch`.
+
+The GPU runner does not need to expose vLLM publicly. The workflow expects a private service on `127.0.0.1:8001` and can optionally use a separate private embedding service.
+
+If the repository is not cloned yet, use the same `core_config` bootstrap and then clone the repository before running the wrapper scripts.
 
 The repository includes a separate self-hosted GPU workflow at [.github/workflows/gpu-validation.yml](.github/workflows/gpu-validation.yml).
 
