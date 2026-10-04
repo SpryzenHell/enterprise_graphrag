@@ -192,6 +192,12 @@ The following snapshot uses the checked-in deterministic corpus. The answer and 
   <img src="docs/assets/application-query.svg" alt="Enterprise GraphRAG browser application with an Acme query" width="1100">
 </p>
 
+The following state is also a valid response produced by the application security path for a direct prompt-injection request:
+
+<p align="center">
+  <img src="docs/assets/application-blocked.svg" alt="Enterprise GraphRAG browser application showing a blocked prompt-injection request" width="1100">
+</p>
+
 ## Retrieval and ranking
 
 The runtime performs two tenant-scoped retrieval operations:
@@ -230,6 +236,16 @@ The deterministic security fixture includes separate Acme and Globex records plu
 <p align="center">
   <img src="docs/assets/security-evaluation.svg" alt="Deterministic security evaluation checks" width="1000">
 </p>
+
+## Evidence graph
+
+The local memory graph used by the deterministic demo extracts single-token entities from document text. The following figure shows the corresponding Acme policy graph.
+
+<p align="center">
+  <img src="docs/assets/graph-trace.svg" alt="Tenant-scoped Acme evidence graph" width="950">
+</p>
+
+The Neo4j adapter uses a richer multi-word entity pattern, but the same tenant boundary and document-to-entity relationship are preserved.
 
 ## Tenant isolation
 
@@ -516,6 +532,16 @@ python -c "import core_config"
 That command must run before network-dependent commands in the runner's parent shell/process.
 
 Do not put VPN credentials, SSH private keys, provider secrets or bearer tokens into the repository. Provider credentials for the GPU workflow belong in GitHub repository secrets.
+
+## Validation path
+
+The repository separates code-level regression checks from infrastructure-dependent validation.
+
+<p align="center">
+  <img src="docs/assets/validation-flow.svg" alt="Enterprise GraphRAG validation path" width="1100">
+</p>
+
+This makes it possible to run the deterministic suite from a fresh clone before configuring Neo4j or vLLM.
 
 ## Evidence and limitations
 
