@@ -129,7 +129,12 @@ def build_agent() -> EnterpriseGraphRAGAgent:
         graph.verify()
         graph.ensure_schema()
     else:
-        graph = TenantMemoryGraph()
+        graph = TenantMemoryGraph(
+            str(
+                __import__("pathlib").Path(settings.faiss_dir)
+                / "memory_graph.json"
+            )
+        )
 
     security = SecurityGateway(
         base_url=settings.vllm_base_url,
