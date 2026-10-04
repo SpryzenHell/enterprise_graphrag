@@ -89,7 +89,7 @@ For Neo4j:
 
 Then set the Neo4j environment variables and run the demo indexing command.
 
-For vLLM, set VLLM_BASE_URL, VLLM_MODEL and VLLM_API_KEY to an OpenAI-compatible inference server. The retrieval and security contract stays the same. vLLM supports the Completions, Chat Completions and Embeddings APIs used by this runtime. citeturn486974search1
+For vLLM, set VLLM_BASE_URL, VLLM_MODEL and VLLM_API_KEY to an OpenAI-compatible inference server. The retrieval and security contract stays the same. vLLM supports the Completions, Chat Completions and Embeddings APIs used by this runtime.
 
 ## Enterprise JWT mode
 
