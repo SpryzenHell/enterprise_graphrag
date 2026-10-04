@@ -7,7 +7,9 @@ if [[ $# -eq 0 ]]; then
 fi
 
 source "$HOME/Conda/bin/activate"
+cd "$HOME"
 
-# Import the site's network bootstrap in the same process that execs the
-# network-dependent command so environment changes are preserved.
+# core_config.py is stored directly under $HOME. Import the site's network
+# bootstrap in the same process that execs the network-dependent command so
+# its environment changes are preserved.
 python -c 'import core_config, os, sys; os.execvp(sys.argv[1], sys.argv[1:])' "$@"
