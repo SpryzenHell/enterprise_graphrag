@@ -36,11 +36,22 @@ class EnterpriseGraphRAGAgent:
                 "graph": {"nodes": [], "edges": []},
             }
 
+        if not isinstance(query, str) or not query.strip():
+            raise ValueError("query must be a non-empty string")
+
+        resolved_top_k = (
+            settings.top_k
+            if top_k is None
+            else top_k
+        )
+        if resolved_top_k < 1 or resolved_top_k > 50:
+            raise ValueError("top_k must be between 1 and 50")
+
         allowed, blocked, vector_count, graph_count = (
             self.retriever.search(
                 principal.tenant_id,
                 query,
-                top_k or settings.top_k,
+                resolved_top_k,
             )
         )
 
