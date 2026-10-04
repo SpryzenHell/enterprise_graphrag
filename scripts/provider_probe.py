@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import time
 
 import httpx
@@ -31,8 +32,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--api-key",
-        default="",
-        help="Optional provider API key; omit for local unauthenticated vLLM.",
+        default=os.getenv("VLLM_API_KEY", ""),
+        help="Optional provider API key; defaults to VLLM_API_KEY; omit for local unauthenticated vLLM.",
     )
     parser.add_argument(
         "--chat-model",
