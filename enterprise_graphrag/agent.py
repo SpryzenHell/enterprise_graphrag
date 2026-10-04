@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from .config import settings
 from .embeddings import build_embedder
 from .llm import build_answer_model
@@ -131,7 +132,7 @@ def build_agent() -> EnterpriseGraphRAGAgent:
     else:
         graph = TenantMemoryGraph(
             str(
-                __import__("pathlib").Path(settings.faiss_dir)
+                Path(settings.faiss_dir)
                 / "memory_graph.json"
             )
         )
