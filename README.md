@@ -1,232 +1,581 @@
-> **Supported production runtime:** The current supported application is `enterprise_graphrag/`. The retained legacy GraphRAG/ACE/MCP trees are provenance only. Start with [enterprise_graphrag/README.md](enterprise_graphrag/README.md) and [docs/VALIDATION.md](docs/VALIDATION.md).
+# Enterprise GraphRAG
 
-# Enterprise GraphRAG Agent
+<p align="center">
+  <img src="main.png" alt="Enterprise GraphRAG project overview" width="900">
+</p>
 
-## 🌟 Features & Architecture
+Enterprise GraphRAG is a tenant-scoped retrieval service that combines vector search, graph retrieval and a retrieval-time security boundary behind a small FastAPI application.
 
-This project implements a Bipartite Agentic GraphRAG system for enterprise knowledge bases, designed to support local models and feature a comprehensive interactive user interface ecosystem.
+The supported implementation is in `enterprise_graphrag/`. The older GraphRAG, MCP and ACE-derived directories are retained in the repository for provenance, but they are not required by the supported runtime.
 
-- **Hybrid Vector-Graph Retrieval:** Merges L2-normalized dense embeddings (FAISS HNSW) with Neo4j Cypher topological traversals via Reciprocal Rank Fusion (RRF), eliminating transitive relationship hallucinations common in standard vector pipelines.
-- **Model Context Protocol (MCP):** Decouples LLM reasoning from data access using the Model Context Protocol (MCP) to enforce Row-Level Security (RLS) via JWT scopes.
-- **Topology Subgraph Serialization:** Groups topological subgraphs via Depth-First Search (DFS) serialization prior to context injection, mathematically minimizing the LLM's attention span distance to prevent "Lost in the Middle" entropy collapse.
-- **Indirect Prompt Injection Defense:** Defends against GCG attacks by deploying a real-time Perplexity evaluation filter at the API gateway, isolating and dropping anomalous semantic payloads.
-- **API-Centric Architecture:** A robust FastAPI-based server serving as the core of the GraphRAG operations.
-- **Dedicated Indexing and Prompt Tuning UI:** A separate Gradio-based interface for managing indexing and prompt tuning processes.
+[![CI](https://github.com/SpryzenHell/enterprise_graphrag/actions/workflows/enterprise-graphrag.yml/badge.svg)](https://github.com/SpryzenHell/enterprise_graphrag/actions/workflows/enterprise-graphrag.yml)
 
-![GraphRAG UI](uiv3.png)
+## What is included
 
-## 🗺️ Roadmap & Ecosystem
+| Area | Supported implementation |
+| --- | --- |
+| API | FastAPI |
+| Authentication | JWT with issuer/audience validation and required tenant identity |
+| Tenant isolation | Token-derived tenant context, tenant-partitioned FAISS, tenant-aware Neo4j |
+| Vector retrieval | FAISS HNSW with normalized embeddings |
+| Graph retrieval | In-memory graph for local use; Neo4j adapter for shared deployment |
+| Ranking | Weighted Reciprocal Rank Fusion |
+| Retrieval security | Unicode normalization, injection markers, optional vLLM prompt-logprob signal |
+| Answer generation | Deterministic extractive model or vLLM |
+| Tool protocol | MCP Streamable HTTP with bearer-token verification |
+| UI | Small browser UI served by the API |
+| Ingestion | Streaming JSONL ingestion with tenant validation and upsert semantics |
+| Packaging | Python package and production Docker image |
+| Validation | Unit tests, Neo4j integration, security evaluation, retrieval benchmark, runtime probes |
+| GPU validation | Optional private A100 self-hosted GitHub Actions workflow |
 
-The GraphRAG Local UI ecosystem is currently undergoing a major transition. While the main app remains functional, separate applications for Indexing/Prompt Tuning and Querying/Chat are being developed, all built around a robust central API. 
+## Architecture
 
-### Recent Updates
-- [x] New API-centric architecture
-- [x] Dedicated Indexing and Prompt Tuning UI
-- [x] Improved file management and output exploration
-- [x] Background task handling for long-running operations
-
-### Upcoming Features
-- [ ] Dedicated Querying/Chat UI that interacts with the API
-- [ ] Dockerfile for easier deployment
-- [ ] Experimental: Mixture of Agents for Indexing/Query of knowledge graph
-- [ ] Advanced graph analysis tools
-
-## 📦 Installation and Setup
-
-1. **Create and activate a new conda environment:**
-    
-```bash
-    conda create -n graphrag-local -y
-    conda activate graphrag-local
-    
+The request path is:
 
 ```
-
-2. **Install the required packages:**
-
-```bash
-    pip install -e ./graphrag
-    pip install -r requirements.txt
-    
-
+Client
+  |
+  v
+FastAPI
+  |
+  +--> JWT validation --> tenant context
+  |
+  +--> FAISS HNSW --------+
+  |                       |
+  +--> graph retrieval ---+--> weighted RRF
+                              |
+                              v
+                       retrieval security
+                              |
+                              v
+                     vLLM / extractive model
+                              |
+                              v
+                   answer + citations + trace
 ```
 
-3. **Launch the API server:**
+<p align="center">
+  <img src="docs/assets/architecture.svg" alt="Enterprise GraphRAG supported runtime architecture" width="1100">
+</p>
+
+The important boundary is the tenant identity. A query does not receive a tenant ID from the browser or MCP tool arguments. The tenant comes from the verified access token and is passed into both retrieval backends.
+
+## Requirements
+
+The supported development runtime requires:
+
+- Python 3.11 or newer
+- a working C/C++ build environment only where the platform does not provide a pre-built dependency wheel
+- optional Neo4j for a shared graph backend
+- optional vLLM for model-backed generation and prompt-logprob scoring
+
+The deterministic local path does not require a GPU, Neo4j server or external model API.
+
+## Quick start
+
+Clone the repository and enter it:
 
 ```bash
-    python api.py --host 0.0.0.0 --port 8012 --reload
-    
-
+git clone https://github.com/SpryzenHell/enterprise_graphrag.git
+cd enterprise_graphrag
 ```
 
-4. **Launch the embedding proxy:**
+Create a Python environment. A normal virtual environment is sufficient for the local runtime:
 
 ```bash
-    python embedding_proxy.py --port 11435 --host http://localhost:11434
-    
-
+python3 -m venv .venv
+source .venv/bin/activate
 ```
 
-5. **Launch the Indexing and Prompt Tuning UI:**
+On Windows PowerShell, use:
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+Install the application and test dependencies:
 
 ```bash
-    gradio index_app.py
-    
-
+python -m pip install --upgrade pip
+python -m pip install -r requirements-enterprise.txt
 ```
 
-## 🚀 Getting Started with GraphRAG
-
-GraphRAG is designed for flexibility, allowing you to quickly create and initialize your own indexing directory.
-
-### 1. Create the Indexing Directory
-
-Create the required directory structure for your input data and indexing results:
+Copy the example environment file:
 
 ```bash
-mkdir -p ./indexing/input
-
+cp .env.enterprise.example .env
 ```
 
-### 2. Initialize the Indexing Folder
+For the local deterministic demo, leave the Neo4j and vLLM settings empty. Set a local development JWT secret in `.env` if you are not using the example secret.
 
-Run the following command to initialize the folder with the required files:
+Build the checked-in demo corpus:
 
 ```bash
-python -m graphrag.index --init --root ./indexing
-
+python scripts/build_demo_index.py
 ```
 
-### 3. Configure Settings
-
-Move the pre-configured `settings.yaml` file to your indexing directory:
+Start the API:
 
 ```bash
-mv settings.yaml ./indexing
-
+python -m enterprise_graphrag.run --host 127.0.0.1 --port 8000
 ```
 
----
+The browser UI is available at:
 
-## 🖥️ Application Ecosystem
+```
+http://127.0.0.1:8000/
+```
 
-### 1. Core API (`api.py`)
-
-Serves as the backbone of the GraphRAG system, providing a robust FastAPI-based server that handles all core operations.
-
-* Manages indexing and prompt tuning processes
-* Handles various query types (local, global, and direct chat)
-* Integrates with local LLM and embedding models
-
-### 2. Indexing and Prompt Tuning UI (`index_app.py`)
-
-Provides a user-friendly Gradio interface for managing the indexing and prompt tuning processes.
-
-* Configure and run indexing tasks
-* Set up and execute prompt tuning
-* Manage input files and explore output data
-
-### 3. Main Interactive UI (Legacy App) (`app.py`)
-
-The pre-existing main application, which provides legacy functionality.
-
-* Visualize knowledge graphs in 2D or 3D
-* Run queries and view results
-
----
-
-## 🔌 Model Context Protocol (MCP) CLI Inspector
-
-A CLI inspector for the Model Context Protocol is included to facilitate debugging and server interactions.
-
-### Features
-
-* Run MCP servers from various sources
-* List Tools, Resources, Prompts
-* Call Tools, Read Resources, Read Prompts
-* OAuth support for SSE and Streamable HTTP servers
-
-### Usage
-
-Run with a config file:
+Create a development token in a second terminal:
 
 ```bash
-npx @wong2/mcp-cli -c config.json
-
+source .venv/bin/activate
+python -m enterprise_graphrag.token \
+  --subject demo-user \
+  --tenant acme \
+  --scope graphrag:query
 ```
 
-Connect to a running server over Streamable HTTP:
+Paste that token into the browser UI and run:
+
+```
+How long does Acme retain incident records?
+```
+
+The checked-in Acme policy states that the retention period is 365 days.
+
+## API
+
+Health:
 
 ```bash
-npx @wong2/mcp-cli --url http://localhost:8000/mcp
-
+curl http://127.0.0.1:8000/health
 ```
 
-Non-interactive mode (Useful for scripting and automation):
+Readiness:
 
 ```bash
-# Call a tool without arguments
-npx @wong2/mcp-cli -c config.json call-tool filesystem:list_files
-
-# Call a tool with arguments
-npx @wong2/mcp-cli -c config.json call-tool filesystem:read_file --args '{"path": "package.json"}'
-
+curl http://127.0.0.1:8000/ready
 ```
 
----
+Tenant context:
 
-## 🤖 Autonomous Cognitive Entity (ACE) Principles
+```bash
+curl \
+  -H "Authorization: Bearer $TOKEN" \
+  http://127.0.0.1:8000/v1/tenant
+```
 
-This project aligns with the principles of creating Autonomous Cognitive Entities.
+Query:
 
-### Principles
+```bash
+curl \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"How long does Acme retain incident records?"}' \
+  http://127.0.0.1:8000/v1/query
+```
 
-1. **Exclusively Open Source:** Committed to using 100% open source software (OSS) to ensure maximum accessibility.
-2. **Exclusively Local Hardware:** No cloud or SaaS providers. This constrains the project to run locally on servers and edge devices.
-3. **Avoid Vendor Lockin:** Model agnostic architecture to avoid reliance on a single vendor (e.g., OpenAI).
-4. **Task-Constrained Approach:** The framework is designed with the specific types of tasks it should accomplish in mind, measuring capabilities objectively through milestones.
-5. **Avoiding Overcomplication:** Focus on modest, feasible milestones to build autonomous software incrementally.
+The query response contains the answer, citations, a security decision, a retrieval trace and a graph trace.
 
-### Project Implementations
+The API also returns an `X-Request-ID` response header. The same identifier is included in the query trace.
 
-The framework is ideal for:
+## Browser application
 
-1. **Personal Assistant and/or Companion:** A self-contained AI intended to coordinate, plan, research, and solve problems.
-2. **Game World NPCs:** Characters with their own personality, motivations, agenda, and memory.
-3. **Autonomous Employee:** A digital team member capable of backoffice work via APIs or chat platforms.
-4. **Embodied Robot:** Self-contained, autonomous machines navigating physical environments.
+The web application is intentionally small. It is served directly by FastAPI and does not require a second frontend build.
 
+The following snapshot uses the checked-in deterministic corpus. The answer and citation shown are taken from the same Acme policy used by the local demo; it is not a synthetic benchmark screen.
 
-## License
+<p align="center">
+  <img src="docs/assets/application-query.svg" alt="Enterprise GraphRAG browser application with an Acme query" width="1100">
+</p>
 
-This project is licensed under the Pirate-Emperor License. See the [LICENSE](LICENSE) file for details.
+## Retrieval and ranking
 
-## Author
+The runtime performs two tenant-scoped retrieval operations:
 
-**Pirate-Emperor**
+1. FAISS HNSW vector search.
+2. Graph retrieval using either the in-memory graph or Neo4j.
 
-[![Twitter](https://skillicons.dev/icons?i=twitter)](https://twitter.com/PirateKingRahul)
-[![Discord](https://skillicons.dev/icons?i=discord)](https://discord.com/users/1200728704981143634)
-[![LinkedIn](https://skillicons.dev/icons?i=linkedin)](https://www.linkedin.com/in/piratekingrahul)
+The two rankings are combined with weighted Reciprocal Rank Fusion. The default weights are:
 
-[![Reddit](https://img.shields.io/badge/Reddit-FF5700?style=for-the-badge&logo=reddit&logoColor=white)](https://www.reddit.com/u/PirateKingRahul)
-[![Medium](https://img.shields.io/badge/Medium-42404E?style=for-the-badge&logo=medium&logoColor=white)](https://medium.com/@piratekingrahul)
+| Source | Weight |
+| --- | ---: |
+| Vector | 0.55 |
+| Graph | 0.45 |
 
-- GitHub: [Pirate-Emperor](https://github.com/Pirate-Emperor)
-- Reddit: [PirateKingRahul](https://www.reddit.com/u/PirateKingRahul/)
-- Twitter: [PirateKingRahul](https://twitter.com/PirateKingRahul)
-- Discord: [PirateKingRahul](https://discord.com/users/1200728704981143634)
-- LinkedIn: [PirateKingRahul](https://www.linkedin.com/in/piratekingrahul)
-- Skype: [Join Skype](https://join.skype.com/invite/yfjOJG3wv9Ki)
-- Medium: [PirateKingRahul](https://medium.com/@piratekingrahul)
+The values are configuration parameters and can be changed through `VECTOR_WEIGHT` and `GRAPH_WEIGHT`.
 
-Thank you for visiting this project!
+The FAISS index is physically partitioned by tenant. The tenant identifier is hashed before it is used in the filename. Tenant replacement is treated as an upsert; when an existing document is replaced, the tenant's HNSW index is rebuilt so stale vectors are not retained.
 
----
-## Supported Enterprise GraphRAG Runtime
+## Security boundary
 
-The repository also includes a clean production-oriented runtime under enterprise_graphrag/. The supported path provides signed JWT tenant context, tenant-partitioned FAISS HNSW retrieval, tenant-aware Neo4j graph retrieval, weighted RRF, retrieval-time prompt-injection screening, optional vLLM generation/PPL scoring, MCP Streamable HTTP, a FastAPI API, a browser demo, deterministic tests, and a labeled retrieval benchmark.
+The request is screened before retrieval. Retrieved titles and text are screened again before answer generation.
 
-The older merged GraphRAG, MCP CLI and ACE-derived source trees are retained for provenance. They are not the supported application entrypoint.
+The gateway:
 
-See docs/DEMO.md for the reproducible walkthrough and docs/VALIDATION.md for the evidence/measurement boundary.
+- normalizes Unicode compatibility characters;
+- removes zero-width formatting characters;
+- detects common instruction-override and data-exfiltration markers;
+- blocks direct malicious queries;
+- blocks retrieved documents when the marker threshold is exceeded;
+- can add a vLLM prompt-logprob perplexity signal when a vLLM completion endpoint is configured.
+
+The prompt-logprob signal is defense in depth. It is not presented as a general proof that prompt injection is impossible.
+
+The deterministic security fixture includes separate Acme and Globex records plus an intentionally malicious imported memo.
+
+<p align="center">
+  <img src="docs/assets/security-evaluation.svg" alt="Deterministic security evaluation checks" width="1000">
+</p>
+
+## Tenant isolation
+
+Every data-bearing request requires:
+
+- a valid JWT;
+- `sub`;
+- `tenant_id`;
+- `iss`;
+- `aud`;
+- `exp`;
+- the `graphrag:query` scope.
+
+The same tenant identity is used by the FastAPI query path and the MCP tool path.
+
+The Neo4j adapter uses explicit tenant predicates on document/entity lookup and trace operations. The FAISS backend uses one index per tenant.
+
+Cross-tenant regression tests are part of the standard test suite.
+
+## MCP
+
+The supported MCP endpoint is:
+
+```
+http://127.0.0.1:8000/mcp/
+```
+
+The MCP server uses Streamable HTTP and bearer-token verification. The `hybrid_search` tool does not accept a tenant ID. Tenant identity is taken from the verified access token.
+
+The server exposes:
+
+- resource: `graphrag://capabilities`
+- prompt: `grounded_query`
+- tool: `hybrid_search`
+
+The reusable MCP probe is:
+
+```bash
+python scripts/mcp_probe.py \
+  --url http://127.0.0.1:8000/mcp/ \
+  --token "$TOKEN" \
+  --tenant acme \
+  --query "incident records" \
+  --expected-doc-id acme-retention
+```
+
+## Ingestion
+
+For the small checked-in fixture:
+
+```bash
+python scripts/build_demo_index.py
+```
+
+For a real JSONL corpus:
+
+```bash
+python scripts/index_corpus.py \
+  --corpus ./enterprise_data/corpus.jsonl \
+  --batch-size 64
+```
+
+Selected tenants can be indexed explicitly:
+
+```bash
+python scripts/index_corpus.py \
+  --tenant acme \
+  --tenant globex
+```
+
+Each input record must contain:
+
+```json
+{
+  "tenant_id": "acme",
+  "doc_id": "acme-retention",
+  "title": "Acme Incident Response Policy",
+  "text": "Acme retains incident-response records for 365 days."
+}
+```
+
+`doc_id` is the tenant-local primary key. Replaying the same document ID updates the existing record instead of creating a second retrieval record.
+
+## Neo4j
+
+For local development with the included Compose deployment:
+
+```bash
+export GRAGRAPH_ENV=development
+export GRAGRAPH_JWT_SECRET='replace-with-a-long-random-secret'
+export NEO4J_PASSWORD='testpassword'
+
+docker compose -f docker-compose.enterprise.yml up -d
+```
+
+The application waits on Neo4j health before starting.
+
+The Neo4j adapter:
+
+- selects the configured database explicitly;
+- uses parameterized Cypher;
+- enforces composite uniqueness for tenant/document and tenant/entity identities;
+- carries the tenant predicate through search and trace operations.
+
+For a production deployment, use a managed or separately operated Neo4j service and supply its connection settings through the environment.
+
+## vLLM
+
+vLLM is optional for the deterministic local path.
+
+When configured, the runtime uses:
+
+- `/v1/chat/completions` for answer generation;
+- `/v1/completions` for the prompt-logprob security signal;
+- `/v1/embeddings` through the OpenAI-compatible embedding adapter when a separate embedding service is supplied.
+
+Example:
+
+```text
+VLLM_BASE_URL=http://127.0.0.1:8001
+VLLM_API_KEY=<provider-key-or-empty-for-local>
+VLLM_MODEL=<model-id>
+```
+
+Keep vLLM private on an HPC node whenever possible. The repository documentation includes a private DGX layout and SSH forwarding example in [docs/HPC_VLLM.md](docs/HPC_VLLM.md).
+
+A real provider check can be run with:
+
+```bash
+python scripts/provider_probe.py \
+  --base-url "$VLLM_BASE_URL" \
+  --api-key "$VLLM_API_KEY" \
+  --chat-model "$VLLM_MODEL" \
+  --embedding-model "$EMBEDDING_MODEL" \
+  --embedding-dimension "$EMBEDDING_DIMENSION"
+```
+
+For a local vLLM server with no key, omit `--api-key`.
+
+## Enterprise JWT / JWKS
+
+Shared-secret JWT mode is intended for development and deterministic CI. Production should use an enterprise identity provider with asymmetric signing and JWKS.
+
+Set:
+
+```text
+GRAGRAPH_ENV=production
+GRAGRAPH_JWT_MODE=jwks
+GRAGRAPH_JWT_ALGORITHM=RS256
+GRAGRAPH_JWT_ISSUER=https://<issuer>
+GRAGRAPH_JWT_AUDIENCE=<audience>
+GRAGRAPH_JWT_JWKS_URL=https://<issuer>/.well-known/jwks.json
+```
+
+In production, the configuration validator rejects:
+
+- the default or short shared secret;
+- local/loopback issuer URLs;
+- local/loopback JWKS URLs;
+- wildcard MCP hosts/origins;
+- loopback MCP hosts/origins;
+- wildcard/loopback browser CORS origins.
+
+The development token command is disabled in JWKS mode and must not be used as a production identity mechanism.
+
+## Docker
+
+Build the production image:
+
+```bash
+docker build -f Dockerfile.enterprise -t enterprise-graphrag:local .
+```
+
+The image runs as UID 10001 rather than root.
+
+Run the standalone image:
+
+```bash
+docker run --rm \
+  -p 8000:8000 \
+  -e GRAGRAPH_ENV=development \
+  -e GRAGRAPH_JWT_SECRET='replace-with-a-long-random-secret' \
+  enterprise-graphrag:local
+```
+
+For the application plus Neo4j:
+
+```bash
+GRAGRAPH_ENV=development \
+GRAGRAPH_JWT_SECRET='replace-with-a-long-random-secret' \
+NEO4J_PASSWORD='testpassword' \
+docker compose -f docker-compose.enterprise.yml up -d
+```
+
+The production deployment still requires real identity-provider, inference and data-store settings. The included Compose file is intended for repeatable deployment smoke testing, not as a complete internet-facing production topology.
+
+## Tests
+
+Run the normal test suite:
+
+```bash
+pytest -q enterprise_graphrag/tests
+```
+
+Run only the deterministic suite:
+
+```bash
+pytest -q enterprise_graphrag/tests -m "not integration and not gpu"
+```
+
+Run the Neo4j integration test when a Neo4j instance is available:
+
+```bash
+pytest -q enterprise_graphrag/tests/test_neo4j_integration.py -m integration
+```
+
+Run the deterministic security evaluation:
+
+```bash
+python scripts/evaluate_enterprise.py
+```
+
+Run the retrieval benchmark:
+
+```bash
+python scripts/benchmark_retrieval.py
+```
+
+The checked-in benchmark contains four labeled questions: two for Acme and two for Globex.
+
+<p align="center">
+  <img src="docs/assets/benchmark.svg" alt="Retrieval benchmark for the checked-in four-question fixture" width="900">
+</p>
+
+The current four-question fixture produces Recall@5 = 1.0 and MRR = 1.0 for vector, graph and hybrid retrieval. These values describe the checked-in fixture only. They are not production retrieval-quality claims.
+
+## Runtime probes
+
+The runtime probe checks:
+
+- health;
+- readiness;
+- authenticated tenant context;
+- authenticated query response;
+- expected citation, when supplied;
+- cross-tenant citation leakage.
+
+Example:
+
+```bash
+python scripts/runtime_probe.py \
+  --base-url http://127.0.0.1:8000 \
+  --token "$TOKEN" \
+  --tenant acme \
+  --query "incident records" \
+  --expected-doc-id acme-retention
+```
+
+The MCP probe performs an equivalent protocol-level check against the Streamable HTTP endpoint.
+
+## GPU / A100 validation
+
+The repository includes a separate self-hosted GPU workflow at [.github/workflows/gpu-validation.yml](.github/workflows/gpu-validation.yml).
+
+It is designed for a long-lived private HPC allocation where the operator manages the Slurm allocation and keeps the GitHub runner online.
+
+The runner uses:
+
+```text
+self-hosted
+linux
+x64
+gpu-a100
+```
+
+The workflow validates actual hardware and inference behavior rather than only checking that packages are installed.
+
+Before using the runner, read [docs/HPC_VLLM.md](docs/HPC_VLLM.md). In the current HPC environment, network access must be bootstrapped with:
+
+```bash
+python -c "import core_config"
+```
+
+That command must run before network-dependent commands in the runner's parent shell/process.
+
+Do not put VPN credentials, SSH private keys, provider secrets or bearer tokens into the repository. Provider credentials for the GPU workflow belong in GitHub repository secrets.
+
+## Evidence and limitations
+
+The repository deliberately separates repeatable local evidence from deployment-specific measurements.
+
+The checked-in tests establish code-level invariants such as:
+
+- tenant isolation;
+- authentication and scope enforcement;
+- FAISS storage integrity;
+- Neo4j tenant predicates;
+- injection filtering;
+- MCP authentication;
+- backend response validation.
+
+The deterministic benchmark is a small fixture intended to make regressions visible. It is not representative of a production corpus.
+
+Production latency, recall, throughput, GPU utilization, model quality, prompt-injection detection rate and end-to-end security performance should be measured on the actual deployment before being reported externally.
+
+See [docs/VALIDATION.md](docs/VALIDATION.md) for the validation boundary and [SECURITY.md](SECURITY.md) for the security model.
+
+## Repository layout
+
+```text
+enterprise_graphrag/
+├── api.py                 FastAPI application
+├── auth.py                JWT verification and demo tokens
+├── config.py              environment and production validation
+├── embeddings.py          hash + OpenAI-compatible embedding adapters
+├── fusion.py              weighted RRF
+├── llm.py                 extractive + vLLM answer models
+├── mcp_server.py          MCP Streamable HTTP server
+├── neo4j_store.py         tenant-aware Neo4j adapter
+├── retrieval.py           hybrid retrieval + memory graph
+├── security.py            retrieval security gateway
+├── vector_faiss.py        tenant-partitioned FAISS HNSW
+├── static/index.html      browser UI
+└── tests/                 unit, contract, MCP, Neo4j and GPU tests
+
+scripts/
+├── build_demo_index.py
+├── benchmark_retrieval.py
+├── evaluate_enterprise.py
+├── index_corpus.py
+├── mcp_probe.py
+├── provider_probe.py
+├── runtime_probe.py
+└── gpu_probe.py
+
+docs/
+├── DEMO.md
+├── HPC_VLLM.md
+└── VALIDATION.md
+```
+
+## References
+
+- [Enterprise runtime documentation](enterprise_graphrag/README.md)
+- [Demo guide](docs/DEMO.md)
+- [Validation notes](docs/VALIDATION.md)
+- [HPC / vLLM setup](docs/HPC_VLLM.md)
+- [Security notes](SECURITY.md)
+- [License](LICENSE)
