@@ -428,6 +428,35 @@ def test_faiss_metadata_count_mismatch_fails_closed(tmp_path):
         raise AssertionError("corrupt FAISS metadata was silently accepted")
 
 
+def test_security_gateway_handles_prompt_logprob_overflow(monkeypatch):
+    gateway = SecurityGateway(
+        base_url="http://vllm.test",
+        model="test-model",
+    )
+
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "choices": [{
+                    "prompt_logprobs": [
+                        None,
+                        {"1": {"logprob": -1000.0}},
+                    ],
+                    "prompt_token_ids": [0, 1],
+                }]
+            }
+
+    monkeypatch.setattr(
+        "enterprise_graphrag.security.httpx.post",
+        lambda *args, **kwargs: Response(),
+    )
+
+    assert gateway.perplexity("test") is None
+
+
 def test_unicode_obfuscation_does_not_bypass_security_gateway():
     gateway = SecurityGateway(
         threshold=80,
