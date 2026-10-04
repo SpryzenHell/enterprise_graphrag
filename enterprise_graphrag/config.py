@@ -120,6 +120,18 @@ class Settings:
         "VLLM_MODEL",
         "",
     )
+    vllm_max_context_chars: int = int(
+        os.getenv(
+            "VLLM_MAX_CONTEXT_CHARS",
+            "32000",
+        )
+    )
+    vllm_max_document_chars: int = int(
+        os.getenv(
+            "VLLM_MAX_DOCUMENT_CHARS",
+            "6000",
+        )
+    )
 
     mcp_resource_url: str = os.getenv(
         "MCP_RESOURCE_URL",
@@ -267,6 +279,18 @@ class Settings:
         if bool(self.vllm_base_url) != bool(self.vllm_model):
             problems.append(
                 "VLLM_BASE_URL and VLLM_MODEL must be set together"
+            )
+        if self.vllm_max_context_chars <= 0:
+            problems.append(
+                "VLLM_MAX_CONTEXT_CHARS must be greater than zero"
+            )
+        if self.vllm_max_document_chars <= 0:
+            problems.append(
+                "VLLM_MAX_DOCUMENT_CHARS must be greater than zero"
+            )
+        if self.vllm_max_document_chars > self.vllm_max_context_chars:
+            problems.append(
+                "VLLM_MAX_DOCUMENT_CHARS cannot exceed VLLM_MAX_CONTEXT_CHARS"
             )
 
         if bool(self.neo4j_uri) != bool(self.neo4j_password):
