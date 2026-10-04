@@ -178,6 +178,10 @@ Using `tmux` is appropriate if your interactive shell may disconnect:
     tmux new -s graphrag-runner
     ./run.sh
 
+The repository also provides an executable wrapper that performs the Conda activation and mandatory `core_config` import before starting the runner:
+
+    ./scripts/start_hpc_runner.sh
+
 The runner must be connected and show as `Idle` in GitHub before a GPU job can be assigned.
 
 Before registering, verify outbound connectivity from the compute node. GitHub documents that self-hosted runners need outbound HTTPS access to GitHub:
