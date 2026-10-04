@@ -111,15 +111,27 @@ class Neo4jTenantStore:
             return []
 
         query = """
-        MATCH (d:Document {tenant_id:$tenant})-[:MENTIONS]->(e:Entity {tenant_id:$tenant})
-        WHERE any(term IN $terms WHERE toLower(e.name) CONTAINS term)
-           OR any(term IN $terms WHERE toLower(d.title) CONTAINS term)
-           OR any(term IN $terms WHERE toLower(d.text) CONTAINS term)
-        WITH d, count(DISTINCT e) AS direct_hits
+        MATCH (d:Document {tenant_id:$tenant})
+        OPTIONAL MATCH (d)-[:MENTIONS]->(e:Entity {tenant_id:$tenant})
+        WITH d, collect(DISTINCT e.name) AS entity_names
+        WITH d,
+             size([
+                 term IN $terms
+                 WHERE any(name IN entity_names WHERE toLower(name) CONTAINS term)
+             ]) AS entity_hits,
+             size([
+                 term IN $terms
+                 WHERE toLower(d.title) CONTAINS term
+             ]) AS title_hits,
+             size([
+                 term IN $terms
+                 WHERE toLower(d.text) CONTAINS term
+             ]) AS text_hits
+        WHERE entity_hits + title_hits + text_hits > 0
         RETURN d.doc_id AS doc_id,
                d.title AS title,
                d.text AS text,
-               (2.0 * direct_hits) AS score
+               (2.0 * entity_hits + 0.5 * title_hits + 0.1 * text_hits) AS score
         ORDER BY score DESC, doc_id
         LIMIT $limit
         """
@@ -157,8 +169,9 @@ class Neo4jTenantStore:
             return {"nodes": [], "edges": []}
 
         query = """
-        MATCH (d:Document {tenant_id:$tenant})-[:MENTIONS]->(e:Entity {tenant_id:$tenant})
+        MATCH (d:Document {tenant_id:$tenant})
         WHERE d.doc_id IN $doc_ids
+        OPTIONAL MATCH (d)-[:MENTIONS]->(e:Entity {tenant_id:$tenant})
         RETURN d.doc_id AS doc_id,
                d.title AS title,
                e.key AS entity_key,
