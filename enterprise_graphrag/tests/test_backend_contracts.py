@@ -606,3 +606,58 @@ def test_vllm_context_budget_is_enforced(monkeypatch):
     )[1]
     assert len(evidence) <= 100
     assert "[a1] Policy" in evidence
+
+def test_embedding_nonfinite_values_are_rejected(monkeypatch):
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "data": [
+                    {
+                        "index": 0,
+                        "embedding": [0.1, float("nan")],
+                    }
+                ]
+            }
+
+    monkeypatch.setattr(
+        httpx,
+        "post",
+        lambda *args, **kwargs: Response(),
+    )
+
+    model = OpenAICompatibleEmbedder(
+        "http://localhost:8000",
+        "key",
+        "embedding-model",
+        2,
+    )
+
+    try:
+        model.embed(["hello"])
+    except ValueError as exc:
+        assert "non-finite" in str(exc)
+    else:
+        raise AssertionError("non-finite embedding values were accepted")
+
+
+def test_vllm_factory_uses_configured_context_limits():
+    from types import SimpleNamespace
+
+    from enterprise_graphrag.llm import VllmAnswerModel, build_answer_model
+
+    model = build_answer_model(
+        SimpleNamespace(
+            vllm_base_url="http://localhost:8000",
+            vllm_api_key="key",
+            vllm_model="served-model",
+            vllm_max_context_chars=1234,
+            vllm_max_document_chars=321,
+        )
+    )
+
+    assert isinstance(model, VllmAnswerModel)
+    assert model.max_context_chars == 1234
+    assert model.max_document_chars == 321
