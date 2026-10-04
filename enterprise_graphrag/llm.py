@@ -50,6 +50,8 @@ class VllmAnswerModel(AnswerModel):
         base_url: str,
         api_key: str,
         model: str,
+        max_context_chars: int = 32000,
+        max_document_chars: int = 6000,
     ) -> None:
         if not base_url or not model:
             raise ValueError(
@@ -58,15 +60,40 @@ class VllmAnswerModel(AnswerModel):
         self.base_url = base_url.rstrip("/") + "/v1"
         self.api_key = api_key
         self.model = model
+        if max_context_chars <= 0:
+            raise ValueError("max_context_chars must be greater than zero")
+        if max_document_chars <= 0:
+            raise ValueError("max_document_chars must be greater than zero")
+        if max_document_chars > max_context_chars:
+            raise ValueError(
+                "max_document_chars cannot exceed max_context_chars"
+            )
+        self.max_context_chars = max_context_chars
+        self.max_document_chars = max_document_chars
+
+    def _evidence(self, contexts: list[dict]) -> str:
+        parts = []
+        used = 0
+        for item in contexts:
+            text = str(item["text"])[: self.max_document_chars]
+            block = f"[{item['doc_id']}] {item['title']}\n{text}"
+            separator = "\n\n" if parts else ""
+            remaining = self.max_context_chars - used - len(separator)
+            if remaining <= 0:
+                break
+            if len(block) > remaining:
+                block = block[:remaining]
+            if not block.strip():
+                break
+            parts.append(block)
+            used += len(separator) + len(block)
+        return "\n\n".join(parts)
 
     def answer(self, query: str, contexts: list[dict]) -> str:
         if not contexts:
             return "No authorized evidence found."
 
-        evidence = "\n\n".join(
-            f"[{item['doc_id']}] {item['title']}\n{item['text']}"
-            for item in contexts
-        )
+        evidence = self._evidence(contexts)
 
         headers = {"Content-Type": "application/json"}
         if self.api_key:
