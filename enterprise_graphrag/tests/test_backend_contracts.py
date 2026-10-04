@@ -514,3 +514,40 @@ def test_neo4j_search_and_trace_support_entityless_documents(monkeypatch):
     assert trace["nodes"][0]["id"] == "a2"
     assert trace["nodes"][0]["tenant_id"] == "acme"
     assert trace["edges"] == []
+
+def test_local_vllm_adapters_omit_empty_auth_header(monkeypatch):
+    captured = []
+
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": "ok",
+                        },
+                        "prompt_logprobs": [],
+                        "prompt_token_ids": [],
+                    }
+                ]
+            }
+
+    monkeypatch.setattr(
+        httpx,
+        "post",
+        lambda url, **kwargs: captured.append((url, kwargs)) or Response(),
+    )
+
+    model = VllmAnswerModel(
+        "http://localhost:8000",
+        "",
+        "served-model",
+    )
+    assert model.answer(
+        "question",
+        [{"doc_id": "a1", "title": "Policy", "text": "Evidence."}],
+    ) == "ok"
+    assert "Authorization" not in captured[0][1]["headers"]
