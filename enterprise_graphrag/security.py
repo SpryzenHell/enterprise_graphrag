@@ -50,14 +50,14 @@ class SecurityGateway:
         ):
             return None
 
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
         try:
             response = httpx.post(
                 f"{self.base_url}/v1/completions",
-                headers={
-                    "Authorization": (
-                        f"Bearer {self.api_key}"
-                    )
-                },
+                headers=headers,
                 json={
                     "model": self.model,
                     "prompt": text[:12000],
