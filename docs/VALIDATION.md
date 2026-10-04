@@ -64,3 +64,38 @@ After the API is running and the same tenant JWT is available:
       --query "representative question"
 
 The probe verifies MCP initialization, tool discovery, authenticated `hybrid_search`, JWT-derived tenant identity, citation tenant isolation, and an optional expected document.
+
+
+## GPU validation
+
+The self-hosted GPU workflow is separate from the normal CI workflow. It targets a runner labeled `gpu-a100` and validates the following on the allocated A100 node:
+
+- CUDA visibility through `nvidia-smi` and PyTorch;
+- vLLM model discovery;
+- Chat Completions;
+- prompt-token logprobs;
+- optional Embeddings, including vector dimension and finite values;
+- the normal deterministic test suite;
+- an end-to-end GraphRAG query using the live vLLM answer backend;
+- tenant isolation and retrieved-content injection blocking.
+
+The workflow writes `gpu-validation.json` and a JUnit report as GitHub Actions artifacts.
+
+For the current HPC environment, the network bootstrap must happen before the runner process starts:
+
+    source "$HOME/Conda/bin/activate"
+    python -c "import core_config"
+
+The repository provides `scripts/start_hpc_runner.sh`, which performs this bootstrap before starting the runner from:
+
+    ~/gpu/actions-runner-enterprise-graphrag
+
+The GPU workflow is intentionally owner-gated and does not run on pull requests.
+
+## Interpreting evidence
+
+The deterministic benchmark currently contains four labeled questions and is useful for detecting regressions in the checked-in retrieval fixture. It should not be used to represent production retrieval quality.
+
+The real provider and GPU probes report protocol success and operation latency. They do not establish model quality on an arbitrary corpus.
+
+Production measurements should be recorded separately for the target model, embedding model, corpus, Neo4j deployment and security test set. Keep the configuration used for each measurement with the resulting evidence so that later comparisons remain meaningful.
