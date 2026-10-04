@@ -194,6 +194,10 @@ def test_neo4j_adapter_keeps_tenant_predicates(monkeypatch):
         and "tenant_id:$tenant" in query
         for query, params in cypher_calls
     )
+    assert any(
+        "OPTIONAL MATCH" in query
+        for query, _params in cypher_calls
+    )
 
 
 def test_embedding_dimension_is_enforced(monkeypatch):
@@ -446,3 +450,67 @@ def test_security_does_not_call_ppl_for_already_blocked_content(monkeypatch):
     assert called["value"] is False
 
 
+
+def test_neo4j_search_and_trace_support_entityless_documents(monkeypatch):
+    calls = []
+
+    class Rows:
+        def __iter__(self):
+            return iter([
+                {
+                    "doc_id": "a2",
+                    "title": "Plain Record",
+                    "text": "Retention is ninety days.",
+                    "score": 0.6,
+                    "entity_key": None,
+                    "entity_name": None,
+                }
+            ])
+
+    class Session:
+        def run(self, query, **params):
+            calls.append((query, params))
+            if "RETURN d.doc_id" in query:
+                return Rows()
+            return types.SimpleNamespace(consume=lambda: None)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    class Driver:
+        def session(self, database):
+            return Session()
+
+        def verify_connectivity(self):
+            return None
+
+        def close(self):
+            return None
+
+    fake_neo4j = types.SimpleNamespace(
+        GraphDatabase=types.SimpleNamespace(
+            driver=lambda *args, **kwargs: Driver()
+        )
+    )
+    monkeypatch.setitem(
+        __import__("sys").modules,
+        "neo4j",
+        fake_neo4j,
+    )
+
+    store = Neo4jTenantStore(
+        "neo4j://localhost:7687",
+        "neo4j",
+        "password",
+        "neo4j",
+    )
+    hits = store.search("acme", "retention", 5)
+    trace = store.trace("acme", ["a2"])
+
+    assert hits[0].doc_id == "a2"
+    assert trace["nodes"][0]["id"] == "a2"
+    assert trace["nodes"][0]["tenant_id"] == "acme"
+    assert trace["edges"] == []
