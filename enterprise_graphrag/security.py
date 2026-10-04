@@ -131,14 +131,17 @@ class SecurityGateway:
             if not observed:
                 return None
 
-            return float(
-                math.exp(
-                    -(
-                        sum(observed)
-                        / len(observed)
+            try:
+                return float(
+                    math.exp(
+                        -(
+                            sum(observed)
+                            / len(observed)
+                        )
                     )
                 )
-            )
+            except OverflowError:
+                return None
 
         except (
             OSError,
