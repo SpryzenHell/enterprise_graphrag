@@ -58,15 +58,15 @@ jobs:
     runs-on: [self-hosted, linux, x64, gpu-a100]
     timeout-minutes: 45
     env:
-      GRAGRAPH_CONDA_ENV: ${{ inputs.conda_env }}
-      GPU_TEST_VLLM_BASE_URL: ${{ inputs.vllm_base_url }}
-      GPU_TEST_VLLM_MODEL: ${{ inputs.vllm_model }}
+      GRAGRAPH_CONDA_ENV: ${{ inputs.conda_env || 'graphrag_vllm' }}
+      GPU_TEST_VLLM_BASE_URL: ${{ inputs.vllm_base_url || 'http://127.0.0.1:8001' }}
+      GPU_TEST_VLLM_MODEL: ${{ inputs.vllm_model || '' }}
       GPU_TEST_VLLM_API_KEY: ${{ secrets.GPU_VLLM_API_KEY }}
-      GPU_TEST_EMBEDDING_BASE_URL: ${{ inputs.embedding_base_url }}
-      GPU_TEST_EMBEDDING_MODEL: ${{ inputs.embedding_model }}
-      GPU_TEST_EMBEDDING_DIMENSION: ${{ inputs.embedding_dimension }}
+      GPU_TEST_EMBEDDING_BASE_URL: ${{ inputs.embedding_base_url || '' }}
+      GPU_TEST_EMBEDDING_MODEL: ${{ inputs.embedding_model || '' }}
+      GPU_TEST_EMBEDDING_DIMENSION: ${{ inputs.embedding_dimension || '384' }}
       GPU_TEST_EMBEDDING_API_KEY: ${{ secrets.GPU_EMBEDDING_API_KEY }}
-      GPU_TEST_EXPECTED_GPU_NAME: ${{ inputs.expected_gpu_name }}
+      GPU_TEST_EXPECTED_GPU_NAME: ${{ inputs.expected_gpu_name || 'A100' }}
 
     steps:
       - name: Checkout trusted repository state
