@@ -167,6 +167,14 @@ The required bootstrap is:
 
 Run that first in the shell that will perform GitHub runner setup and in the shell that will start the runner. Do not put a network-dependent command before it.
 
+For the checked-out repository, the generic network wrapper can be used for individual commands:
+
+    ./scripts/with_hpc_network.sh <network-command> [arguments...]
+
+For example:
+
+    ./scripts/with_hpc_network.sh curl -I https://github.com
+
 The runner process should inherit the environment/configuration established by this bootstrap. GitHub's runner itself requires outbound HTTPS connectivity, so this bootstrap must also be in effect before `./config.sh` or `./run.sh` is started.
 
 Keep the runner process alive for the duration of your allocated compute session:
@@ -178,15 +186,17 @@ Using `tmux` is appropriate if your interactive shell may disconnect:
     tmux new -s graphrag-runner
     ./run.sh
 
-The repository also provides an executable wrapper that performs the Conda activation and mandatory `core_config` import before starting the runner:
+The repository also provides executable wrappers that perform the Conda activation and mandatory `core_config` import before starting the runner:
 
+    ./scripts/configure_hpc_runner.sh --url https://github.com/SpryzenHell/enterprise_graphrag --token <one-time-token> --labels gpu-a100
     ./scripts/start_hpc_runner.sh
+    ./scripts/with_hpc_network.sh <network-command> [arguments...]
 
 The runner must be connected and show as `Idle` in GitHub before a GPU job can be assigned.
 
-Before registering, verify outbound connectivity from the compute node. GitHub documents that self-hosted runners need outbound HTTPS access to GitHub:
+Before registering, verify outbound connectivity from the compute node:
 
-    curl -I https://github.com
+    ./scripts/with_hpc_network.sh curl -I https://github.com
 
 GitHub's runner application also provides a configuration connectivity check:
 
