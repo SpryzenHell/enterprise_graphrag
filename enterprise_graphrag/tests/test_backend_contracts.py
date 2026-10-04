@@ -601,7 +601,7 @@ def test_vllm_context_budget_is_enforced(monkeypatch):
     )
 
     evidence = captured["json"]["messages"][1]["content"].split(
-        "Evidence:\\n",
+        "Evidence:\n",
         1,
     )[1]
     assert len(evidence) <= 100
