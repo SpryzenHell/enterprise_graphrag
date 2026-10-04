@@ -93,6 +93,8 @@ def create_mcp_server(agent):
             raise PermissionError(
                 "tenant_id claim is required"
             )
+        if not query.strip():
+            raise ValueError("query must not be blank")
 
         principal = principal_from_token(
             access_token.token
