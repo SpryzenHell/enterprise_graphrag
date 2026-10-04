@@ -177,28 +177,25 @@ class SecurityGateway:
             for pattern in self.patterns
         )
 
-        perplexity = self.perplexity(
-            text
-        )
-
         if direct and marker_count:
             return {
                 "allowed": False,
                 "reason": "direct injection marker",
                 "marker_count": marker_count,
-                "perplexity": perplexity,
+                "perplexity": None,
             }
 
-        if (
-            marker_count
-            >= self.marker_threshold
-        ):
+        if marker_count >= self.marker_threshold:
             return {
                 "allowed": False,
                 "reason": "retrieved injection markers",
                 "marker_count": marker_count,
-                "perplexity": perplexity,
+                "perplexity": None,
             }
+
+        perplexity = self.perplexity(
+            text
+        )
 
         if (
             perplexity is not None
