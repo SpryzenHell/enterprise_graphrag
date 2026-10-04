@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# This import is intentionally the first operation that may enable network use
-# on the site's HPC compute node.
 source "$HOME/Conda/bin/activate"
-python -c "import core_config"
-
 cd "$HOME/gpu/actions-runner-enterprise-graphrag"
-exec ./run.sh
+
+# Import the site's network bootstrap in the same process that execs the
+# runner so any environment changes made by core_config are preserved.
+python -c 'import core_config, os, sys; os.execv("./run.sh", ["./run.sh", *sys.argv[1:]])' "$@"
