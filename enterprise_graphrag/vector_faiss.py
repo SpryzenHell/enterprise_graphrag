@@ -91,6 +91,8 @@ class TenantFAISS:
                     )
                     expected_index_sha = manifest["index_sha256"]
                     expected_meta_sha = manifest["metadata_sha256"]
+                    expected_count = int(manifest["count"])
+                    expected_dimension = int(manifest["dimension"])
 
                     index = self.faiss.read_index(
                         str(index_path)
@@ -131,6 +133,16 @@ class TenantFAISS:
                 if not isinstance(self.meta[tenant], dict):
                     raise ValueError(
                         f"Invalid FAISS metadata for tenant={tenant}"
+                    )
+                if expected_count != len(self.meta[tenant]):
+                    raise ValueError(
+                        f"FAISS manifest count mismatch for tenant={tenant}: "
+                        f"manifest={expected_count}, metadata={len(self.meta[tenant])}"
+                    )
+                if expected_dimension != self.dimension:
+                    raise ValueError(
+                        f"FAISS manifest dimension mismatch for tenant={tenant}: "
+                        f"manifest={expected_dimension}, embedder={self.dimension}"
                     )
                 if index.ntotal != len(self.meta[tenant]):
                     raise ValueError(
