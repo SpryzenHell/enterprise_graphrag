@@ -460,15 +460,15 @@ Keep vLLM private on an HPC node whenever possible. The repository documentation
 A real provider check can be run with:
 
 ```bash
+export VLLM_API_KEY="<provider-key-or-empty>"
 python scripts/provider_probe.py \
   --base-url "$VLLM_BASE_URL" \
-  --api-key "$VLLM_API_KEY" \
   --chat-model "$VLLM_MODEL" \
   --embedding-model "$EMBEDDING_MODEL" \
   --embedding-dimension "$EMBEDDING_DIMENSION"
 ```
 
-For a local vLLM server with no key, omit `--api-key`.
+For a local unauthenticated vLLM server, leave `VLLM_API_KEY` unset or empty.
 
 ## Enterprise JWT / JWKS
 
