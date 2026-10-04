@@ -36,11 +36,19 @@ class TenantMemoryGraph:
         tenant: str,
         doc: dict,
     ) -> None:
+        self.add_many(tenant, [doc])
+
+    def add_many(
+        self,
+        tenant: str,
+        documents: list[dict],
+    ) -> None:
         with self._lock:
-            self._add_locked(
-                tenant,
-                doc,
-            )
+            for document in documents:
+                self._add_locked(
+                    tenant,
+                    document,
+                )
             self._persist()
 
     def _load_persisted(self) -> None:
@@ -298,11 +306,22 @@ class HybridRetriever:
             tenant,
             normalized,
         )
-        for document in normalized:
-            self.graph.add(
+        add_many = getattr(
+            self.graph,
+            "add_many",
+            None,
+        )
+        if add_many is not None:
+            add_many(
                 tenant,
-                document,
+                normalized,
             )
+        else:
+            for document in normalized:
+                self.graph.add(
+                    tenant,
+                    document,
+                )
 
     def search(
         self,
