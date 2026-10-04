@@ -494,12 +494,6 @@ Run the deterministic test suite:
 pytest -q enterprise_graphrag/tests -m "not integration and not gpu"
 ```
 
-Run only the deterministic suite:
-
-```bash
-pytest -q enterprise_graphrag/tests -m "not integration and not gpu"
-```
-
 Run the Neo4j integration test when a Neo4j instance is available:
 
 ```bash
@@ -519,6 +513,12 @@ python scripts/benchmark_retrieval.py
 ```
 
 The checked-in benchmark contains four labeled questions: two for Acme and two for Globex.
+
+| Retriever | Recall@5 | MRR |
+| --- | ---: | ---: |
+| Vector | 1.00 | 1.00 |
+| Graph | 1.00 | 1.00 |
+| Hybrid RRF | 1.00 | 1.00 |
 
 <p align="center">
   <img src="docs/assets/benchmark.svg" alt="Retrieval benchmark for the checked-in four-question fixture" width="900">
@@ -681,7 +681,9 @@ scripts/
 ├── provider_probe.py
 ├── runtime_probe.py
 ├── gpu_probe.py
-└── start_hpc_runner.sh
+├── start_hpc_runner.sh
+├── configure_hpc_runner.sh
+└── with_hpc_network.sh
 
 docs/
 ├── DEMO.md
