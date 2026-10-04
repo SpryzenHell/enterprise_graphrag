@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1300" height="620" viewBox="0 0 1300 620">
+<rect width="1300" height="620" fill="#fff"/>
+<style>text{font-family:Arial,sans-serif;fill:#24333e}.title{font-size:28px;font-weight:700}.small{font-size:16px;fill:#516675}.head{font-size:20px;font-weight:700}.box{stroke:#718696;stroke-width:3}.a{fill:#edf3f7}.b{fill:#edf4ed}.gate{fill:#f7eee2}.arrow{stroke:#718696;stroke-width:4;fill:none;marker-end:url(#m)}</style>
+<defs><marker id="m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#718696"/></marker></defs>
+<text x="50" y="52" class="title">Tenant isolation path</text>
+<text x="50" y="82" class="small">The tenant is selected from the verified token and is carried through both retrieval backends.</text>
+<rect class="box a" x="55" y="190" rx="18" width="250" height="120"/><text x="180" y="235" text-anchor="middle" class="head">JWT</text><text x="180" y="265" text-anchor="middle" class="small">tenant_id = acme</text>
+<rect class="box gate" x="390" y="190" rx="18" width="250" height="120"/><text x="515" y="235" text-anchor="middle" class="head">Tenant context</text><text x="515" y="265" text-anchor="middle" class="small">verified before query</text>
+<rect class="box a" x="725" y="115" rx="18" width="220" height="110"/><text x="835" y="160" text-anchor="middle" class="head">FAISS</text><text x="835" y="190" text-anchor="middle" class="small">Acme index only</text>
+<rect class="box b" x="725" y="265" rx="18" width="220" height="110"/><text x="835" y="310" text-anchor="middle" class="head">Neo4j</text><text x="835" y="340" text-anchor="middle" class="small">tenant predicate</text>
+<rect class="box a" x="1005" y="190" rx="18" width="235" height="120"/><text x="1122" y="235" text-anchor="middle" class="head">Citations</text><text x="1122" y="265" text-anchor="middle" class="small">tenant_id = acme</text>
+<path class="arrow" d="M305 250 L390 250"/><path class="arrow" d="M640 235 L725 170"/><path class="arrow" d="M640 265 L725 320"/><path class="arrow" d="M945 170 L1005 235"/><path class="arrow" d="M945 320 L1005 265"/>
+<text x="725" y="450" class="small">The MCP tool follows the same token-derived tenant identity; the tool call does not take a tenant argument.</text>
+</svg>
