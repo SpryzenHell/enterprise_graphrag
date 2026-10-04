@@ -20,18 +20,26 @@ def weighted_rrf(
     k: int = 60,
     limit: int = 8,
 ) -> list[Hit]:
+    if k < 1:
+        raise ValueError("RRF k must be greater than zero")
+    if limit < 1:
+        raise ValueError("RRF limit must be greater than zero")
+
     merged = {}
 
     for source, hits in lists.items():
         weight = float(weights.get(source, 1.0))
+        if weight < 0:
+            raise ValueError("RRF weights cannot be negative")
         for rank, hit in enumerate(hits, start=1):
             contribution = weight / (k + rank)
-            current = merged.get(hit.doc_id)
+            key = (hit.tenant_id, hit.doc_id)
+            current = merged.get(key)
             if current is None:
-                merged[hit.doc_id] = (hit, contribution, {source})
+                merged[key] = (hit, contribution, {source})
             else:
                 previous, previous_score, sources = current
-                merged[hit.doc_id] = (
+                merged[key] = (
                     previous,
                     previous_score + contribution,
                     sources | {source},
