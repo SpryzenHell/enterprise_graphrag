@@ -64,10 +64,14 @@ class OpenAICompatibleEmbedder(Embedder):
         self.dimension = dimension
 
     def embed(self, texts: list[str]) -> list[list[float]]:
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
         try:
             response = httpx.post(
                 f"{self.base_url}/embeddings",
-                headers={"Authorization": f"Bearer {self.api_key}"},
+                headers=headers,
                 json={"model": self.model, "input": texts},
                 timeout=120,
             )
