@@ -115,10 +115,8 @@ jobs:
           conda run --no-capture-output -n "$GRAGRAPH_CONDA_ENV" \
             python scripts/gpu_probe.py \
               --vllm-base-url "$GPU_TEST_VLLM_BASE_URL" \
-              --vllm-api-key "$GPU_TEST_VLLM_API_KEY" \
               --chat-model "$GPU_TEST_VLLM_MODEL" \
               --embedding-base-url "$GPU_TEST_EMBEDDING_BASE_URL" \
-              --embedding-api-key "$GPU_TEST_EMBEDDING_API_KEY" \
               --embedding-model "$GPU_TEST_EMBEDDING_MODEL" \
               --embedding-dimension "$GPU_TEST_EMBEDDING_DIMENSION" \
               --expected-gpu-name "$GPU_TEST_EXPECTED_GPU_NAME" \
