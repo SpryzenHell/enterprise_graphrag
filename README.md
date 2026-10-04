@@ -146,6 +146,19 @@ How long does Acme retain incident records?
 
 The checked-in Acme policy states that the retention period is 365 days.
 
+## Conda and Jupyter
+
+Conda can be used instead of `venv`:
+
+```bash
+conda create -n enterprise_graphrag python=3.11 -y
+conda activate enterprise_graphrag
+python -m pip install --upgrade pip
+python -m pip install -r requirements-enterprise.txt
+```
+
+Jupyter is optional. If Jupyter is managed from a separate Conda environment, install `nb_conda_kernels` there and install `ipykernel` in `enterprise_graphrag`. The application itself does not depend on Jupyter.
+
 ## API
 
 Health:
@@ -186,13 +199,13 @@ The API also returns an `X-Request-ID` response header. The same identifier is i
 
 The web application is intentionally small. It is served directly by FastAPI and does not require a second frontend build.
 
-The following snapshot uses the checked-in deterministic corpus. The answer and citation shown are taken from the same Acme policy used by the local demo; it is not a synthetic benchmark screen.
+The figure is a static rendering of the supported browser UI using values from the checked-in deterministic corpus. It is documentation material, not a live production screenshot.
 
 <p align="center">
   <img src="docs/assets/application-query.svg" alt="Enterprise GraphRAG browser application with an Acme query" width="1100">
 </p>
 
-The following state is also a valid response produced by the application security path for a direct prompt-injection request:
+The following figure represents a valid application state for a direct prompt-injection request. The text, blocked response and trace fields are taken directly from the supported security path.
 
 <p align="center">
   <img src="docs/assets/application-blocked.svg" alt="Enterprise GraphRAG browser application showing a blocked prompt-injection request" width="1100">
