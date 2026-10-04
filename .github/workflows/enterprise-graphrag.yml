@@ -46,7 +46,7 @@ jobs:
           PY
 
       - name: Tests
-        run: pytest -q enterprise_graphrag/tests -m "not integration"
+        run: pytest -q enterprise_graphrag/tests -m "not integration and not gpu"
 
       - name: Deterministic security evaluation
         run: python scripts/evaluate_enterprise.py
