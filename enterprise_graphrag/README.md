@@ -14,8 +14,8 @@ FastAPI -> JWT tenant context -> FAISS HNSW + Neo4j graph retrieval -> weighted 
 - Vector and graph rankings are merged with weighted Reciprocal Rank Fusion.
 - Retrieved content is screened before answer generation.
 - When vLLM is configured, the security gateway can call /v1/completions with prompt_logprobs and calculate a perplexity signal.
-- vLLM exposes OpenAI-compatible chat and embedding APIs used by the answer and embedding adapters. citeturn486974search1turn486974search4
-- MCP uses the validated Python SDK 2.2.0 MCPServer surface, Streamable HTTP and first-class bearer token verification. The SDK supports a custom TokenVerifier plus AuthSettings for resource-server authentication. citeturn944949search0
+- vLLM exposes OpenAI-compatible chat and embedding APIs used by the answer and embedding adapters.
+- MCP uses the validated Python SDK 2.2.0 MCPServer surface, Streamable HTTP and first-class bearer token verification. The SDK supports a custom TokenVerifier plus AuthSettings for resource-server authentication.
 - CI runs package compilation, deterministic tests, backend contract tests, a real Neo4j integration job and a labeled retrieval benchmark.
 
 ## Local validation
@@ -60,13 +60,13 @@ For development and deterministic CI, the runtime uses a shared-secret JWT verif
 
 ### vLLM
 
-vLLM's OpenAI-compatible server provides the Completions, Chat Completions and Embeddings APIs. prompt_logprobs are supported on the Completions API and are used here only as one security signal. citeturn486974search1turn486974search4
+vLLM's OpenAI-compatible server provides the Completions, Chat Completions and Embeddings APIs. prompt_logprobs are supported on the Completions API and are used here only as one security signal.
 
 ### MCP
 
-The current MCP Python SDK supports MCPServer, Streamable HTTP and a TokenVerifier/AuthSettings resource-server pattern. The configured verifier validates the same JWT used by the API and makes tenant_id available to the MCP tool layer. citeturn114184search0turn309280search3
+The current MCP Python SDK supports MCPServer, Streamable HTTP and a TokenVerifier/AuthSettings resource-server pattern. The configured verifier validates the same JWT used by the API and makes tenant_id available to the MCP tool layer.
 
-For a deployed hostname, set MCP_RESOURCE_URL to the exact public MCP URL. The SDK's transport security should be configured with the real served host as part of production deployment. citeturn114184search4
+For a deployed hostname, set MCP_RESOURCE_URL to the exact public MCP URL. The SDK's transport security should be configured with the real served host as part of production deployment.
 
 ## Corpus ingestion
 
