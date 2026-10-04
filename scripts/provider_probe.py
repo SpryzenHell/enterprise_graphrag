@@ -44,6 +44,11 @@ def main() -> None:
         required=True,
     )
     parser.add_argument(
+        "--embedding-api-key",
+        default=os.getenv("EMBEDDING_API_KEY", ""),
+        help="Optional embedding provider API key; defaults to EMBEDDING_API_KEY.",
+    )
+    parser.add_argument(
         "--embedding-dimension",
         type=int,
         required=True,
@@ -58,9 +63,12 @@ def main() -> None:
         raise SystemExit("--embedding-dimension must be at least 1")
 
     base_url = args.base_url.rstrip("/")
-    headers = {"Content-Type": "application/json"}
+    chat_headers = {"Content-Type": "application/json"}
     if args.api_key:
-        headers["Authorization"] = f"Bearer {args.api_key}"
+        chat_headers["Authorization"] = f"Bearer {args.api_key}"
+    embedding_headers = {"Content-Type": "application/json"}
+    if args.embedding_api_key:
+        embedding_headers["Authorization"] = f"Bearer {args.embedding_api_key}"
 
     report: dict[str, object] = {
         "base_url": base_url,
@@ -106,7 +114,7 @@ def main() -> None:
         embedding, embedding_ms = timed_post(
             client,
             f"{base_url}/v1/embeddings",
-            headers=headers,
+            headers=embedding_headers,
             json={
                 "model": args.embedding_model,
                 "input": ["Enterprise GraphRAG provider probe."],
