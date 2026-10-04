@@ -32,6 +32,42 @@ def test_invalid_audience_is_rejected():
     assert exc.value.status_code == 401
 
 
+
+def test_list_scope_claim_is_supported():
+    token = jwt.encode(
+        {
+            "sub": "u",
+            "tenant_id": "acme",
+            "scope": ["graphrag:query", "graphrag:index"],
+            "iss": settings.jwt_issuer,
+            "aud": settings.jwt_audience,
+            "exp": int(time.time()) + 300,
+        },
+        settings.jwt_secret,
+        algorithm="HS256",
+    )
+    principal = principal_from_token(token)
+    assert principal.can("graphrag:query")
+    assert principal.can("graphrag:index")
+
+
+def test_scp_scope_claim_is_supported():
+    token = jwt.encode(
+        {
+            "sub": "u",
+            "tenant_id": "acme",
+            "scp": "graphrag:query",
+            "iss": settings.jwt_issuer,
+            "aud": settings.jwt_audience,
+            "exp": int(time.time()) + 300,
+        },
+        settings.jwt_secret,
+        algorithm="HS256",
+    )
+    principal = principal_from_token(token)
+    assert principal.can("graphrag:query")
+
+
 def test_query_scope_is_preserved():
     token = issue_demo_token(
         "u",
