@@ -159,6 +159,29 @@ python -m pip install -r requirements-enterprise.txt
 
 Jupyter is optional. If Jupyter is managed from a separate Conda environment, install `nb_conda_kernels` there and install `ipykernel` in `enterprise_graphrag`. The application itself does not depend on Jupyter.
 
+
+
+## Default configuration
+
+The example environment file contains the following deterministic defaults:
+
+| Setting | Default |
+| --- | --- |
+| `GRAGRAPH_ENV` | `development` |
+| `GRAGRAPH_JWT_MODE` | `shared_secret` |
+| `GRAGRAPH_JWT_ALGORITHM` | `HS256` |
+| `EMBEDDING_DIMENSION` | `384` |
+| `TOP_K` | `8` |
+| `VECTOR_WEIGHT` | `0.55` |
+| `GRAPH_WEIGHT` | `0.45` |
+| `RRF_K` | `60` |
+| `SECURITY_PPL_THRESHOLD` | `80` |
+| `SECURITY_MARKER_THRESHOLD` | `2` |
+| `VLLM_MAX_CONTEXT_CHARS` | `32000` |
+| `VLLM_MAX_DOCUMENT_CHARS` | `6000` |
+
+Change these values through environment variables rather than editing application source files.
+
 ## API
 
 Health:
