@@ -222,13 +222,13 @@ The API also returns an `X-Request-ID` response header. The same identifier is i
 
 The web application is intentionally small. It is served directly by FastAPI and does not require a second frontend build.
 
-The images below show the supported browser UI with values taken from the checked-in deterministic corpus. They document the two application states used by the local demo and security tests.
+The UI renderings below use the actual static browser application and values from the checked-in deterministic fixture. They document the two application states exercised by the local demo and security tests; they are included as repository documentation rather than as production screenshots.
 
 <p align="center">
   <img src="docs/assets/application-query.svg" alt="Enterprise GraphRAG browser application with an Acme query" width="1100">
 </p>
 
-The second image shows the corresponding blocked state for a direct prompt-injection request. The request text and blocked response match the security path exercised by the deterministic tests.
+The second rendering shows the corresponding blocked state for a direct prompt-injection request. The request text and blocked response match the security path exercised by the deterministic tests.
 
 <p align="center">
   <img src="docs/assets/application-blocked.svg" alt="Enterprise GraphRAG browser application showing a blocked prompt-injection request" width="1100">
@@ -273,7 +273,7 @@ The repository includes figures for the supported runtime and the checked-in val
 </tr>
 </table>
 
-The figures are kept in `docs/assets/` so they can be viewed directly from a local checkout as well as from GitHub.
+The figures are kept in `docs/assets/` so they can be viewed directly from a local checkout as well as from GitHub. The application renderings are derived from the checked-in UI and fixture responses; no live production metrics or fabricated deployment screenshots are presented.
 
 ## Retrieval and ranking
 
