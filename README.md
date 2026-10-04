@@ -146,6 +146,8 @@ How long does Acme retain incident records?
 
 The checked-in Acme policy states that the retention period is 365 days.
 
+`build_demo_index.py` writes both the tenant FAISS data and the local memory-graph data under the configured data directory. This lets the API process started later use the same demo graph instead of depending on state from the indexing process.
+
 ## Conda and Jupyter
 
 Conda can be used instead of `venv`:
@@ -177,8 +179,6 @@ The example environment file contains the following deterministic defaults:
 | `RRF_K` | `60` |
 | `SECURITY_PPL_THRESHOLD` | `80` |
 | `SECURITY_MARKER_THRESHOLD` | `2` |
-| `VLLM_MAX_CONTEXT_CHARS` | `32000` |
-| `VLLM_MAX_DOCUMENT_CHARS` | `6000` |
 
 Change these values through environment variables rather than editing application source files.
 
@@ -222,7 +222,7 @@ The API also returns an `X-Request-ID` response header. The same identifier is i
 
 The web application is intentionally small. It is served directly by FastAPI and does not require a second frontend build.
 
-The images below show the supported browser UI with values taken from the checked-in deterministic corpus. They are documentation snapshots of the application state used by the local demo.
+The images below show the supported browser UI with values taken from the checked-in deterministic corpus. They document the two application states used by the local demo and security tests.
 
 <p align="center">
   <img src="docs/assets/application-query.svg" alt="Enterprise GraphRAG browser application with an Acme query" width="1100">
@@ -233,6 +233,47 @@ The second image shows the corresponding blocked state for a direct prompt-injec
 <p align="center">
   <img src="docs/assets/application-blocked.svg" alt="Enterprise GraphRAG browser application showing a blocked prompt-injection request" width="1100">
 </p>
+
+## Screenshots and figures
+
+The repository includes figures for the supported runtime and the checked-in validation fixture. They use values and states that are present in the source corpus or exercised by the test and evaluation code.
+
+<table>
+<tr>
+<td><img src="docs/assets/application-query.svg" alt="Application query state" width="520"></td>
+<td><img src="docs/assets/application-blocked.svg" alt="Application blocked state" width="520"></td>
+</tr>
+<tr>
+<td align="center">Application query state</td>
+<td align="center">Blocked prompt-injection state</td>
+</tr>
+<tr>
+<td><img src="docs/assets/architecture.svg" alt="Runtime architecture" width="520"></td>
+<td><img src="docs/assets/security-evaluation.svg" alt="Security evaluation" width="520"></td>
+</tr>
+<tr>
+<td align="center">Runtime architecture</td>
+<td align="center">Deterministic security checks</td>
+</tr>
+<tr>
+<td><img src="docs/assets/graph-trace.svg" alt="Acme evidence graph" width="520"></td>
+<td><img src="docs/assets/benchmark.svg" alt="Retrieval benchmark" width="520"></td>
+</tr>
+<tr>
+<td align="center">Acme evidence graph</td>
+<td align="center">Retrieval benchmark</td>
+</tr>
+<tr>
+<td><img src="docs/assets/tenant-isolation.svg" alt="Tenant isolation" width="520"></td>
+<td><img src="docs/assets/mcp-flow.svg" alt="MCP request flow" width="520"></td>
+</tr>
+<tr>
+<td align="center">Tenant isolation path</td>
+<td align="center">MCP request flow</td>
+</tr>
+</table>
+
+The figures are kept in `docs/assets/` so they can be viewed directly from a local checkout as well as from GitHub.
 
 ## Retrieval and ranking
 
