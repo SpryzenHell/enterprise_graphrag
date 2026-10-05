@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900">
+<rect width="1500" height="900" fill="#ffffff"/>
+<style>text{font-family:DejaVu Sans,Arial,sans-serif;fill:#1f2933}.title{font-size:34px;font-weight:700}.sub{font-size:20px;fill:#526273}.label{font-size:22px;font-weight:700}.axis{font-size:18px;fill:#526273}.barA{fill:#467ab4}.barB{fill:#3f8d62}.note{font-size:19px;fill:#344454}</style>
+<text x="70" y="70" class="title">Checked-in corpus profile</text>
+<text x="70" y="108" class="sub">enterprise_data/corpus.jsonl • five documents • two tenants</text>
+<line x1="160" y1="660" x2="1250" y2="660" stroke="#738294" stroke-width="3"/>
+<line x1="160" y1="210" x2="160" y2="660" stroke="#738294" stroke-width="3"/>
+<text x="142" y="666" text-anchor="end" class="axis">0</text><text x="142" y="456" text-anchor="end" class="axis">30</text><text x="142" y="246" text-anchor="end" class="axis">60</text>
+<rect x="330" y="450" width="180" height="210" class="barA"/><rect x="690" y="520" width="180" height="140" class="barB"/>
+<text x="420" y="432" text-anchor="middle" class="label">51</text><text x="780" y="502" text-anchor="middle" class="label">32</text>
+<text x="420" y="705" text-anchor="middle" class="label">Acme</text><text x="780" y="705" text-anchor="middle" class="label">Globex</text>
+<text x="1240" y="250" class="note">Documents</text><rect x="1240" y="270" width="24" height="24" class="barA"/><text x="1278" y="291" class="note">3 / 2</text>
+<text x="1240" y="330" class="note">Text tokens</text><rect x="1240" y="350" width="24" height="24" class="barB"/><text x="1278" y="371" class="note">51 / 32</text>
+<text x="70" y="790" class="note">Text length by tenant: Acme 368 characters / 51 tokens; Globex 228 characters / 32 tokens.</text>
+<text x="70" y="825" class="note">One Acme document is the intentional prompt-injection fixture.</text>
+</svg>
