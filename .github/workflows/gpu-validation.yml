@@ -130,7 +130,7 @@ jobs:
             --junitxml=gpu-tests.xml
 
       - name: Upload GPU evidence
-        uses: actions/upload-artifact@v7.0.1.0.1
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: enterprise-graphrag-gpu-evidence
           path: |
