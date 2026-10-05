@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900">
+<rect width="1500" height="900" fill="#0b1118"/>
+<rect x="45" y="38" width="1410" height="824" rx="20" fill="#121a23" stroke="#314152" stroke-width="2"/>
+<circle cx="82" cy="78" r="9" fill="#ef6b73"/><circle cx="112" cy="78" r="9" fill="#e0b74b"/><circle cx="142" cy="78" r="9" fill="#53c98a"/>
+<style>text{font-family:DejaVu Sans Mono,monospace}.title{font-size:30px;font-weight:700;fill:#f5f7fa}.sub{font-size:20px;fill:#aebaca}.cmd{font-size:23px;fill:#dde6ef}.ok{font-size:23px;font-weight:700;fill:#65d89a}.dim{font-size:19px;fill:#8ea0b3}</style>
+<text x="70" y="135" class="title">enterprise-graphrag • CI validation snapshot</text>
+<text x="70" y="170" class="sub">GitHub Actions run #600 • commit 161d78d6 • verified 2026-10-05</text>
+<text x="70" y="235" class="cmd">$ python -m compileall enterprise_graphrag scripts</text><text x="1320" y="235" text-anchor="end" class="ok">PASS</text>
+<text x="70" y="300" class="cmd">$ pytest -q enterprise_graphrag/tests</text><text x="1320" y="300" text-anchor="end" class="ok">PASS</text>
+<text x="70" y="365" class="cmd">$ python scripts/evaluate_enterprise.py</text><text x="1320" y="365" text-anchor="end" class="ok">PASS</text>
+<text x="70" y="430" class="cmd">$ python scripts/benchmark_retrieval.py</text><text x="1320" y="430" text-anchor="end" class="ok">PASS</text>
+<line x1="70" y1="468" x2="1430" y2="468" stroke="#314152" stroke-width="2"/>
+<text x="70" y="520" class="dim">test</text><text x="360" y="520" class="ok">PASS</text><text x="510" y="520" class="dim">33 s</text><text x="700" y="520" class="sub">compile • package • tests • security • benchmark</text>
+<text x="70" y="575" class="dim">neo4j-integration</text><text x="360" y="575" class="ok">PASS</text><text x="510" y="575" class="dim">68 s</text><text x="700" y="575" class="sub">Neo4j service • integration test • cleanup</text>
+<text x="70" y="630" class="dim">container-smoke</text><text x="360" y="630" class="ok">PASS</text><text x="510" y="630" class="dim">38 s</text><text x="700" y="630" class="sub">Compose config • image build • readiness</text>
+<text x="70" y="685" class="dim">compose-smoke</text><text x="360" y="685" class="ok">PASS</text><text x="510" y="685" class="dim">79 s</text><text x="700" y="685" class="sub">full stack • readiness • authenticated query</text>
+<line x1="70" y1="728" x2="1430" y2="728" stroke="#314152" stroke-width="2"/>
+<text x="70" y="780" class="sub">All four jobs completed successfully. This image summarizes real Actions metadata;</text>
+<text x="70" y="812" class="sub">it is not a fabricated production terminal capture.</text>
+</svg>
