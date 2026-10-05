@@ -29,14 +29,15 @@ Record Recall@K, MRR/nDCG, end-to-end latency, throughput, and security detectio
 
 Use the provider probe against the target OpenAI-compatible endpoint:
 
+    export VLLM_API_KEY="<generation-key-or-empty>"
+    export EMBEDDING_API_KEY="<embedding-key-or-empty>"
     python scripts/provider_probe.py \
       --base-url "$VLLM_BASE_URL" \
-      --api-key "$VLLM_API_KEY" \
       --chat-model "$VLLM_MODEL" \
       --embedding-model "$EMBEDDING_MODEL" \
       --embedding-dimension "$EMBEDDING_DIMENSION"
 
-The provider key is optional for a private/local vLLM server. The probe verifies Chat Completions, Embeddings, and prompt-logprob support, including observed-token logprobs and the configured embedding dimension. It reports per-operation latency but does not replace an application-level accuracy/security evaluation.
+Provider keys are read from `VLLM_API_KEY` and `EMBEDDING_API_KEY`; both are optional for local unauthenticated services. The probe verifies Chat Completions, Embeddings, and prompt-logprob support, including observed-token logprobs and the configured embedding dimension. It reports per-operation latency but does not replace an application-level accuracy/security evaluation.
 
 For a VPN-only HPC/DGX deployment, see [HPC_VLLM.md](HPC_VLLM.md) for the private same-node and SSH port-forwarding setup.
 
