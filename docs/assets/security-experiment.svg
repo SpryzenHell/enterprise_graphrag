@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900">
+<rect width="1500" height="900" fill="#ffffff"/>
+<style>text{font-family:DejaVu Sans,Arial,sans-serif;fill:#1f2933}.title{font-size:34px;font-weight:700}.sub{font-size:19px;fill:#526273}.head{font-size:20px;font-weight:700}.cell{font-size:19px}.pass{fill:#245b3d}.block{fill:#8a5a20}</style>
+<text x="70" y="70" class="title">Security and tenant-isolation experiments</text>
+<text x="70" y="108" class="sub">Results derived from the checked-in two-tenant corpus and four canonical evaluation questions.</text>
+<text x="70" y="180" class="head">Experiment</text><text x="760" y="180" class="head">Observed result</text><line x1="60" y1="200" x2="1440" y2="200" stroke="#aeb8c2" stroke-width="2"/>
+<text x="70" y="260" class="cell">Canonical tenant queries</text><rect x="760" y="232" width="120" height="38" rx="18" class="pass"/><text x="820" y="258" text-anchor="middle" font-size="18" font-weight="700" fill="#fff">PASS</text><text x="920" y="258" class="cell">4 / 4 expected documents retrieved</text>
+<text x="70" y="345" class="cell">Cross-tenant citation check</text><rect x="760" y="317" width="120" height="38" rx="18" class="pass"/><text x="820" y="343" text-anchor="middle" font-size="18" font-weight="700" fill="#fff">PASS</text><text x="920" y="343" class="cell">0 citation leaks across four queries</text>
+<text x="70" y="430" class="cell">Injected-document retrieval case</text><rect x="760" y="402" width="120" height="38" rx="18" class="block"/><text x="820" y="428" text-anchor="middle" font-size="18" font-weight="700" fill="#fff">BLOCKED</text><text x="920" y="428" class="cell">acme-injected retrieved, then excluded by security gateway</text>
+<text x="70" y="515" class="cell">Injection reaches answer model</text><rect x="760" y="487" width="120" height="38" rx="18" class="pass"/><text x="820" y="513" text-anchor="middle" font-size="18" font-weight="700" fill="#fff">NO</text><text x="920" y="513" class="cell">blocked document absent from allowed contexts</text>
+<text x="70" y="600" class="cell">Marker count in injected document</text><text x="760" y="600" class="cell">3</text><text x="920" y="600" class="cell">threshold = 2</text>
+<text x="70" y="740" class="sub">These are deterministic fixture experiments. They do not estimate real-world false-positive or false-negative rates.</text>
+</svg>
