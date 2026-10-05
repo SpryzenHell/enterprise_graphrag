@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
+import statistics
 import tempfile
 import time
 from pathlib import Path
@@ -290,5 +290,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    import statistics
     main()
