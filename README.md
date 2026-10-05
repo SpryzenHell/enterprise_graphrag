@@ -115,7 +115,7 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements-enterprise.txt
 ```
 
-The requirements file installs the package in editable mode together with the development test dependency.
+Use `requirements-enterprise.txt` for the supported runtime. The root `requirements.txt` belongs to the retained legacy tree and is not the installation entrypoint for Enterprise GraphRAG. The enterprise requirements file installs the package in editable mode together with the development test dependency.
 
 ### 4. Configure
 
