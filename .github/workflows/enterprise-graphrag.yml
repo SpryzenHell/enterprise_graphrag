@@ -64,6 +64,9 @@ jobs:
       - name: Retrieval benchmark
         run: python scripts/benchmark_retrieval.py
 
+      - name: Fixture analysis experiments
+        run: python scripts/analyze_fixture.py
+
       - name: Upload evidence
         uses: actions/upload-artifact@v7.0.1
         with:
@@ -71,6 +74,7 @@ jobs:
           path: |
             enterprise_data/evaluation.json
             enterprise_data/benchmark.json
+            enterprise_data/fixture_experiments.json
 
   neo4j-integration:
     runs-on: ubuntu-latest
