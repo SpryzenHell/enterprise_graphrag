@@ -192,7 +192,10 @@ def test_graph_rag_runs_against_vllm(tmp_path: Path):
     if embedding_url and embedding_model:
         embedder = OpenAICompatibleEmbedder(
             embedding_url,
-            os.getenv("GPU_TEST_EMBEDDING_API_KEY", ""),
+            os.getenv(
+                "GPU_TEST_EMBEDDING_API_KEY",
+                os.getenv("EMBEDDING_API_KEY", ""),
+            ),
             embedding_model,
             embedding_dimension,
         )
