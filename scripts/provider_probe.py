@@ -81,7 +81,7 @@ def main() -> None:
         chat, chat_ms = timed_post(
             client,
             f"{base_url}/v1/chat/completions",
-            headers=headers,
+            headers=chat_headers,
             json={
                 "model": args.chat_model,
                 "temperature": 0.0,
@@ -155,7 +155,7 @@ def main() -> None:
         ppl, ppl_ms = timed_post(
             client,
             f"{base_url}/v1/completions",
-            headers=headers,
+            headers=chat_headers,
             json={
                 "model": args.chat_model,
                 "prompt": "Enterprise GraphRAG provider probe.",
