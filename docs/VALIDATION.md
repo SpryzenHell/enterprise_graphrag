@@ -95,7 +95,7 @@ The GPU workflow is intentionally owner-gated and does not run on pull requests.
 
 ## Interpreting evidence
 
-The deterministic benchmark currently contains four labeled questions and is useful for detecting regressions in the checked-in retrieval fixture. It should not be used to represent production retrieval quality.
+The deterministic benchmark currently contains four labeled questions and is useful for detecting regressions in the checked-in retrieval fixture. The fixture analysis also sweeps retrieval depth and RRF weights and records the tenant-isolation and injection-filtering cases. It should not be used to represent production retrieval quality.
 
 The real provider and GPU probes report protocol success and operation latency. They do not establish model quality on an arbitrary corpus.
 
