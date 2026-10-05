@@ -624,6 +624,8 @@ python scripts/benchmark_retrieval.py
 
 The current fixture contains four labeled questions: two for Acme and two for Globex.
 
+For additional analysis, the repository also runs a reproducible fixture experiment suite covering dataset composition, retrieval depth, RRF weight sensitivity, security filtering and tenant isolation. See [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md).
+
 | Retriever | Recall@5 | MRR |
 | --- | ---: | ---: |
 | Vector | 1.00 | 1.00 |
@@ -635,6 +637,32 @@ The current fixture contains four labeled questions: two for Acme and two for Gl
 </p>
 
 These numbers describe only the five-document fixture in `enterprise_data/corpus.jsonl`. They are not production retrieval metrics.
+
+### Additional fixture experiments
+
+<p align="center">
+  <img src="docs/assets/fixture-dataset-profile.svg" alt="Checked-in corpus profile" width="950">
+</p>
+
+<p align="center">
+  <img src="docs/assets/retrieval-experiments.svg" alt="Retrieval depth experiment" width="950">
+</p>
+
+<p align="center">
+  <img src="docs/assets/rrf-weight-sensitivity.svg" alt="RRF weight sensitivity experiment" width="950">
+</p>
+
+<p align="center">
+  <img src="docs/assets/security-experiment.svg" alt="Security and tenant isolation experiments" width="950">
+</p>
+
+The experiment suite is reproducible with:
+
+```bash
+python scripts/analyze_fixture.py
+```
+
+The generated report is `enterprise_data/fixture_experiments.json`. The workflow also uploads that file as CI evidence.
 
 ### Runtime probe
 
@@ -665,6 +693,16 @@ python scripts/mcp_probe.py \
 ```bash
 pytest -q enterprise_graphrag/tests/test_neo4j_integration.py -m integration
 ```
+
+### CI validation snapshot
+
+The following image summarizes the verified GitHub Actions run #600. It is based on the actual completed job metadata and is presented as a high-contrast terminal-style evidence panel so the command/status text remains readable on GitHub.
+
+<p align="center">
+  <img src="docs/assets/ci-validation-run-600.svg" alt="High-contrast CI validation snapshot for run 600" width="1050">
+</p>
+
+The job durations shown there are CI wall-clock durations and should not be interpreted as application latency.
 
 ### Validation flow
 
@@ -839,6 +877,7 @@ scripts/
 ├── provider_probe.py
 ├── runtime_probe.py
 ├── gpu_probe.py
+├── analyze_fixture.py
 ├── configure_hpc_runner.sh
 ├── start_hpc_runner.sh
 └── with_hpc_network.sh
@@ -847,6 +886,7 @@ docs/
 ├── DEMO.md
 ├── HPC_VLLM.md
 ├── VALIDATION.md
+├── EXPERIMENTS.md
 └── assets/
     ├── application-query.svg
     ├── application-blocked.svg
