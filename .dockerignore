@@ -1,4 +1,4 @@
-# Local/runtime state
+# Git and local Python state
 .git
 .github
 .venv
@@ -6,9 +6,12 @@ venv
 __pycache__
 *.pyc
 .pytest_cache
+
+# Runtime data
 enterprise_data/faiss
 enterprise_data/evaluation.json
 enterprise_data/benchmark.json
+enterprise_data/fixture_experiments.json
 
 # Secrets and local configuration
 .env
@@ -18,17 +21,7 @@ enterprise_data/benchmark.json
 **/.env.*
 !**/.env.example
 
-# Legacy source trees not used by the supported enterprise runtime
-graphrag
-graphragImport
-mcp
-MCP
-ace
-ACE
-demos
-indexing
-
-# Editor/OS noise
+# Editor / OS files
 .idea
 .vscode
 .DS_Store
