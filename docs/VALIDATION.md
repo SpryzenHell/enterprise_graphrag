@@ -1,6 +1,6 @@
 # Validation
 
-This file records what has been validated in the repository and what still requires real infrastructure.
+This file records what has been tested in the repository and what still needs real infrastructure.
 
 ## Deterministic validation
 
@@ -66,32 +66,6 @@ After the API is running and the same tenant JWT is available:
 
 The probe verifies MCP initialization, tool discovery, authenticated `hybrid_search`, JWT-derived tenant identity, citation tenant isolation, and an optional expected document.
 
-
-## GPU validation
-
-The self-hosted GPU workflow is separate from the normal CI workflow. It targets a runner labeled `gpu-a100` and validates the following on the allocated A100 node:
-
-- CUDA visibility through `nvidia-smi` and PyTorch;
-- vLLM model discovery;
-- Chat Completions;
-- prompt-token logprobs;
-- optional Embeddings, including vector dimension and finite values;
-- the normal deterministic test suite;
-- an end-to-end GraphRAG query using the live vLLM answer backend;
-- tenant isolation and retrieved-content injection blocking.
-
-The workflow writes `gpu-validation.json` and a JUnit report as GitHub Actions artifacts.
-
-For the current HPC environment, the network bootstrap must happen before the runner process starts:
-
-    source "$HOME/Conda/bin/activate"
-    python -c "import core_config"
-
-The repository provides `scripts/start_hpc_runner.sh`, which performs this bootstrap before starting the runner from:
-
-    ~/gpu/actions-runner-enterprise-graphrag
-
-The GPU workflow is intentionally owner-gated and does not run on pull requests.
 
 ## Interpreting evidence
 
