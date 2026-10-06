@@ -1,36 +1,11 @@
 node_modules
-.vscode/
-
-
-# --- Appended Integrated Chunk ---
-
-
-.idea/
-
-demos/AceAF/logs/
-/demos/AceAF/DB/
-/demos/AceAF/salience.py
-
-demos/iACEui/src/gragAce/app/*/.gragEnv
-
-demos/AceAF/layers/__pycache__/
-
-demos/AceAF/__pycache__/
-
-demos/AceAF/guiutils/__pycache__/
+.vscode
+.idea
+.venv
+venv
+__pycache__
 *.pyc
-
-demos/__pycache__/
-
-demos/AceAF/layers/Testingu.py
-
-/**/*/.gragEnv
-
-# --- Enterprise GraphRAG ---
-.venv/
-venv/
-__pycache__/
-.pytest_cache/
+.pytest_cache
 
 .env
 .env.*
@@ -39,3 +14,7 @@ __pycache__/
 enterprise_data/faiss/
 enterprise_data/evaluation.json
 enterprise_data/benchmark.json
+enterprise_data/fixture_experiments.json
+
+.DS_Store
+Thumbs.db
