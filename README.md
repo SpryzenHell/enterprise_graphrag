@@ -498,7 +498,7 @@ python scripts/provider_probe.py \
 
 The keys are read from environment variables. They do not need to be passed as command-line arguments.
 
-See [docs/HPC_VLLM.md](docs/HPC_VLLM.md) for the private DGX layout, SSH forwarding, and A100 runner procedure.
+See [docs/HPC_VLLM.md](docs/HPC_VLLM.md) for the private vLLM layout, SSH forwarding and provider checks.
 
 ## Enterprise JWT / JWKS
 
@@ -700,110 +700,12 @@ The job durations shown there are CI wall-clock durations and should not be inte
 ### Validation flow
 
 <p align="center">
-  <img src="docs/assets/validation-flow.svg" alt="Validation flow from local checks to GPU validation" width="1100">
+  <img src="docs/assets/validation-flow.svg" alt="Validation flow from local checks to integration validation" width="1100">
 </p>
 
-## A100 / HPC validation
+## Private HPC / vLLM
 
-The repository includes an optional self-hosted GitHub Actions workflow for an already-allocated A100 compute node.
-
-The workflow does not allocate Slurm resources and does not install or start vLLM automatically. The operator prepares the Conda environment, starts vLLM, and keeps the GitHub runner online.
-
-### HPC network bootstrap
-
-In the current HPC environment, network access is enabled by importing `core_config.py` from the home directory.
-
-In every new compute-node shell that will perform network access:
-
-```bash
-source "$HOME/Conda/bin/activate"
-cd "$HOME"
-python -c "import core_config"
-```
-
-Do that before:
-
-- `git`
-- `curl`
-- `wget`
-- `pip`
-- model downloads
-- GitHub runner registration or startup
-
-The repository provides:
-
-```bash
-./scripts/with_hpc_network.sh <command> [args...]
-./scripts/configure_hpc_runner.sh --url <repo-url> --token <one-time-token> --labels gpu-a100
-./scripts/start_hpc_runner.sh
-```
-
-Never put the runner registration token, VPN credentials, SSH private keys or provider secrets in the repository.
-
-### Runner directory
-
-Use:
-
-```bash
-mkdir -p ~/gpu/actions-runner-enterprise-graphrag
-cd ~/gpu/actions-runner-enterprise-graphrag
-```
-
-Use GitHub's current generated runner download and registration commands. Add the custom label:
-
-```text
-gpu-a100
-```
-
-Start the runner with:
-
-```bash
-./scripts/start_hpc_runner.sh
-```
-
-The runner should appear as **Idle** in GitHub before a GPU run can execute.
-
-### vLLM
-
-Start the server privately on the compute node:
-
-```bash
-export VLLM_API_KEY="<provider-key-or-empty>"
-
-vllm serve <CHAT_MODEL> \
-  --host 127.0.0.1 \
-  --port 8001
-```
-
-Check the model list:
-
-```bash
-curl -H "Authorization: Bearer ${VLLM_API_KEY}" \
-  http://127.0.0.1:8001/v1/models
-```
-
-Use the exact model ID returned by `/v1/models`.
-
-If the generation model is not an embedding model, start a separate OpenAI-compatible embedding service and configure its URL, model and dimension.
-
-### GPU workflow
-
-The workflow validates:
-
-1. `nvidia-smi` visibility.
-2. CUDA availability through PyTorch.
-3. A100 hardware family and compute capability.
-4. `/v1/models`.
-5. Chat Completions.
-6. Prompt-token logprobs.
-7. Optional embeddings and vector dimension.
-8. The deterministic test suite.
-9. An end-to-end GraphRAG query using the live vLLM model.
-10. Tenant isolation and retrieved-content injection blocking.
-
-The workflow publishes `gpu-validation.json` and a JUnit report as Actions artifacts.
-
-The GPU workflow is owner-gated and does not run on pull requests.
+For a private model-backed deployment, keep GraphRAG and vLLM on the same private machine when possible. The recommended laptop access path is SSH local port forwarding; see [docs/HPC_VLLM.md](docs/HPC_VLLM.md).
 
 ## Troubleshooting
 
