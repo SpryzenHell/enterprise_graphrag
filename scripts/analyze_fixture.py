@@ -451,6 +451,12 @@ def main() -> None:
             }
         )
 
+    graph_stats = graph_profile(graph, corpus)
+    overlap = retrieval_overlap(retriever, questions, 5)
+    query_variants = query_variant_experiment(retriever, questions)
+    tenant_matrix_results = tenant_matrix(retriever, questions, sorted(corpus))
+    artifact_stats = artifact_profile(retriever, corpus)
+
     injection = retriever.search("acme", "imported memo", 5)
     allowed, blocked, vector_count, graph_count = injection
     blocked_docs = [item["doc_id"] for item in blocked]
@@ -522,6 +528,11 @@ def main() -> None:
             "total_leaks": sum(len(case["leaks"]) for case in cross_tenant),
         },
         "security_markers": security_marker_counts,
+        "graph_profile": graph_stats,
+        "retrieval_overlap": overlap,
+        "query_variants": query_variants,
+        "tenant_matrix": tenant_matrix_results,
+        "artifact_profile": artifact_stats,
         "persistence": persistence_experiment(corpus),
         "upsert": upsert_experiment(),
         "incomplete_storage": incomplete_storage_experiment(),
@@ -543,6 +554,8 @@ def main() -> None:
         and report["incomplete_storage"]["fails_closed"]
         and report["security_normalization"]["direct_blocked"]
         and report["security_normalization"]["retrieved_blocked"]
+        and report["artifact_profile"]["total_bytes"] > 0
+        and all(not row["cross_tenant_ids"] for row in report["tenant_matrix"])
         and all(
             retrieval_by_k[str(k)]["metrics"]["hybrid"]["recall_at_k"] == 1.0
             for k in range(1, min(5, len(documents)) + 1)
