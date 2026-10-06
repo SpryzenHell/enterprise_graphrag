@@ -71,6 +71,6 @@ The probe verifies MCP initialization, tool discovery, authenticated `hybrid_sea
 
 The deterministic benchmark currently contains four labeled questions and is useful for detecting regressions in the checked-in retrieval fixture. The fixture analysis also sweeps retrieval depth and RRF weights and records the tenant-isolation and injection-filtering cases. It should not be used to represent production retrieval quality.
 
-The real provider and GPU probes report protocol success and operation latency. They do not establish model quality on an arbitrary corpus.
+The real provider and application probes report protocol success and operation latency. They do not establish model quality on an arbitrary corpus.
 
 Production measurements should be recorded separately for the target model, embedding model, corpus, Neo4j deployment and security test set. Keep the configuration used for each measurement with the resulting evidence so that later comparisons remain meaningful.
