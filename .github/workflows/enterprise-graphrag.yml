@@ -61,6 +61,9 @@ jobs:
       - name: Deterministic security evaluation
         run: python scripts/evaluate_enterprise.py
 
+      - name: Fixture experiments
+        run: python scripts/analyze_fixture.py
+
       - name: Retrieval benchmark
         run: python scripts/benchmark_retrieval.py
 
@@ -74,6 +77,7 @@ jobs:
           path: |
             enterprise_data/evaluation.json
             enterprise_data/benchmark.json
+            enterprise_data/fixture_experiments.json
             enterprise_data/fixture_experiments.json
 
   neo4j-integration:
