@@ -232,6 +232,145 @@ def security_normalization_experiment() -> dict:
     }
 
 
+
+def graph_profile(graph, corpus: dict[str, list[dict]]) -> dict:
+    profile = {}
+    for tenant, items in sorted(corpus.items()):
+        entity_set = set()
+        edge_count = 0
+        degrees = []
+        for item in items:
+            entities = {
+                value.lower()
+                for value in graph.ENTITY_PATTERN.findall(item["text"])
+            }
+            entity_set.update(entities)
+            edge_count += len(entities)
+            degrees.append(len(entities))
+        profile[tenant] = {
+            "documents": len(items),
+            "unique_entities": len(entity_set),
+            "document_entity_edges": edge_count,
+            "mean_entities_per_document": statistics.mean(degrees) if degrees else 0.0,
+            "max_entities_in_document": max(degrees, default=0),
+        }
+    return profile
+
+
+def retrieval_overlap(retriever: HybridRetriever, questions: list[dict], k: int = 5) -> list[dict]:
+    rows = []
+    for question in questions:
+        vector_hits = retriever.vector.search(question["tenant_id"], question["query"], k)
+        graph_hits = retriever.graph.search(question["tenant_id"], question["query"], k)
+        hybrid_hits = retriever.search(question["tenant_id"], question["query"], k)[0]
+        vector_ids = [hit.doc_id for hit in vector_hits]
+        graph_ids = [hit.doc_id for hit in graph_hits]
+        vector_set = set(vector_ids)
+        graph_set = set(graph_ids)
+        union = vector_set | graph_set
+        intersection = vector_set & graph_set
+        source_counts = {"vector_only": 0, "graph_only": 0, "both": 0}
+        for hit in hybrid_hits:
+            sources = set(hit.metadata.get("rrf_sources", [hit.source]))
+            if sources == {"vector"}:
+                source_counts["vector_only"] += 1
+            elif sources == {"graph"}:
+                source_counts["graph_only"] += 1
+            else:
+                source_counts["both"] += 1
+        rows.append({
+            "tenant": question["tenant_id"],
+            "query": question["query"],
+            "expected_doc_id": question["expected_doc_id"],
+            "vector_ids": vector_ids,
+            "graph_ids": graph_ids,
+            "jaccard": (len(intersection) / len(union)) if union else 1.0,
+            "hybrid_source_mix": source_counts,
+        })
+    return rows
+
+
+def query_variant_experiment(retriever: HybridRetriever, questions: list[dict]) -> list[dict]:
+    variants = [
+        ("original", lambda q: q),
+        ("uppercase", lambda q: q.upper()),
+        ("lowercase", lambda q: q.lower()),
+        ("extra_spaces", lambda q: "  " + "  ".join(q.split()) + "  "),
+        ("question_mark", lambda q: q.rstrip("?") + "?"),
+    ]
+    rows = []
+    for question in questions:
+        for variant_name, transform in variants:
+            query = transform(question["query"])
+            row = {
+                "tenant": question["tenant_id"],
+                "variant": variant_name,
+                "query": query,
+                "expected_doc_id": question["expected_doc_id"],
+                "methods": {},
+            }
+            for method in ("vector", "graph"):
+                search = retriever.vector.search if method == "vector" else retriever.graph.search
+                hits = search(question["tenant_id"], query, 5)
+                row["methods"][method] = {
+                    "rank": next(
+                        (rank for rank, hit in enumerate(hits, start=1)
+                         if hit.doc_id == question["expected_doc_id"]),
+                        None,
+                    ),
+                    "top_ids": [hit.doc_id for hit in hits],
+                }
+            hybrid_hits = retriever.search(question["tenant_id"], query, 5)[0]
+            row["methods"]["hybrid"] = {
+                "rank": next(
+                    (rank for rank, hit in enumerate(hybrid_hits, start=1)
+                     if hit.doc_id == question["expected_doc_id"]),
+                    None,
+                ),
+                "top_ids": [hit.doc_id for hit in hybrid_hits],
+            }
+            rows.append(row)
+    return rows
+
+
+def artifact_profile(retriever: HybridRetriever, corpus: dict[str, list[dict]]) -> dict:
+    files = []
+    for tenant in sorted(corpus):
+        index_path, metadata_path, manifest_path = retriever.vector._paths(tenant)
+        for kind, path in (
+            ("index", index_path),
+            ("metadata", metadata_path),
+            ("manifest", manifest_path),
+        ):
+            files.append({
+                "tenant": tenant,
+                "kind": kind,
+                "exists": path.exists(),
+                "bytes": path.stat().st_size if path.exists() else 0,
+            })
+    return {
+        "files": files,
+        "total_bytes": sum(item["bytes"] for item in files),
+    }
+
+
+def tenant_matrix(retriever: HybridRetriever, questions: list[dict], tenants: list[str]) -> list[dict]:
+    matrix = []
+    for question in questions:
+        for tenant in tenants:
+            allowed = retriever.search(tenant, question["query"], 5)[0]
+            matrix.append({
+                "question_tenant": question["tenant_id"],
+                "query_tenant": tenant,
+                "expected_doc_id": question["expected_doc_id"],
+                "returned_ids": [hit.doc_id for hit in allowed],
+                "cross_tenant_ids": [
+                    hit.doc_id for hit in allowed if hit.tenant_id != tenant
+                ],
+            })
+    return matrix
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Run reproducible experiments over the checked-in GraphRAG fixture."
