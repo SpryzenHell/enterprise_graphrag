@@ -74,7 +74,7 @@ def main() -> None:
     tracked_like_files = [
         path for path in ROOT.rglob("*")
         if path.is_file()
-        and ".git" not in path.parts
+        and not any(part in IGNORED_DIRS for part in path.parts)
         and path.suffix.lower() in TEXT_EXTENSIONS
     ]
 
