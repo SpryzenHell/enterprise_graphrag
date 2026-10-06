@@ -911,4 +911,4 @@ See [SECURITY.md](SECURITY.md) for authentication, tenant isolation, retrieved-c
 - [Validation guide](docs/VALIDATION.md)
 - [HPC / vLLM guide](docs/HPC_VLLM.md)
 - [Security notes](SECURITY.md)
-- [Supported runtime notes](enterprise_graphrag/README.md)
+- Supported runtime source: `enterprise_graphrag/`
