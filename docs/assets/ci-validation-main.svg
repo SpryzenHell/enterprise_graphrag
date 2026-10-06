@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1450" height="900" viewBox="0 0 1450 900">
+<rect width="1450" height="900" fill="#090f18"/>
+<rect x="34" y="30" width="1382" height="840" rx="20" fill="#0d1625" stroke="#263a55"/>
+<text x="66" y="76" fill="#86efac" font-family="DejaVu Sans Mono,monospace" font-size="15">$ gh workflow run enterprise-graphrag.yml</text>
+<text x="66" y="112" fill="#f8fafc" font-family="DejaVu Sans Mono,monospace" font-size="28" font-weight="700">Run #685 • main • SUCCESS</text>
+<text x="66" y="143" fill="#94a3b8" font-family="DejaVu Sans Mono,monospace" font-size="13">commit 4c49a98e • default branch • 2026-10-06</text>
+
+<text x="66" y="194" fill="#64748b" font-family="DejaVu Sans Mono,monospace" font-size="12">JOB</text>
+<text x="620" y="194" fill="#64748b" font-family="DejaVu Sans Mono,monospace" font-size="12">KEY CHECKS</text>
+<text x="1240" y="194" fill="#64748b" font-family="DejaVu Sans Mono,monospace" font-size="12">STATUS</text>
+
+
+<rect x="58" y="196" width="1334" height="86" rx="14" fill="#0a1422" stroke="#1f3551"/>
+<text x="82" y="230" fill="#e2e8f0" font-family="DejaVu Sans Mono,monospace" font-size="16" font-weight="700">test</text>
+<text x="82" y="256" fill="#93a4ba" font-family="DejaVu Sans Mono,monospace" font-size="12">compile • package • tests • security • retrieval • audit • experiments</text>
+<rect x="1190" y="208" width="150" height="42" rx="21" fill="#103b2b" stroke="#34d399"/><circle cx="1215" cy="229" r="6" fill="#34d399"/><text x="1230" y="235" fill="#86efac" font-family="DejaVu Sans Mono,monospace" font-size="13" font-weight="700">PASS</text>
+
+<rect x="58" y="311" width="1334" height="86" rx="14" fill="#0a1422" stroke="#1f3551"/>
+<text x="82" y="345" fill="#e2e8f0" font-family="DejaVu Sans Mono,monospace" font-size="16" font-weight="700">neo4j-integration</text>
+<text x="82" y="371" fill="#93a4ba" font-family="DejaVu Sans Mono,monospace" font-size="12">real Neo4j container • tenant integration</text>
+<rect x="1190" y="323" width="150" height="42" rx="21" fill="#103b2b" stroke="#34d399"/><circle cx="1215" cy="344" r="6" fill="#34d399"/><text x="1230" y="350" fill="#86efac" font-family="DejaVu Sans Mono,monospace" font-size="13" font-weight="700">PASS</text>
+
+<rect x="58" y="426" width="1334" height="86" rx="14" fill="#0a1422" stroke="#1f3551"/>
+<text x="82" y="460" fill="#e2e8f0" font-family="DejaVu Sans Mono,monospace" font-size="16" font-weight="700">container-smoke</text>
+<text x="82" y="486" fill="#93a4ba" font-family="DejaVu Sans Mono,monospace" font-size="12">Compose validation • image • health • readiness</text>
+<rect x="1190" y="438" width="150" height="42" rx="21" fill="#103b2b" stroke="#34d399"/><circle cx="1215" cy="459" r="6" fill="#34d399"/><text x="1230" y="465" fill="#86efac" font-family="DejaVu Sans Mono,monospace" font-size="13" font-weight="700">PASS</text>
+
+<rect x="58" y="541" width="1334" height="86" rx="14" fill="#0a1422" stroke="#1f3551"/>
+<text x="82" y="575" fill="#e2e8f0" font-family="DejaVu Sans Mono,monospace" font-size="16" font-weight="700">compose-smoke</text>
+<text x="82" y="601" fill="#93a4ba" font-family="DejaVu Sans Mono,monospace" font-size="12">full stack • readiness • authenticated query</text>
+<rect x="1190" y="553" width="150" height="42" rx="21" fill="#103b2b" stroke="#34d399"/><circle cx="1215" cy="574" r="6" fill="#34d399"/><text x="1230" y="580" fill="#86efac" font-family="DejaVu Sans Mono,monospace" font-size="13" font-weight="700">PASS</text>
+
+
+<line x1="66" y1="695" x2="1385" y2="695" stroke="#263a55"/>
+<text x="66" y="735" fill="#7dd3fc" font-family="DejaVu Sans Mono,monospace" font-size="13">$ python scripts/analyze_fixture.py</text>
+<text x="66" y="766" fill="#a7f3d0" font-family="DejaVu Sans Mono,monospace" font-size="12">dataset=5 docs • tenants=2 • questions=4 • leaks=0 • injection_reached_answer=false</text>
+<text x="66" y="796" fill="#a7f3d0" font-family="DejaVu Sans Mono,monospace" font-size="12">retrieval: vector=1.00 • graph=1.00 • hybrid=1.00 • MRR=1.00</text>
+<text x="66" y="826" fill="#a7f3d0" font-family="DejaVu Sans Mono,monospace" font-size="12">persistence=PASS • upsert=PASS • fail_closed=PASS • unicode_normalization=PASS</text>
+<text x="66" y="858" fill="#94a3b8" font-family="DejaVu Sans Mono,monospace" font-size="11">Evidence artifact uploaded from the successful default-branch run.</text>
+</svg>
