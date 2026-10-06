@@ -1,16 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900">
-<rect width="1500" height="900" fill="#ffffff"/>
-<style>text{font-family:DejaVu Sans,Arial,sans-serif;fill:#1f2933}.title{font-size:34px;font-weight:700}.sub{font-size:20px;fill:#526273}.label{font-size:22px;font-weight:700}.axis{font-size:18px;fill:#526273}.barA{fill:#467ab4}.barB{fill:#3f8d62}.note{font-size:19px;fill:#344454}</style>
-<text x="70" y="70" class="title">Checked-in corpus profile</text>
-<text x="70" y="108" class="sub">enterprise_data/corpus.jsonl • five documents • two tenants</text>
-<line x1="160" y1="660" x2="1250" y2="660" stroke="#738294" stroke-width="3"/>
-<line x1="160" y1="210" x2="160" y2="660" stroke="#738294" stroke-width="3"/>
-<text x="142" y="666" text-anchor="end" class="axis">0</text><text x="142" y="456" text-anchor="end" class="axis">30</text><text x="142" y="246" text-anchor="end" class="axis">60</text>
-<rect x="330" y="450" width="180" height="210" class="barA"/><rect x="690" y="520" width="180" height="140" class="barB"/>
-<text x="420" y="432" text-anchor="middle" class="label">51</text><text x="780" y="502" text-anchor="middle" class="label">32</text>
-<text x="420" y="705" text-anchor="middle" class="label">Acme</text><text x="780" y="705" text-anchor="middle" class="label">Globex</text>
-<text x="1240" y="250" class="note">Documents</text><rect x="1240" y="270" width="24" height="24" class="barA"/><text x="1278" y="291" class="note">3 / 2</text>
-<text x="1240" y="330" class="note">Text tokens</text><rect x="1240" y="350" width="24" height="24" class="barB"/><text x="1278" y="371" class="note">51 / 32</text>
-<text x="70" y="790" class="note">Text length by tenant: Acme 368 characters / 51 tokens; Globex 228 characters / 32 tokens.</text>
-<text x="70" y="825" class="note">One Acme document is the intentional prompt-injection fixture.</text>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <rect width="1200" height="720" fill="#F8FAFC"/>
+  <text x="70" y="70" fill="#0F172A" font-family="DejaVu Sans, Arial, sans-serif" font-size="34" font-weight="700">Checked-in corpus profile</text>
+  <text x="70" y="108" fill="#475569" font-family="DejaVu Sans, Arial, sans-serif" font-size="20">All values come directly from enterprise_data/corpus.jsonl</text>
+  <rect x="70" y="145" width="1060" height="500" rx="20" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+  <text x="150" y="205" fill="#334155" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" font-weight="700">Tenant</text>
+  <text x="430" y="205" fill="#334155" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" font-weight="700">Documents</text>
+  <text x="650" y="205" fill="#334155" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" font-weight="700">Words</text>
+  <text x="830" y="205" fill="#334155" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" font-weight="700">Characters</text>
+  <line x1="110" y1="230" x2="1090" y2="230" stroke="#E2E8F0"/>
+  <text x="150" y="285" fill="#0F172A" font-family="DejaVu Sans, Arial, sans-serif" font-size="24">Acme</text>
+  <rect x="430" y="258" width="210" height="38" rx="8" fill="#DBEAFE"/><text x="525" y="284" text-anchor="middle" fill="#1E3A8A" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" font-weight="700">3</text>
+  <rect x="650" y="258" width="120" height="38" rx="8" fill="#DCFCE7"/><text x="710" y="284" text-anchor="middle" fill="#166534" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" font-weight="700">48</text>
+  <rect x="830" y="258" width="150" height="38" rx="8" fill="#F3E8FF"/><text x="905" y="284" text-anchor="middle" fill="#6B21A8" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" font-weight="700">368</text>
+  <text x="150" y="355" fill="#0F172A" font-family="DejaVu Sans, Arial, sans-serif" font-size="24">Globex</text>
+  <rect x="430" y="328" width="210" height="38" rx="8" fill="#DBEAFE"/><text x="525" y="354" text-anchor="middle" fill="#1E3A8A" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" font-weight="700">2</text>
+  <rect x="650" y="328" width="120" height="38" rx="8" fill="#DCFCE7"/><text x="710" y="354" text-anchor="middle" fill="#166534" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" font-weight="700">29</text>
+  <rect x="830" y="328" width="150" height="38" rx="8" fill="#F3E8FF"/><text x="905" y="354" text-anchor="middle" fill="#6B21A8" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" font-weight="700">228</text>
+  <line x1="110" y1="405" x2="1090" y2="405" stroke="#E2E8F0"/>
+  <text x="150" y="465" fill="#334155" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" font-weight="700">Total</text>
+  <rect x="430" y="438" width="210" height="38" rx="8" fill="#E0E7FF"/><text x="525" y="464" text-anchor="middle" fill="#3730A3" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" font-weight="700">5</text>
+  <rect x="650" y="438" width="120" height="38" rx="8" fill="#DCFCE7"/><text x="710" y="464" text-anchor="middle" fill="#166534" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" font-weight="700">77</text>
+  <rect x="830" y="438" width="150" height="38" rx="8" fill="#F3E8FF"/><text x="905" y="464" text-anchor="middle" fill="#6B21A8" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" font-weight="700">596</text>
+  <text x="150" y="535" fill="#475569" font-family="DejaVu Sans, Arial, sans-serif" font-size="19">The fifth document is the intentional security test case.</text>
 </svg>
