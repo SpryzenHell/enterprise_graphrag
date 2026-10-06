@@ -104,8 +104,10 @@ The deterministic demo uses the local shared-secret token mode. A production dep
 In JWKS mode, the demo token CLI is disabled; GraphRAG expects tokens issued by the configured identity provider. Keep the JWKS endpoint HTTPS-only in production.
 
 
-## Workbench views
+## Browser UI
 
-After running a query in the browser, the workbench provides separate views for the answer, graph, retrieved sources, security decision, execution trace and raw JSON. The Graph view is built from the graph trace returned by the API rather than from a separate mock data source.
+The browser page is the checked-in `enterprise_graphrag/static/index.html`, served directly by FastAPI. After running a query, the actual page shows the answer view plus Graph View, Sources, Security, Trace and Raw JSON tabs.
 
-See [VISUALS.md](VISUALS.md) for the repository's detailed UI and diagram gallery.
+The Graph View is generated from the `graph` field returned by the API response. The repository does not include screenshot-style UI mockups or a separate sample UI.
+
+See [VISUALS.md](VISUALS.md) for the architecture schematics and fixture plots.

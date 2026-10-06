@@ -1,72 +1,28 @@
 # Visual guide
 
-The repository uses several visual styles because each one answers a different question.
+The repository does not use screenshot-style UI mockups or invented deployment screens. The checked-in visual assets are either architecture schematics or static plots whose values can be traced to the repository's fixture data, source configuration, or recorded CI evidence.
 
-## 1. Browser workbench
+## Architecture schematics
 
-[workbench-ui.svg](assets/workbench-ui.svg)
+- [architecture.svg](assets/architecture.svg) — supported request and answer flow.
+- [data-lineage.svg](assets/data-lineage.svg) — checked-in ingestion, retrieval, fusion, security and answer path.
+- [tenant-isolation.svg](assets/tenant-isolation.svg) — JWT-derived tenant boundary through vector and graph retrieval.
+- [graph-trace.svg](assets/graph-trace.svg) — example graph trace from the checked-in Acme corpus.
+- [mcp-flow.svg](assets/mcp-flow.svg) — MCP request flow with token-derived tenant identity.
+- [security-evaluation.svg](assets/security-evaluation.svg) — deterministic security evaluation result.
+- [validation-flow.svg](assets/validation-flow.svg) — the current repository validation path.
 
-A UI-style view of the actual application concept. It shows:
+## Fixture plots
 
-- question input and top-K control;
-- grounded answer;
-- graph view;
-- retrieved-source table;
-- security decision;
-- execution trace;
-- raw JSON response.
+- [benchmark.svg](assets/benchmark.svg) — Recall@5 and MRR for the four labeled fixture questions.
+- [fixture-dataset-profile.svg](assets/fixture-dataset-profile.svg) — document, word and character counts derived from `enterprise_data/corpus.jsonl`.
+- [retrieval-experiments.svg](assets/retrieval-experiments.svg) — retrieval-depth results for K=1..5.
+- [rrf-weight-sensitivity.svg](assets/rrf-weight-sensitivity.svg) — vector/graph RRF weight sweep from 0.0 to 1.0.
+- [retrieval-heatmap.svg](assets/retrieval-heatmap.svg) — the K × vector-weight fixture result matrix.
+- [security-matrix.svg](assets/security-matrix.svg) — deterministic security and tenant-isolation cases.
 
-The real browser UI in `enterprise_graphrag/static/index.html` exposes the same logical tabs and builds the graph view from the API response.
+## Accuracy checks
 
-## 2. Graph explorer
+`scripts/check_visual_facts.py` is run by CI after the fixture experiment report is generated. It cross-checks the plotted values against `enterprise_data/fixture_experiments.json` and rejects the build when a visual drifts from the checked-in measurements.
 
-[graph-rag-explorer.svg](assets/graph-rag-explorer.svg)
-
-A graph-first view for understanding how documents connect to extracted entities and how those results feed the evidence list.
-
-## 3. Data lineage
-
-[data-lineage.svg](assets/data-lineage.svg)
-
-A left-to-right pipeline showing the complete path:
-
-`JSONL → validation → vector + graph paths → search → RRF → security → answer`.
-
-This is useful when checking where tenant and security controls are applied.
-
-## 4. Experiment command center
-
-[experiment-command-center.svg](assets/experiment-command-center.svg)
-
-A dashboard-style view covering:
-
-- dataset profile;
-- retrieval depth;
-- RRF weight sensitivity;
-- security cases;
-- storage/update checks;
-- query variants.
-
-## 5. Retrieval heatmap
-
-[retrieval-heatmap.svg](assets/retrieval-heatmap.svg)
-
-A matrix-style plot for K and vector weight. On this fixture, every tested combination keeps the expected document at rank 1.
-
-## 6. Security matrix
-
-[security-matrix.svg](assets/security-matrix.svg)
-
-A test-matrix style view covering direct instruction override, retrieved injection, Unicode obfuscation, tenant isolation and a normal authorized query.
-
-## 7. CI terminal snapshot
-
-[ci-validation-main.svg](assets/ci-validation-main.svg)
-
-A high-contrast terminal-style snapshot of the successful default-branch CI run.
-
-## Accuracy rule
-
-The visuals in this repository are tied to checked-in fixture values or recorded CI results. They are not presented as screenshots from an unverified production deployment.
-
-When the fixture data changes, regenerate or update the related visual before treating the numbers as current.
+The visuals are not presented as screenshots of an unverified production deployment. The real browser UI remains the checked-in `enterprise_graphrag/static/index.html`.

@@ -81,9 +81,7 @@ The graph experiment records, per tenant:
 
 The checked-in graph is intentionally small, but this view exposes how much of the evidence is coming through the graph path.
 
-<p align="center">
-  <img src="assets/graph-rag-explorer.svg" alt="GraphRAG graph evidence explorer" width="1050">
-</p>
+The graph profile in the current fixture report is computed from the same local memory graph used by the experiment suite. It records document counts, unique entities, document-to-entity edges, and entity counts per document.
 
 ## Tenant matrix
 
@@ -126,12 +124,6 @@ The experiment also checks the behavior that matters during real operation:
 | Artifact files | Index, metadata and manifest exist and have non-zero size |
 
 The experiment report also records the total size of the temporary FAISS artifacts created for the fixture.
-
-## Command-center view
-
-<p align="center">
-  <img src="assets/experiment-command-center.svg" alt="Experiment command-center dashboard" width="1200">
-</p>
 
 ## Security result
 
