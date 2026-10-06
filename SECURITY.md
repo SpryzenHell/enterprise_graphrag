@@ -1,23 +1,19 @@
 # Security
 
-## Supported runtime
+## Request flow
 
-The supported application is under `enterprise_graphrag/`.
-
-Its security boundary is:
+The application uses this security path:
 
     JWT authentication
         -> tenant identity
-        -> tenant-scoped FAISS + Neo4j retrieval
-        -> retrieval security gateway
+        -> tenant-scoped FAISS / Neo4j retrieval
+        -> retrieval security checks
         -> answer generation
-        -> citations / graph trace
-
-The retained legacy GraphRAG, MCP CLI and ACE-derived trees are not the supported production entrypoint.
+        -> citations and graph trace
 
 ## Authentication
 
-Production should use an enterprise identity provider with asymmetric JWT signing and a JWKS endpoint:
+For production, use an identity provider with asymmetric JWT signing and a JWKS endpoint:
 
     GRAGRAPH_JWT_MODE=jwks
     GRAGRAPH_JWT_ALGORITHM=RS256
@@ -25,44 +21,54 @@ Production should use an enterprise identity provider with asymmetric JWT signin
     GRAGRAPH_JWT_AUDIENCE=<audience>
     GRAGRAPH_JWT_JWKS_URL=https://<issuer>/.well-known/jwks.json
 
-Tokens must contain:
+Data-bearing requests require these token claims:
 
 - `sub`
 - `tenant_id`
 - `iss`
 - `aud`
 - `exp`
+- `graphrag:query` scope
 
-All data-bearing API and MCP operations also require `graphrag:query`.
-
-The local shared-secret mode and demo-token CLI are intended for development/test only.
+Shared-secret JWT mode and the demo-token command are for development and tests.
 
 ## Tenant isolation
 
-Tenant identity is derived from the verified token rather than from query or MCP tool arguments.
+The tenant is taken from the verified token. It is not accepted from the query body or MCP tool arguments.
 
-FAISS uses a physically separate index per tenant. Neo4j documents and entities carry tenant identity, and retrieval queries include explicit tenant predicates.
+FAISS keeps a separate index for each tenant. Neo4j stores tenant identity on documents and entities and uses tenant filters in retrieval and trace queries.
 
-The deterministic test suite includes API, vector, graph and MCP cross-tenant regression tests.
+The test suite checks cross-tenant access through the API, vector search, graph search and MCP.
 
-## Retrieved-content security
+## Retrieved text security
 
-Retrieved titles and document text are screened before answer generation.
+Document titles and text are checked before they reach the answer model.
 
-The gateway normalizes Unicode compatibility characters and strips zero-width formatting before marker detection. When a vLLM endpoint is configured, observed-token prompt logprobs can supply an additional perplexity signal.
+The security layer:
 
-This is a defense-in-depth control, not a proof that arbitrary prompt injection is impossible.
+- normalizes Unicode text;
+- removes zero-width characters;
+- checks for common instruction override and prompt-exfiltration phrases;
+- blocks direct malicious queries;
+- blocks retrieved text that reaches the configured marker threshold;
+- can use prompt-token logprobs from vLLM as an additional signal.
 
-## Deployment recommendations
+The prompt-logprob check is an extra safety layer. It does not prove that every prompt injection will be detected.
 
-Keep vLLM private whenever possible. On an HPC/DGX environment, bind vLLM to loopback and use SSH port forwarding through the required VPN/login path rather than exposing an inference port publicly.
+## Deployment
 
-Use a strong secret only for shared-secret development/test environments. Do not commit `.env` files or provider credentials.
+Keep vLLM private when possible. On an HPC system, bind it to loopback and use SSH port forwarding through the required VPN/login path.
 
-Keep MCP allowed hosts and origins explicit in production. The configuration validator rejects wildcard and loopback MCP/CORS entries in production.
+Do not commit:
 
-## Reporting a security issue
+- `.env` files;
+- JWTs;
+- API keys;
+- runner registration tokens;
+- SSH private keys.
 
-Do not open a public issue containing a credential, private dataset, token, vulnerability proof that exposes sensitive information, or other secret material.
+Production configuration rejects wildcard or loopback MCP/CORS settings.
 
-For an actual deployment, use the repository owner's private security-reporting process or the organization security contact.
+## Reporting
+
+Do not open a public issue with a secret, private dataset, token, or other sensitive material. Use the repository owner's private security contact for a real deployment issue.
