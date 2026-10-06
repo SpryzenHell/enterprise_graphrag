@@ -1,16 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900">
-<rect width="1500" height="900" fill="#ffffff"/>
-<style>text{font-family:DejaVu Sans,Arial,sans-serif;fill:#1f2933}.title{font-size:34px;font-weight:700}.sub{font-size:19px;fill:#526273}.axis{font-size:17px;fill:#526273}.line1{stroke:#467ab4;stroke-width:6;fill:none}.line2{stroke:#7a5ab8;stroke-width:6;fill:none}.dot1{fill:#467ab4}.dot2{fill:#7a5ab8}.note{font-size:19px;fill:#344454}.box{fill:#f6f8fa;stroke:#b9c5d0;stroke-width:2}</style>
-<text x="70" y="70" class="title">RRF weight sensitivity</text>
-<text x="70" y="108" class="sub">Vector weight swept from 0.0 to 1.0; graph weight = 1.0 − vector weight.</text>
-<line x1="130" y1="690" x2="1230" y2="690" stroke="#738294" stroke-width="3"/><line x1="130" y1="200" x2="130" y2="690" stroke="#738294" stroke-width="3"/>
-<text x="112" y="696" text-anchor="end" class="axis">0.85</text><text x="112" y="451" text-anchor="end" class="axis">0.925</text><text x="112" y="206" text-anchor="end" class="axis">1.00</text>
-<line x1="130" y1="451" x2="1230" y2="451" stroke="#dde3e8" stroke-width="2"/><line x1="130" y1="206" x2="1230" y2="206" stroke="#dde3e8" stroke-width="2"/>
-<path d="M170 206 L280 206 L390 206 L500 206 L610 206 L720 206 L830 206 L940 206 L1050 206 L1160 206 L1270 206" class="line1"/>
-<path d="M170 206 L280 206 L390 206 L500 206 L610 206 L720 206 L830 206 L940 206 L1050 206 L1160 206 L1270 206" class="line2"/>
-<g class="axis"><text x="170" y="728" text-anchor="middle">0.0</text><text x="280" y="728" text-anchor="middle">0.1</text><text x="390" y="728" text-anchor="middle">0.2</text><text x="500" y="728" text-anchor="middle">0.3</text><text x="610" y="728" text-anchor="middle">0.4</text><text x="720" y="728" text-anchor="middle">0.5</text><text x="830" y="728" text-anchor="middle">0.6</text><text x="940" y="728" text-anchor="middle">0.7</text><text x="1050" y="728" text-anchor="middle">0.8</text><text x="1160" y="728" text-anchor="middle">0.9</text><text x="1270" y="728" text-anchor="middle">1.0</text></g>
-<g class="dot1"><circle cx="170" cy="206" r="8"/><circle cx="280" cy="206" r="8"/><circle cx="390" cy="206" r="8"/><circle cx="500" cy="206" r="8"/><circle cx="610" cy="206" r="8"/><circle cx="720" cy="206" r="8"/><circle cx="830" cy="206" r="8"/><circle cx="940" cy="206" r="8"/><circle cx="1050" cy="206" r="8"/><circle cx="1160" cy="206" r="8"/><circle cx="1270" cy="206" r="8"/></g>
-<text x="430" y="250" class="note">Recall@5 = 1.00 at every tested weight</text><text x="430" y="286" class="note">MRR = 1.00 at every tested weight</text>
-<rect x="1320" y="200" width="130" height="150" rx="16" class="box"/><circle cx="1350" cy="245" r="7" class="dot1"/><text x="1370" y="252" class="note">Recall</text><circle cx="1350" cy="285" r="7" class="dot2"/><text x="1370" y="292" class="note">MRR</text>
-<text x="70" y="810" class="sub">The checked-in fixture is too small to identify an optimal production weight.</text>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <rect width="1200" height="720" fill="#F8FAFC"/>
+  <text x="70" y="68" fill="#111827" font-family="DejaVu Sans, Arial, sans-serif" font-size="34" font-weight="700">RRF weight sensitivity</text>
+  <text x="70" y="104" fill="#475569" font-family="DejaVu Sans, Arial, sans-serif" font-size="20">Vector weight from 0.0 to 1.0; graph weight is 1.0 minus vector weight</text>
+  <rect x="90" y="150" width="1020" height="410" rx="18" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+  <line x1="150" y1="480" x2="1040" y2="480" stroke="#CBD5E1" stroke-width="2"/>
+  <line x1="150" y1="240" x2="1040" y2="240" stroke="#E5E7EB" stroke-dasharray="8 8"/>
+  <text x="105" y="245" fill="#64748B" font-family="DejaVu Sans, Arial, sans-serif" font-size="18">1.0</text>
+  <text x="105" y="485" fill="#64748B" font-family="DejaVu Sans, Arial, sans-serif" font-size="18">0.0</text>
+  <polyline points="165,240 255,240 345,240 435,240 525,240 615,240 705,240 795,240 885,240 975,240 1040,240" fill="none" stroke="#2563EB" stroke-width="7"/>
+  <polyline points="165,252 255,252 345,252 435,252 525,252 615,252 705,252 795,252 885,252 975,252 1040,252" fill="none" stroke="#7C3AED" stroke-width="7"/>
+  <g fill="#475569" font-family="DejaVu Sans, Arial, sans-serif" font-size="18">
+    <text x="155" y="520">0.0</text><text x="335" y="520">0.2</text><text x="515" y="520">0.4</text><text x="695" y="520">0.6</text><text x="875" y="520">0.8</text><text x="1020" y="520">1.0</text>
+  </g>
+  <text x="150" y="600" fill="#111827" font-family="DejaVu Sans, Arial, sans-serif" font-size="21">Recall@5 = 1.00 and MRR = 1.00 at every tested weight on this fixture.</text>
+  <text x="150" y="635" fill="#64748B" font-family="DejaVu Sans, Arial, sans-serif" font-size="18">This shows fixture stability, not an optimal production weighting.</text>
 </svg>
