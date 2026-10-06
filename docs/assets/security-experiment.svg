@@ -1,13 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900">
-<rect width="1500" height="900" fill="#ffffff"/>
-<style>text{font-family:DejaVu Sans,Arial,sans-serif;fill:#1f2933}.title{font-size:34px;font-weight:700}.sub{font-size:19px;fill:#526273}.head{font-size:20px;font-weight:700}.cell{font-size:19px}.pass{fill:#245b3d}.block{fill:#8a5a20}</style>
-<text x="70" y="70" class="title">Security and tenant-isolation experiments</text>
-<text x="70" y="108" class="sub">Results derived from the checked-in two-tenant corpus and four canonical evaluation questions.</text>
-<text x="70" y="180" class="head">Experiment</text><text x="760" y="180" class="head">Observed result</text><line x1="60" y1="200" x2="1440" y2="200" stroke="#aeb8c2" stroke-width="2"/>
-<text x="70" y="260" class="cell">Canonical tenant queries</text><rect x="760" y="232" width="120" height="38" rx="18" class="pass"/><text x="820" y="258" text-anchor="middle" font-size="18" font-weight="700" fill="#fff">PASS</text><text x="920" y="258" class="cell">4 / 4 expected documents retrieved</text>
-<text x="70" y="345" class="cell">Cross-tenant citation check</text><rect x="760" y="317" width="120" height="38" rx="18" class="pass"/><text x="820" y="343" text-anchor="middle" font-size="18" font-weight="700" fill="#fff">PASS</text><text x="920" y="343" class="cell">0 citation leaks across four queries</text>
-<text x="70" y="430" class="cell">Injected-document retrieval case</text><rect x="760" y="402" width="120" height="38" rx="18" class="block"/><text x="820" y="428" text-anchor="middle" font-size="18" font-weight="700" fill="#fff">BLOCKED</text><text x="920" y="428" class="cell">acme-injected retrieved, then excluded by security gateway</text>
-<text x="70" y="515" class="cell">Injection reaches answer model</text><rect x="760" y="487" width="120" height="38" rx="18" class="pass"/><text x="820" y="513" text-anchor="middle" font-size="18" font-weight="700" fill="#fff">NO</text><text x="920" y="513" class="cell">blocked document absent from allowed contexts</text>
-<text x="70" y="600" class="cell">Marker count in injected document</text><text x="760" y="600" class="cell">3</text><text x="920" y="600" class="cell">threshold = 2</text>
-<text x="70" y="740" class="sub">These are deterministic fixture experiments. They do not estimate real-world false-positive or false-negative rates.</text>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <rect width="1200" height="720" fill="#FFFFFF"/>
+  <text x="70" y="68" fill="#111827" font-family="DejaVu Sans, Arial, sans-serif" font-size="34" font-weight="700">Security and tenant checks</text>
+  <text x="70" y="104" fill="#475569" font-family="DejaVu Sans, Arial, sans-serif" font-size="20">Results from the checked-in five-document fixture</text>
+  <g font-family="DejaVu Sans, Arial, sans-serif">
+    <rect x="70" y="160" width="500" height="190" rx="18" fill="#ECFDF5" stroke="#A7F3D0" stroke-width="2"/>
+    <text x="105" y="205" fill="#065F46" font-size="26" font-weight="700">Injection case</text>
+    <text x="105" y="250" fill="#064E3B" font-size="22">Candidate: acme-injected</text>
+    <text x="105" y="292" fill="#064E3B" font-size="22">Markers: 3</text>
+    <text x="105" y="332" fill="#047857" font-size="24" font-weight="700">Blocked before answer generation</text>
+    <rect x="630" y="160" width="500" height="190" rx="18" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="2"/>
+    <text x="665" y="205" fill="#1E3A8A" font-size="26" font-weight="700">Tenant isolation</text>
+    <text x="665" y="250" fill="#1E3A8A" font-size="22">Canonical queries: 4</text>
+    <text x="665" y="292" fill="#1E3A8A" font-size="22">Cross-tenant leaks: 0</text>
+    <text x="665" y="332" fill="#1D4ED8" font-size="24" font-weight="700">All four cases passed</text>
+    <rect x="70" y="390" width="1060" height="190" rx="18" fill="#F8FAFC" stroke="#CBD5E1"/>
+    <text x="105" y="438" fill="#334155" font-size="24" font-weight="700">Expected security path</text>
+    <text x="105" y="485" fill="#475569" font-size="21">query → candidate retrieval → security check → blocked or allowed context</text>
+    <text x="105" y="530" fill="#475569" font-size="21">No tenant ID is accepted from the query or MCP tool arguments.</text>
+  </g>
 </svg>
