@@ -59,6 +59,7 @@ def main() -> None:
         path.relative_to(ROOT).as_posix()
         for path in ROOT.rglob("*")
         if path.is_file()
+        and not any(part in IGNORED_DIRS for part in path.parts)
         and path.name.lower().startswith(("license", "copying"))
     ]
 
