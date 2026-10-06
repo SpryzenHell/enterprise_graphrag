@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="920" viewBox="0 0 1500 920">
+<rect width="1500" height="920" fill="#07111f"/>
+<rect x="0" y="0" width="1500" height="72" fill="#0d1b2f"/>
+<text x="32" y="32" fill="#7dd3fc" font-family="DejaVu Sans,Arial" font-size="13" font-weight="700">ENTERPRISE GRAPHRAG • SECURE RETRIEVAL WORKBENCH</text>
+<text x="32" y="56" fill="#dbeafe" font-family="DejaVu Sans,Arial" font-size="24" font-weight="700">GraphRAG Query Studio</text>
+<rect x="1250" y="19" width="215" height="34" rx="17" fill="#103b2b" stroke="#2dd4bf"/>
+<circle cx="1270" cy="36" r="6" fill="#34d399"/><text x="1286" y="42" fill="#a7f3d0" font-family="DejaVu Sans,Arial" font-size="13">API READY • MEMORY GRAPH</text>
+
+<rect x="18" y="88" width="180" height="808" rx="14" fill="#0b1727" stroke="#1f3551"/>
+<text x="40" y="126" fill="#94a3b8" font-family="DejaVu Sans,Arial" font-size="11" font-weight="700">WORKSPACE</text>
+<rect x="32" y="150" width="152" height="38" rx="9" fill="#15324f" stroke="#2563eb"/><text x="54" y="174" fill="#bfdbfe" font-family="DejaVu Sans,Arial" font-size="14">Query</text><rect x="32" y="202" width="152" height="38" rx="9" fill="#0d1b2a" stroke="#1f3551"/><text x="54" y="226" fill="#9fb0c8" font-family="DejaVu Sans,Arial" font-size="14">Graph View</text><rect x="32" y="254" width="152" height="38" rx="9" fill="#0d1b2a" stroke="#1f3551"/><text x="54" y="278" fill="#9fb0c8" font-family="DejaVu Sans,Arial" font-size="14">Sources</text><rect x="32" y="306" width="152" height="38" rx="9" fill="#0d1b2a" stroke="#1f3551"/><text x="54" y="330" fill="#9fb0c8" font-family="DejaVu Sans,Arial" font-size="14">Security</text><rect x="32" y="358" width="152" height="38" rx="9" fill="#0d1b2a" stroke="#1f3551"/><text x="54" y="382" fill="#9fb0c8" font-family="DejaVu Sans,Arial" font-size="14">Trace</text><rect x="32" y="410" width="152" height="38" rx="9" fill="#0d1b2a" stroke="#1f3551"/><text x="54" y="434" fill="#9fb0c8" font-family="DejaVu Sans,Arial" font-size="14">Raw JSON</text>
+<line x1="32" y1="478" x2="184" y2="478" stroke="#1f3551"/>
+<text x="40" y="510" fill="#94a3b8" font-family="DejaVu Sans,Arial" font-size="11" font-weight="700">TENANT</text>
+<rect x="32" y="526" width="152" height="38" rx="9" fill="#10233b" stroke="#1d4ed8"/><text x="54" y="550" fill="#bfdbfe" font-family="DejaVu Sans,Arial" font-size="13">acme</text>
+<text x="40" y="594" fill="#94a3b8" font-family="DejaVu Sans,Arial" font-size="11" font-weight="700">PIPELINE</text>
+<text x="40" y="620" fill="#cbd5e1" font-family="DejaVu Sans Mono,monospace" font-size="12">FAISS HNSW</text>
+<text x="40" y="644" fill="#cbd5e1" font-family="DejaVu Sans Mono,monospace" font-size="12">Graph search</text>
+<text x="40" y="668" fill="#cbd5e1" font-family="DejaVu Sans Mono,monospace" font-size="12">Weighted RRF</text>
+<text x="40" y="692" fill="#cbd5e1" font-family="DejaVu Sans Mono,monospace" font-size="12">Security gateway</text>
+<text x="40" y="716" fill="#cbd5e1" font-family="DejaVu Sans Mono,monospace" font-size="12">Answer model</text>
+
+<rect x="216" y="88" width="1254" height="104" rx="14" fill="#0b1727" stroke="#1f3551"/>
+<text x="238" y="116" fill="#94a3b8" font-family="DejaVu Sans,Arial" font-size="11">QUESTION</text>
+<rect x="238" y="128" width="1006" height="48" rx="10" fill="#07111f" stroke="#29425f"/>
+<text x="258" y="158" fill="#e2e8f0" font-family="DejaVu Sans,Arial" font-size="15">How long does Acme retain incident records?</text>
+<rect x="1260" y="128" width="188" height="48" rx="10" fill="#38bdf8"/><text x="1304" y="158" fill="#06243a" font-family="DejaVu Sans,Arial" font-size="14" font-weight="800">RUN QUERY</text>
+
+<rect x="216" y="210" width="620" height="250" rx="14" fill="#0b1727" stroke="#1f3551"/>
+<text x="238" y="240" fill="#dbeafe" font-family="DejaVu Sans,Arial" font-size="18" font-weight="700">Answer</text>
+<rect x="742" y="225" width="72" height="28" rx="14" fill="#103b2b"/><text x="757" y="244" fill="#86efac" font-family="DejaVu Sans,Arial" font-size="11" font-weight="700">ALLOWED</text>
+<text x="238" y="282" fill="#f8fafc" font-family="DejaVu Sans,Arial" font-size="19">Acme retains incident-response records for</text>
+<text x="238" y="312" fill="#f8fafc" font-family="DejaVu Sans,Arial" font-size="19">365 days.</text>
+<text x="238" y="352" fill="#93c5fd" font-family="DejaVu Sans,Arial" font-size="12">Citations: 1 • Tenant: acme • Request ID: 7f4c…</text>
+<rect x="238" y="374" width="556" height="54" rx="10" fill="#0a2438" stroke="#164e78"/>
+<text x="258" y="397" fill="#bae6fd" font-family="DejaVu Sans,Arial" font-size="12">Graph trace</text>
+<text x="258" y="417" fill="#cbd5e1" font-family="DejaVu Sans Mono,monospace" font-size="12">acme-retention → Security Operations → incidents</text>
+
+<rect x="856" y="210" width="614" height="250" rx="14" fill="#0b1727" stroke="#1f3551"/>
+<text x="878" y="240" fill="#dbeafe" font-family="DejaVu Sans,Arial" font-size="18" font-weight="700">Graph View</text>
+<circle cx="1110" cy="340" r="42" fill="#122c45" stroke="#60a5fa" stroke-width="2"/>
+<text x="1077" y="345" fill="#bfdbfe" font-family="DejaVu Sans,Arial" font-size="12" font-weight="700">Acme policy</text>
+<circle cx="944" cy="285" r="30" fill="#103b2b" stroke="#34d399"/><text x="921" y="290" fill="#a7f3d0" font-family="DejaVu Sans,Arial" font-size="10">Security</text>
+<circle cx="1248" cy="286" r="30" fill="#2e1d42" stroke="#c084fc"/><text x="1229" y="291" fill="#e9d5ff" font-family="DejaVu Sans,Arial" font-size="10">Incident</text>
+<circle cx="1270" cy="395" r="30" fill="#3a2614" stroke="#fb923c"/><text x="1253" y="400" fill="#fed7aa" font-family="DejaVu Sans,Arial" font-size="10">365 days</text>
+<line x1="973" y1="298" x2="1075" y2="329" stroke="#64748b" stroke-width="2"/>
+<line x1="1219" y1="299" x2="1144" y2="330" stroke="#64748b" stroke-width="2"/>
+<line x1="1239" y1="382" x2="1147" y2="353" stroke="#64748b" stroke-width="2"/>
+<text x="895" y="432" fill="#64748b" font-family="DejaVu Sans,Arial" font-size="11">Blue: document • Green: entity • Purple: event • Orange: fact</text>
+
+<rect x="216" y="478" width="1254" height="190" rx="14" fill="#0b1727" stroke="#1f3551"/>
+<text x="238" y="508" fill="#dbeafe" font-family="DejaVu Sans,Arial" font-size="18" font-weight="700">Retrieved Sources</text>
+<g font-family="DejaVu Sans,Arial" font-size="12">
+<text x="248" y="540" fill="#94a3b8">Rank</text><text x="310" y="540" fill="#94a3b8">Document</text><text x="690" y="540" fill="#94a3b8">Score</text><text x="780" y="540" fill="#94a3b8">Sources</text><text x="1110" y="540" fill="#94a3b8">Tenant</text>
+<line x1="238" y1="550" x2="1448" y2="550" stroke="#1f3551"/>
+<text x="250" y="578" fill="#e2e8f0">1</text><text x="310" y="578" fill="#e2e8f0">Acme Incident Response Policy</text><text x="690" y="578" fill="#93c5fd">0.016393</text><text x="780" y="578" fill="#a7f3d0">vector + graph</text><text x="1110" y="578" fill="#bfdbfe">acme</text>
+<text x="250" y="610" fill="#cbd5e1">2</text><text x="310" y="610" fill="#cbd5e1">Acme Security On-Call</text><text x="690" y="610" fill="#93c5fd">0.008197</text><text x="780" y="610" fill="#94a3b8">graph</text><text x="1110" y="610" fill="#bfdbfe">acme</text>
+<text x="250" y="642" fill="#cbd5e1">3</text><text x="310" y="642" fill="#cbd5e1">Acme Imported Vendor Memo</text><text x="690" y="642" fill="#fca5a5">blocked</text><text x="780" y="642" fill="#fca5a5">security gateway</text><text x="1110" y="642" fill="#bfdbfe">acme</text>
+</g>
+
+<rect x="216" y="686" width="410" height="210" rx="14" fill="#0b1727" stroke="#1f3551"/>
+<text x="238" y="716" fill="#dbeafe" font-family="DejaVu Sans,Arial" font-size="18" font-weight="700">Security</text>
+<rect x="238" y="732" width="118" height="30" rx="15" fill="#103b2b"/><text x="257" y="752" fill="#86efac" font-family="DejaVu Sans,Arial" font-size="11" font-weight="700">AUTHORIZED</text>
+<text x="238" y="790" fill="#cbd5e1" font-family="DejaVu Sans,Arial" font-size="13">Input markers: 0</text>
+<text x="238" y="814" fill="#cbd5e1" font-family="DejaVu Sans,Arial" font-size="13">Retrieved blocked: 1</text>
+<text x="238" y="838" fill="#cbd5e1" font-family="DejaVu Sans,Arial" font-size="13">Cross-tenant leaks: 0</text>
+<text x="238" y="862" fill="#64748b" font-family="DejaVu Sans,Arial" font-size="11">Defense in depth • marker scan • tenant check</text>
+
+<rect x="646" y="686" width="402" height="210" rx="14" fill="#0b1727" stroke="#1f3551"/>
+<text x="668" y="716" fill="#dbeafe" font-family="DejaVu Sans,Arial" font-size="18" font-weight="700">Trace</text>
+<text x="668" y="750" fill="#7dd3fc" font-family="DejaVu Sans Mono,monospace" font-size="12">1  JWT verified</text>
+<text x="668" y="776" fill="#7dd3fc" font-family="DejaVu Sans Mono,monospace" font-size="12">2  vector candidates: 3</text>
+<text x="668" y="802" fill="#7dd3fc" font-family="DejaVu Sans Mono,monospace" font-size="12">3  graph candidates: 2</text>
+<text x="668" y="828" fill="#7dd3fc" font-family="DejaVu Sans Mono,monospace" font-size="12">4  RRF weights: 0.55 / 0.45</text>
+<text x="668" y="854" fill="#7dd3fc" font-family="DejaVu Sans Mono,monospace" font-size="12">5  answer + citations returned</text>
+
+<rect x="1068" y="686" width="402" height="210" rx="14" fill="#0b1727" stroke="#1f3551"/>
+<text x="1090" y="716" fill="#dbeafe" font-family="DejaVu Sans,Arial" font-size="18" font-weight="700">Raw JSON / API</text>
+<rect x="1090" y="734" width="350" height="136" rx="10" fill="#06101c"/>
+<text x="1106" y="758" fill="#a7f3d0" font-family="DejaVu Sans Mono,monospace" font-size="10">{ "answer": "365 days",</text>
+<text x="1106" y="778" fill="#a7f3d0" font-family="DejaVu Sans Mono,monospace" font-size="10">  "citations": [...],</text>
+<text x="1106" y="798" fill="#a7f3d0" font-family="DejaVu Sans Mono,monospace" font-size="10">  "security": {...},</text>
+<text x="1106" y="818" fill="#a7f3d0" font-family="DejaVu Sans Mono,monospace" font-size="10">  "trace": {...},</text>
+<text x="1106" y="838" fill="#a7f3d0" font-family="DejaVu Sans Mono,monospace" font-size="10">  "graph": {...} }</text>
+</svg>
