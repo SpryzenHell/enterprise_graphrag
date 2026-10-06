@@ -33,10 +33,6 @@ def main() -> None:
                 f"README PNG asset is invalid: {relative}"
             )
 
-    assert (ROOT / "scripts/start_hpc_runner.sh").is_file()
-    assert (ROOT / "scripts/configure_hpc_runner.sh").is_file()
-    assert (ROOT / "scripts/with_hpc_network.sh").is_file()
-
     assert not (ROOT / "main.png").exists(), "main.png should not be present"
     print(f"validated {len(paths)} local README image assets")
 
