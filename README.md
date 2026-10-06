@@ -1,12 +1,8 @@
 # Enterprise GraphRAG
 
-<p align="center">
-  <img src="main.png" alt="Project overview" width="900">
-</p>
-
 Enterprise GraphRAG is a tenant-scoped GraphRAG service built around FastAPI, FAISS HNSW, graph retrieval, weighted Reciprocal Rank Fusion, a retrieval security gateway, and optional vLLM inference.
 
-The supported implementation lives in `enterprise_graphrag/`. The repository also contains older GraphRAG, MCP and ACE-derived code kept for provenance. Those directories are not part of the supported runtime.
+The supported implementation lives in `enterprise_graphrag/`. The supported application is contained in `enterprise_graphrag/`. Only files needed for this project are kept in the repository.
 
 [![CI](https://github.com/SpryzenHell/enterprise_graphrag/actions/workflows/enterprise-graphrag.yml/badge.svg)](https://github.com/SpryzenHell/enterprise_graphrag/actions/workflows/enterprise-graphrag.yml)
 
@@ -248,8 +244,6 @@ The images below are repository figures generated from the checked-in UI, corpus
 <td align="center">Validation path</td>
 </tr>
 </table>
-
-`main.png` at the top of this file is the project overview image. It is separate from the application and validation figures and contains no text.
 
 ## Configuration
 
