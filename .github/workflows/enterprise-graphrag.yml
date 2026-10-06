@@ -61,13 +61,13 @@ jobs:
       - name: Deterministic security evaluation
         run: python scripts/evaluate_enterprise.py
 
-      - name: Fixture experiments
-        run: python scripts/analyze_fixture.py
-
       - name: Retrieval benchmark
         run: python scripts/benchmark_retrieval.py
 
-      - name: Fixture analysis experiments
+      - name: Repository audit
+        run: python scripts/repository_audit.py
+
+      - name: Fixture experiments
         run: python scripts/analyze_fixture.py
 
       - name: Upload evidence
