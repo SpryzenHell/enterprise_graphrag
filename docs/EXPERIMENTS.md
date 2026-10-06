@@ -24,7 +24,7 @@ The input data is:
 | --- | ---: | ---: | ---: |
 | Documents | 3 | 2 | 5 |
 | Text characters | 368 | 228 | 596 |
-| Text tokens | 51 | 32 | 83 |
+| Words (whitespace split) | 48 | 29 | 77 |
 
 The Acme set contains the intentional prompt-injection fixture `acme-injected`.
 
