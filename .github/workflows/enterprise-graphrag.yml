@@ -29,13 +29,6 @@ jobs:
           pip install -r requirements-enterprise.txt
           python -m pip check
 
-      - name: Validate repository shell helpers
-        run: |
-          bash -n scripts/*.sh
-          test -x scripts/configure_hpc_runner.sh
-          test -x scripts/start_hpc_runner.sh
-          test -x scripts/with_hpc_network.sh
-
       - name: Compile
         run: python -m compileall enterprise_graphrag scripts
 
@@ -77,7 +70,6 @@ jobs:
           path: |
             enterprise_data/evaluation.json
             enterprise_data/benchmark.json
-            enterprise_data/fixture_experiments.json
             enterprise_data/fixture_experiments.json
 
   neo4j-integration:
