@@ -727,7 +727,7 @@ enterprise_graphrag/
 ├── security.py            retrieval security gateway
 ├── vector_faiss.py        tenant-partitioned FAISS HNSW
 ├── static/index.html      browser UI
-└── tests/                 unit, contract, integration and GPU tests
+└── tests/                 unit, contract and integration tests
 
 scripts/
 ├── build_demo_index.py
