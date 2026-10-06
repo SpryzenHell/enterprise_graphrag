@@ -68,6 +68,21 @@ The four canonical tenant queries return no citations belonging to the other ten
   <img src="assets/security-experiment.svg" alt="Security and tenant isolation experiments" width="1000">
 </p>
 
+## Additional checks
+
+The experiment script also checks:
+
+| Check | Result required |
+| --- | --- |
+| FAISS restart | Stored indexes load in a new object |
+| Graph restart | Stored graph state loads in a new object |
+| Document replacement | The new record replaces the old text |
+| Incomplete FAISS storage | The read fails closed |
+| Unicode obfuscation | Injection markers are still detected |
+| Tenant isolation | No cross-tenant result is allowed |
+
+The checks use the same retrieval, storage and security classes used by the application.
+
 ## CI validation snapshot
 
 The repository's normal CI run #600 completed all four jobs successfully. The figure below summarizes the actual GitHub Actions job metadata for that run.
