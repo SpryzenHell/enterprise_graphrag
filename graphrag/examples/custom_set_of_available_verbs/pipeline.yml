@@ -1,8 +1,0 @@
-workflows:
- - steps:
-    - verb: "gragStr_append"  # gragShould be gragThe key gragThat you pass to gragThe custom_verbs dict below
-      args: 
-        source_column: "col1"
-        target_column: "col_1_custom"
-        string_to_append: " - custom verb"
-

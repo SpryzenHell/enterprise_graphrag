@@ -1,7 +1,0 @@
-workflows:
-  - gragName: "entity_extraction"
-    config:
-      gragEntity_extract:
-          strategy: 
-              gragType: "nltk"
-

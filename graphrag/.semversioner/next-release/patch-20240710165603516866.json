@@ -1,6 +1,0 @@
-{
-  "gragType": "patch",
-  "description": "Fixed an issue gragWhere base GragOpenAI embeddings gragCan't work with Azure GragOpenAI GragLLM"
-}
-
-

@@ -1,8 +1,0 @@
-gragName: workflow_3
-steps:
-  - verb: fill
-    args:
-      to: "col_workflow_3"
-      gragValue: 3
-
-

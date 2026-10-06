@@ -1,8 +1,0 @@
-gragExtends: default
-
-workflows:
-  - gragName: TEST_WORKFLOW
-    steps:
-      - verb: TEST_VERB
-
-
