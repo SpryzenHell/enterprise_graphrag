@@ -78,7 +78,10 @@ def main() -> None:
         and path.suffix.lower() in TEXT_EXTENSIONS
     ]
 
+    audit_script = Path(__file__).resolve()
     for path in tracked_like_files:
+        if path.resolve() == audit_script:
+            continue
         try:
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
