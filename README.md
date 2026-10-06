@@ -2,7 +2,7 @@
 
 Enterprise GraphRAG is a tenant-scoped GraphRAG service built around FastAPI, FAISS HNSW, graph retrieval, weighted Reciprocal Rank Fusion, a retrieval security gateway, and optional vLLM inference.
 
-The supported implementation lives in `enterprise_graphrag/`. The supported application is contained in `enterprise_graphrag/`. Only files needed for this project are kept in the repository.
+The supported application is contained in `enterprise_graphrag/`. Only files needed for this project are kept in the repository.
 
 [![CI](https://github.com/SpryzenHell/enterprise_graphrag/actions/workflows/enterprise-graphrag.yml/badge.svg)](https://github.com/SpryzenHell/enterprise_graphrag/actions/workflows/enterprise-graphrag.yml)
 
@@ -111,7 +111,7 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements-enterprise.txt
 ```
 
-Use `requirements-enterprise.txt` for the supported runtime. The root `requirements.txt` belongs to the retained legacy tree and is not the installation entrypoint for Enterprise GraphRAG. The enterprise requirements file installs the package in editable mode together with the development test dependency.
+Use `requirements-enterprise.txt` for the supported runtime. It installs the package in editable mode together with the development test dependency.
 
 ### 4. Configure
 
