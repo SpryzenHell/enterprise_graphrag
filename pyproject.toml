@@ -7,6 +7,9 @@ name = "enterprise-graphrag-agent"
 version = "0.2.0"
 description = "Tenant-scoped enterprise GraphRAG runtime with FAISS, Neo4j, vLLM and MCP"
 requires-python = ">=3.11"
+authors = [
+  { name = "Pirate-Emperor" }
+]
 dependencies = [
   "fastapi>=0.115,<1",
   "uvicorn[standard]>=0.30,<1",
