@@ -1,18 +1,29 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900">
-<rect width="1500" height="900" fill="#ffffff"/>
-<style>text{font-family:DejaVu Sans,Arial,sans-serif;fill:#1f2933}.title{font-size:34px;font-weight:700}.sub{font-size:19px;fill:#526273}.axis{font-size:17px;fill:#526273}.line1{stroke:#467ab4;stroke-width:6;fill:none}.line2{stroke:#7a5ab8;stroke-width:6;fill:none}.dot1{fill:#467ab4}.dot2{fill:#7a5ab8}.note{font-size:20px;fill:#344454}.box{fill:#f6f8fa;stroke:#b9c5d0;stroke-width:2}</style>
-<text x="70" y="70" class="title">Retrieval depth experiment</text>
-<text x="70" y="108" class="sub">Actual checked-in HashEmbedder + graph retrieval + weighted RRF logic; K = 1…5.</text>
-<line x1="130" y1="690" x2="1230" y2="690" stroke="#738294" stroke-width="3"/>
-<line x1="130" y1="200" x2="130" y2="690" stroke="#738294" stroke-width="3"/>
-<line x1="130" y1="690" x2="1230" y2="690" stroke="#738294" stroke-width="3"/>
-<text x="112" y="696" text-anchor="end" class="axis">0.85</text><text x="112" y="451" text-anchor="end" class="axis">0.925</text><text x="112" y="206" text-anchor="end" class="axis">1.00</text>
-<line x1="130" y1="451" x2="1230" y2="451" stroke="#dde3e8" stroke-width="2"/><line x1="130" y1="206" x2="1230" y2="206" stroke="#dde3e8" stroke-width="2"/>
-<text x="240" y="728" text-anchor="middle" class="axis">K=1</text><text x="480" y="728" text-anchor="middle" class="axis">K=2</text><text x="720" y="728" text-anchor="middle" class="axis">K=3</text><text x="960" y="728" text-anchor="middle" class="axis">K=4</text><text x="1200" y="728" text-anchor="middle" class="axis">K=5</text>
-<path d="M240 206 L480 206 L720 206 L960 206 L1200 206" class="line1"/><path d="M240 206 L480 206 L720 206 L960 206 L1200 206" class="line2"/>
-<circle cx="240" cy="206" r="9" class="dot1"/><circle cx="480" cy="206" r="9" class="dot1"/><circle cx="720" cy="206" r="9" class="dot1"/><circle cx="960" cy="206" r="9" class="dot1"/><circle cx="1200" cy="206" r="9" class="dot1"/>
-<text x="400" y="250" class="note">Hybrid Recall@K = 1.00 for all K</text>
-<text x="400" y="286" class="note">Hybrid MRR = 1.00 for all K</text>
-<rect x="1320" y="200" width="130" height="220" rx="16" class="box"/><circle cx="1350" cy="245" r="7" class="dot1"/><text x="1370" y="252" class="note">Recall</text><circle cx="1350" cy="285" r="7" class="dot2"/><text x="1370" y="292" class="note">MRR</text>
-<text x="70" y="810" class="sub">The result shows fixture stability, not production retrieval quality.</text>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <rect width="1200" height="720" fill="#FFFFFF"/>
+  <text x="70" y="68" fill="#111827" font-family="DejaVu Sans, Arial, sans-serif" font-size="34" font-weight="700">Retrieval depth experiment</text>
+  <text x="70" y="104" fill="#475569" font-family="DejaVu Sans, Arial, sans-serif" font-size="20">Four questions • K = 1 to 5 • expected document stays at rank 1</text>
+  <g stroke="#E5E7EB">
+    <line x1="150" y1="230" x2="1080" y2="230"/>
+    <line x1="150" y1="320" x2="1080" y2="320"/>
+    <line x1="150" y1="410" x2="1080" y2="410"/>
+  </g>
+  <g fill="#64748B" font-family="DejaVu Sans, Arial, sans-serif" font-size="18">
+    <text x="115" y="235">1.0</text><text x="115" y="325">0.5</text><text x="115" y="415">0.0</text>
+    <text x="190" y="465">K=1</text><text x="390" y="465">K=2</text><text x="590" y="465">K=3</text><text x="790" y="465">K=4</text><text x="990" y="465">K=5</text>
+  </g>
+  <polyline points="210,230 410,230 610,230 810,230 1010,230" fill="none" stroke="#2563EB" stroke-width="7"/>
+  <polyline points="210,238 410,238 610,238 810,238 1010,238" fill="none" stroke="#10B981" stroke-width="7"/>
+  <polyline points="210,246 410,246 610,246 810,246 1010,246" fill="none" stroke="#7C3AED" stroke-width="7"/>
+  <g fill="#111827" font-family="DejaVu Sans, Arial, sans-serif" font-size="20">
+    <rect x="150" y="520" width="900" height="120" rx="16" fill="#F8FAFC" stroke="#E2E8F0"/>
+    <text x="185" y="555">Vector Recall@K = 1.00 and MRR = 1.00 for every tested K.</text>
+    <text x="185" y="590">Graph Recall@K = 1.00 and MRR = 1.00 for every tested K.</text>
+    <text x="185" y="625">Hybrid Recall@K = 1.00 and MRR = 1.00 for every tested K.</text>
+  </g>
+  <g font-family="DejaVu Sans, Arial, sans-serif" font-size="18">
+    <text x="830" y="565" fill="#2563EB">Vector</text>
+    <text x="830" y="595" fill="#10B981">Graph</text>
+    <text x="830" y="625" fill="#7C3AED">Hybrid RRF</text>
+  </g>
 </svg>
