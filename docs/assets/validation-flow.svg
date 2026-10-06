@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1300" height="560" viewBox="0 0 1300 560">
+<rect width="1300" height="560" fill="#fff"/>
+<style>text{font-family:Arial,sans-serif;fill:#24333e}.title{font-size:28px;font-weight:700}.step{fill:#edf2f5;stroke:#718696;stroke-width:3}.security{fill:#f7eee2}.ok{fill:#edf4ed}.arrow{stroke:#718696;stroke-width:4;fill:none;marker-end:url(#a)}.small{font-size:16px;fill:#516675}.big{font-size:19px;font-weight:700}</style>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#718696"/></marker></defs>
+<text x="50" y="48" class="title">Validation path</text>
+<text x="50" y="78" class="small">Repository checks move from local deterministic behavior to optional live infrastructure validation.</text>
+<rect class="step" x="40" y="170" rx="18" width="180" height="120"/><text x="130" y="220" text-anchor="middle" class="big">Compile</text><text x="130" y="250" text-anchor="middle" class="small">package + scripts</text>
+<rect class="step" x="280" y="170" rx="18" width="180" height="120"/><text x="370" y="220" text-anchor="middle" class="big">Unit + contract</text><text x="370" y="250" text-anchor="middle" class="small">auth, FAISS, MCP</text>
+<rect class="security" x="520" y="170" rx="18" width="180" height="120"/><text x="610" y="220" text-anchor="middle" class="big">Security</text><text x="610" y="250" text-anchor="middle" class="small">tenant + injection</text>
+<rect class="ok" x="760" y="170" rx="18" width="180" height="120"/><text x="850" y="220" text-anchor="middle" class="big">Neo4j</text><text x="850" y="250" text-anchor="middle" class="small">integration job</text>
+<rect class="ok" x="1000" y="170" rx="18" width="250" height="120"/><text x="1125" y="220" text-anchor="middle" class="big">A100 / vLLM</text><text x="1125" y="250" text-anchor="middle" class="small">self-hosted GPU gate</text>
+<path class="arrow" d="M220 230 L280 230"/><path class="arrow" d="M460 230 L520 230"/><path class="arrow" d="M700 230 L760 230"/><path class="arrow" d="M940 230 L1000 230"/>
+<rect x="260" y="360" rx="16" width="770" height="90" fill="#f6f8f9" stroke="#c7d1d7" stroke-width="2"/><text x="645" y="395" text-anchor="middle" class="big">Evidence is recorded separately from production claims</text><text x="645" y="425" text-anchor="middle" class="small">The checked-in four-question benchmark is a regression fixture, not a production-quality measurement.</text>
+</svg>

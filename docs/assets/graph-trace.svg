@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620">
+<rect width="1200" height="620" fill="#fff"/>
+<style>text{font-family:Arial,sans-serif;fill:#24333e}.title{font-size:28px;font-weight:700}.small{font-size:16px;fill:#516675}.node{stroke:#718696;stroke-width:3}.edge{stroke:#718696;stroke-width:4}.doc{fill:#e8f0f5}.ent{fill:#edf4ed}</style>
+<text x="50" y="52" class="title">Example local evidence graph from the checked-in Acme corpus</text>
+<text x="50" y="82" class="small">The graph trace is tenant-scoped; this view shows the single-token entities produced by the local memory graph.</text>
+<rect class="node doc" x="120" y="220" rx="18" width="300" height="120"/><text x="270" y="270" text-anchor="middle" font-size="21" font-weight="700">Acme Incident Response</text><text x="270" y="300" text-anchor="middle" class="small">Policy • acme-retention</text>
+<rect class="node ent" x="690" y="130" rx="18" width="250" height="95"/><text x="815" y="185" text-anchor="middle" font-size="20" font-weight="700">Acme</text>
+<rect class="node ent" x="690" y="270" rx="18" width="250" height="95"/><text x="815" y="325" text-anchor="middle" font-size="20" font-weight="700">Security</text>
+<rect class="node ent" x="690" y="410" rx="18" width="250" height="95"/><text x="815" y="465" text-anchor="middle" font-size="20" font-weight="700">Operations</text>
+<line class="edge" x1="420" y1="245" x2="690" y2="180"/><line class="edge" x1="420" y1="280" x2="690" y2="317"/><line class="edge" x1="420" y1="325" x2="690" y2="455"/>
+<text x="550" y="212" class="small">MENTIONS</text><text x="550" y="300" class="small">MENTIONS</text><text x="550" y="405" class="small">MENTIONS</text>
+<text x="120" y="410" class="small">tenant_id = acme</text><text x="120" y="440" class="small">source document = checked-in corpus</text><text x="120" y="470" class="small">no Globex nodes are included</text>
+</svg>

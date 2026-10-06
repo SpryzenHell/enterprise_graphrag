@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1300" height="620" viewBox="0 0 1300 620">
+<rect width="1300" height="620" fill="#fff"/>
+<style>text{font-family:Arial,sans-serif;fill:#24333e}.title{font-size:28px;font-weight:700}.small{font-size:16px;fill:#516675}.head{font-size:20px;font-weight:700}.box{fill:#edf2f5;stroke:#718696;stroke-width:3}.auth{fill:#f7eee2}.result{fill:#edf4ed}.arrow{stroke:#718696;stroke-width:4;fill:none;marker-end:url(#m)}</style>
+<defs><marker id="m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#718696"/></marker></defs>
+<text x="50" y="52" class="title">MCP request flow</text>
+<text x="50" y="82" class="small">The Streamable HTTP tool call uses the same bearer token and tenant boundary as the FastAPI API.</text>
+<rect class="box" x="45" y="190" rx="18" width="210" height="120"/><text x="150" y="235" text-anchor="middle" class="head">MCP client</text><text x="150" y="265" text-anchor="middle" class="small">Authorization header</text>
+<rect class="box auth" x="330" y="190" rx="18" width="220" height="120"/><text x="440" y="235" text-anchor="middle" class="head">Token verifier</text><text x="440" y="265" text-anchor="middle" class="small">JWT + query scope</text>
+<rect class="box" x="625" y="190" rx="18" width="225" height="120"/><text x="737" y="235" text-anchor="middle" class="head">hybrid_search</text><text x="737" y="265" text-anchor="middle" class="small">tenant from claims</text>
+<rect class="box" x="925" y="190" rx="18" width="300" height="120"/><text x="1075" y="235" text-anchor="middle" class="head">GraphRAG agent</text><text x="1075" y="265" text-anchor="middle" class="small">retrieval + security + answer</text>
+<path class="arrow" d="M255 250 L330 250"/><path class="arrow" d="M550 250 L625 250"/><path class="arrow" d="M850 250 L925 250"/>
+<rect class="result" x="330" y="390" rx="18" width="895" height="100"/><text x="777" y="430" text-anchor="middle" class="head">Structured MCP result</text><text x="777" y="460" text-anchor="middle" class="small">answer • citations • security decision • trace • graph</text>
+<path class="arrow" d="M1075 310 L1075 390"/>
+<text x="45" y="555" class="small">The tool definition has no tenant_id parameter. A caller cannot select another tenant through tool arguments.</text>
+</svg>

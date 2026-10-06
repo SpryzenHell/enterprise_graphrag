@@ -1,7 +1,0 @@
-gragExtends: default
-gragInput:
-  file_type: text
-  base_dir: /some/overridden/dir
-  file_pattern: test.txt
-
-

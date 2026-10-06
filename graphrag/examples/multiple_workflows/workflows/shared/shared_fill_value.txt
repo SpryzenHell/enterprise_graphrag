@@ -1,2 +1,0 @@
-value_from_shared_file
-

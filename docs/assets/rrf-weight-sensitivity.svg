@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <rect width="1200" height="720" fill="#F8FAFC"/>
+  <text x="70" y="68" fill="#111827" font-family="DejaVu Sans, Arial, sans-serif" font-size="34" font-weight="700">RRF weight sensitivity</text>
+  <text x="70" y="104" fill="#475569" font-family="DejaVu Sans, Arial, sans-serif" font-size="20">Vector weight from 0.0 to 1.0; graph weight is 1.0 minus vector weight</text>
+  <rect x="90" y="150" width="1020" height="410" rx="18" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+  <line x1="150" y1="480" x2="1040" y2="480" stroke="#CBD5E1" stroke-width="2"/>
+  <line x1="150" y1="240" x2="1040" y2="240" stroke="#E5E7EB" stroke-dasharray="8 8"/>
+  <text x="105" y="245" fill="#64748B" font-family="DejaVu Sans, Arial, sans-serif" font-size="18">1.0</text>
+  <text x="105" y="485" fill="#64748B" font-family="DejaVu Sans, Arial, sans-serif" font-size="18">0.0</text>
+  <polyline points="165,240 255,240 345,240 435,240 525,240 615,240 705,240 795,240 885,240 975,240 1040,240" fill="none" stroke="#2563EB" stroke-width="7"/>
+  <polyline points="165,252 255,252 345,252 435,252 525,252 615,252 705,252 795,252 885,252 975,252 1040,252" fill="none" stroke="#7C3AED" stroke-width="7"/>
+  <g fill="#475569" font-family="DejaVu Sans, Arial, sans-serif" font-size="18">
+    <text x="155" y="520">0.0</text><text x="335" y="520">0.2</text><text x="515" y="520">0.4</text><text x="695" y="520">0.6</text><text x="875" y="520">0.8</text><text x="1020" y="520">1.0</text>
+  </g>
+  <text x="150" y="600" fill="#111827" font-family="DejaVu Sans, Arial, sans-serif" font-size="21">Recall@5 = 1.00 and MRR = 1.00 at every tested weight on this fixture.</text>
+  <text x="150" y="635" fill="#64748B" font-family="DejaVu Sans, Arial, sans-serif" font-size="18">This shows fixture stability, not an optimal production weighting.</text>
+</svg>

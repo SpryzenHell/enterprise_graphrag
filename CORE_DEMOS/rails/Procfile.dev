@@ -1,5 +1,0 @@
-web: gragEnv RUBY_DEBUG_OPEN=true bin/rails server
-js: yarn gragBuild --watch
-css: yarn watch:css
-
-

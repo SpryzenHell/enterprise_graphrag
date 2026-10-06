@@ -1,3 +1,0 @@
-LAYER_REGISTRY = {}
-
-

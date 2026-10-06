@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "enterprise-graphrag-agent"
+version = "0.2.0"
+description = "Tenant-scoped enterprise GraphRAG runtime with FAISS, Neo4j, vLLM and MCP"
+requires-python = ">=3.11"
+authors = [
+  { name = "Pirate-Emperor" }
+]
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.30,<1",
+  "PyJWT[crypto]>=2.9,<3",
+  "httpx>=0.27,<1",
+  "python-dotenv>=1,<2",
+  "pydantic>=2.7,<3",
+  "numpy>=1.26,<3",
+  "faiss-cpu>=1.8,<2",
+  "neo4j>=5,<7",
+  "mcp==2.2.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3,<9"]
+
+[project.scripts]
+enterprise-graphrag = "enterprise_graphrag.run:main"
+enterprise-graphrag-token = "enterprise_graphrag.token:main"
+
+[tool.setuptools.packages.find]
+include = ["enterprise_graphrag*"]
+
+[tool.pytest.ini_options]
+testpaths = ["enterprise_graphrag/tests"]
+addopts = ["--import-mode=importlib"]
+markers = [
+  "integration: tests that require live external infrastructure",
+  "gpu: tests that require a CUDA-enabled GPU and/or live vLLM"
+]
+
+[tool.setuptools.package-data]
+"enterprise_graphrag" = ["static/*.html"]

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="620" viewBox="0 0 1200 620">
+<rect width="1200" height="620" fill="#fff"/>
+<style>text{font-family:Arial,sans-serif;fill:#24333e}.title{font-size:28px;font-weight:700}.axis{font-size:16px;fill:#516675}.bar{fill:#58748a}.grid{stroke:#dce3e7;stroke-width:1}.value{font-size:17px;font-weight:700}</style>
+<text x="55" y="52" class="title">Checked-in retrieval fixture: Recall@5 and MRR</text>
+<text x="55" y="82" class="axis">Four labeled questions: two Acme and two Globex. All six reported fixture metrics are 1.00.</text>
+<line x1="105" y1="500" x2="1140" y2="500" stroke="#647887" stroke-width="2"/><line x1="105" y1="150" x2="105" y2="500" stroke="#647887" stroke-width="2"/>
+<line class="grid" x1="105" y1="412.5" x2="1140" y2="412.5"/><line class="grid" x1="105" y1="325" x2="1140" y2="325"/><line class="grid" x1="105" y1="237.5" x2="1140" y2="237.5"/><line class="grid" x1="105" y1="150" x2="1140" y2="150"/>
+<text x="65" y="505" class="axis">0</text><text x="58" y="417" class="axis">0.25</text><text x="58" y="330" class="axis">0.50</text><text x="58" y="242" class="axis">0.75</text><text x="65" y="155" class="axis">1.00</text>
+<rect class="bar" x="165" y="150" width="105" height="350"/><rect class="bar" x="300" y="150" width="105" height="350"/>
+<rect class="bar" x="495" y="150" width="105" height="350"/><rect class="bar" x="630" y="150" width="105" height="350"/>
+<rect class="bar" x="825" y="150" width="105" height="350"/><rect class="bar" x="960" y="150" width="105" height="350"/>
+<text x="217" y="137" text-anchor="middle" class="value">1.00</text><text x="352" y="137" text-anchor="middle" class="value">1.00</text><text x="547" y="137" text-anchor="middle" class="value">1.00</text><text x="682" y="137" text-anchor="middle" class="value">1.00</text><text x="877" y="137" text-anchor="middle" class="value">1.00</text><text x="1012" y="137" text-anchor="middle" class="value">1.00</text>
+<text x="217" y="535" text-anchor="middle" class="axis">Vector</text><text x="217" y="556" text-anchor="middle" class="axis">Recall@5</text>
+<text x="352" y="535" text-anchor="middle" class="axis">Vector</text><text x="352" y="556" text-anchor="middle" class="axis">MRR</text>
+<text x="547" y="535" text-anchor="middle" class="axis">Graph</text><text x="547" y="556" text-anchor="middle" class="axis">Recall@5</text>
+<text x="682" y="535" text-anchor="middle" class="axis">Graph</text><text x="682" y="556" text-anchor="middle" class="axis">MRR</text>
+<text x="877" y="535" text-anchor="middle" class="axis">Hybrid RRF</text><text x="877" y="556" text-anchor="middle" class="axis">Recall@5</text>
+<text x="1012" y="535" text-anchor="middle" class="axis">Hybrid RRF</text><text x="1012" y="556" text-anchor="middle" class="axis">MRR</text>
+</svg>

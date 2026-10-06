@@ -1,0 +1,138 @@
+name: enterprise-graphrag-gpu-validation
+
+on:
+  push:
+    branches:
+      - "revamp/enterprise-graphrag-productionize"
+  workflow_dispatch:
+    inputs:
+      conda_env:
+        description: "Conda environment containing vLLM + GraphRAG dependencies"
+        required: true
+        default: "graphrag_vllm"
+        type: string
+      vllm_base_url:
+        description: "Private vLLM URL on the compute node"
+        required: true
+        default: "http://127.0.0.1:8001"
+        type: string
+      vllm_model:
+        description: "Exact vLLM model ID; leave blank to auto-discover the first model"
+        required: false
+        default: ""
+        type: string
+      embedding_base_url:
+        description: "Optional private embedding service URL"
+        required: false
+        default: ""
+        type: string
+      embedding_model:
+        description: "Optional embedding model ID"
+        required: false
+        default: ""
+        type: string
+      embedding_dimension:
+        description: "Expected embedding vector dimension"
+        required: false
+        default: "384"
+        type: string
+      expected_gpu_name:
+        description: "Expected GPU family substring"
+        required: true
+        default: "A100"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: enterprise-graphrag-gpu
+  cancel-in-progress: false
+
+jobs:
+  gpu-validation:
+    # This runner is a long-lived private HPC resource. Until the workflow is
+    # merged to the default branch, only owner pushes to the trusted revamp
+    # branch may execute code on it.
+    if: github.ref == 'refs/heads/revamp/enterprise-graphrag-productionize' && github.actor == github.repository_owner
+    runs-on: [self-hosted, linux, x64, gpu-a100]
+    timeout-minutes: 45
+    env:
+      GRAGRAPH_CONDA_ENV: ${{ inputs.conda_env || 'graphrag_vllm' }}
+      GPU_TEST_VLLM_BASE_URL: ${{ inputs.vllm_base_url || 'http://127.0.0.1:8001' }}
+      GPU_TEST_VLLM_MODEL: ${{ inputs.vllm_model || '' }}
+      VLLM_API_KEY: ${{ secrets.GPU_VLLM_API_KEY }}
+      GPU_TEST_EMBEDDING_BASE_URL: ${{ inputs.embedding_base_url || '' }}
+      GPU_TEST_EMBEDDING_MODEL: ${{ inputs.embedding_model || '' }}
+      GPU_TEST_EMBEDDING_DIMENSION: ${{ inputs.embedding_dimension || '384' }}
+      EMBEDDING_API_KEY: ${{ secrets.GPU_EMBEDDING_API_KEY }}
+      GPU_TEST_EXPECTED_GPU_NAME: ${{ inputs.expected_gpu_name || 'A100' }}
+
+    steps:
+      - name: Checkout trusted repository state
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: GPU and Conda preflight
+        run: |
+          source "$HOME/Conda/bin/activate"
+          conda run --no-capture-output -n "$GRAGRAPH_CONDA_ENV" python --version
+          conda run --no-capture-output -n "$GRAGRAPH_CONDA_ENV" vllm --version
+          nvidia-smi
+          conda run --no-capture-output -n "$GRAGRAPH_CONDA_ENV" python - <<'PY'
+          import torch
+          assert torch.cuda.is_available(), "CUDA is not available to PyTorch"
+          assert torch.cuda.device_count() >= 1, "No CUDA GPU is visible"
+          print("torch:", torch.__version__)
+          print("torch CUDA:", torch.version.cuda)
+          for index in range(torch.cuda.device_count()):
+              print(
+                  index,
+                  torch.cuda.get_device_name(index),
+                  torch.cuda.get_device_capability(index),
+              )
+          PY
+
+      - name: Install repository in isolated GPU environment
+        run: |
+          source "$HOME/Conda/bin/activate"
+          conda run --no-capture-output -n "$GRAGRAPH_CONDA_ENV" \
+            python -m pip install -e ".[dev]"
+          conda run --no-capture-output -n "$GRAGRAPH_CONDA_ENV" \
+            python -m pip check
+
+      - name: Run deterministic regression suite
+        run: |
+          source "$HOME/Conda/bin/activate"
+          conda run --no-capture-output -n "$GRAGRAPH_CONDA_ENV" \
+            pytest -q enterprise_graphrag/tests \
+            -m "not integration and not gpu"
+
+      - name: Validate real A100 + vLLM provider
+        run: |
+          source "$HOME/Conda/bin/activate"
+          conda run --no-capture-output -n "$GRAGRAPH_CONDA_ENV" \
+            python scripts/gpu_probe.py \
+              --vllm-base-url "$GPU_TEST_VLLM_BASE_URL" \
+              --chat-model "$GPU_TEST_VLLM_MODEL" \
+              --embedding-base-url "$GPU_TEST_EMBEDDING_BASE_URL" \
+              --embedding-model "$GPU_TEST_EMBEDDING_MODEL" \
+              --embedding-dimension "$GPU_TEST_EMBEDDING_DIMENSION" \
+              --expected-gpu-name "$GPU_TEST_EXPECTED_GPU_NAME" \
+              --output gpu-validation.json
+
+      - name: Run GPU integration contracts
+        run: |
+          source "$HOME/Conda/bin/activate"
+          conda run --no-capture-output -n "$GRAGRAPH_CONDA_ENV" \
+            pytest -q enterprise_graphrag/tests/test_gpu_contracts.py \
+            --junitxml=gpu-tests.xml
+
+      - name: Upload GPU evidence
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: enterprise-graphrag-gpu-evidence
+          path: |
+            gpu-validation.json
+            gpu-tests.xml

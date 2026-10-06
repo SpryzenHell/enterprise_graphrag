@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520">
+<rect width="1200" height="520" fill="#fff"/><style>text{font-family:Arial,sans-serif;fill:#24333e}.h{font-size:28px;font-weight:700}.th{font-size:17px;font-weight:700;fill:#516675}.cell{font-size:17px}.pass{fill:#245b3d}.block{fill:#8a5a20}</style>
+<text x="50" y="55" class="h">Deterministic security evaluation</text>
+<text x="50" y="100" class="th">Check</text><text x="390" y="100" class="th">Result</text><text x="560" y="100" class="th">Evidence</text><line x1="45" y1="115" x2="1150" y2="115" stroke="#9aabb5" stroke-width="2"/>
+<text x="50" y="160" class="cell">Acme isolation</text><rect x="390" y="140" width="100" height="30" rx="15" class="pass"/><text x="418" y="161" font-size="15" font-weight="700" fill="#fff">PASS</text><text x="560" y="160" class="cell">No non-Acme citations</text>
+<text x="50" y="225" class="cell">Globex isolation</text><rect x="390" y="205" width="100" height="30" rx="15" class="pass"/><text x="418" y="226" font-size="15" font-weight="700" fill="#fff">PASS</text><text x="560" y="225" class="cell">No non-Globex citations</text>
+<text x="50" y="290" class="cell">Retrieved injection</text><rect x="390" y="270" width="110" height="30" rx="15" class="block"/><text x="410" y="291" font-size="15" font-weight="700" fill="#fff">BLOCKED</text><text x="560" y="290" class="cell">Malicious memo excluded before answer generation</text>
+<text x="50" y="355" class="cell">Evaluation status</text><rect x="390" y="335" width="100" height="30" rx="15" class="pass"/><text x="418" y="356" font-size="15" font-weight="700" fill="#fff">PASS</text><text x="560" y="355" class="cell">Deterministic evaluation passes its security assertions</text>
+</svg>

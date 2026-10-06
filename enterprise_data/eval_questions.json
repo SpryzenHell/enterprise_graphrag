@@ -1,0 +1,22 @@
+[
+  {
+    "tenant_id": "acme",
+    "query": "How long does Acme retain incident records?",
+    "expected_doc_id": "acme-retention"
+  },
+  {
+    "tenant_id": "acme",
+    "query": "Who handles Acme production security alerts?",
+    "expected_doc_id": "acme-oncall"
+  },
+  {
+    "tenant_id": "globex",
+    "query": "How long does Globex retain incident records?",
+    "expected_doc_id": "globex-retention"
+  },
+  {
+    "tenant_id": "globex",
+    "query": "Who handles Globex production security alerts?",
+    "expected_doc_id": "globex-oncall"
+  }
+]

@@ -1,0 +1,28 @@
+# Git and local Python state
+.git
+.github
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+
+# Runtime data
+enterprise_data/faiss
+enterprise_data/evaluation.json
+enterprise_data/benchmark.json
+enterprise_data/fixture_experiments.json
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.enterprise.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Editor / OS files
+.idea
+.vscode
+.DS_Store
+Thumbs.db
