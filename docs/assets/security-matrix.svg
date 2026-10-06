@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1450" height="820" viewBox="0 0 1450 820">
+<rect width="1450" height="820" fill="#111827"/>
+<text x="64" y="66" fill="#f8fafc" font-family="DejaVu Sans,Arial" font-size="34" font-weight="700">Security & Tenant Test Matrix</text>
+<text x="64" y="100" fill="#94a3b8" font-family="DejaVu Sans,Arial" font-size="17">Five security paths exercised against the same tenant-scoped runtime</text>
+
+<rect x="64" y="140" width="1322" height="560" rx="22" fill="#0b1220" stroke="#2b3d55"/>
+<text x="90" y="182" fill="#94a3b8" font-family="DejaVu Sans,Arial" font-size="12" font-weight="700">CASE</text>
+<text x="500" y="182" fill="#94a3b8" font-family="DejaVu Sans,Arial" font-size="12" font-weight="700">INPUT / EVIDENCE</text>
+<text x="900" y="182" fill="#94a3b8" font-family="DejaVu Sans,Arial" font-size="12" font-weight="700">TENANT CONTROL</text>
+<text x="1180" y="182" fill="#94a3b8" font-family="DejaVu Sans,Arial" font-size="12" font-weight="700">RESULT</text>
+
+
+<rect x="84" y="192" width="1280" height="64" rx="12" fill="#241117" stroke="#be123c33"/>
+<text x="100" y="222" fill="#e2e8f0" font-family="DejaVu Sans,Arial" font-size="13" font-weight="700">Direct instruction override</text>
+<text x="500" y="222" fill="#cbd5e1" font-family="DejaVu Sans Mono,monospace" font-size="12">ignore previous instructions…</text>
+<text x="900" y="222" fill="#a7b1c2" font-family="DejaVu Sans,Arial" font-size="12">JWT + input policy</text>
+<rect x="1168" y="204" width="150" height="32" rx="16" fill="#be123c22" stroke="#be123c"/><text x="1243" y="225" text-anchor="middle" fill="#be123c" font-family="DejaVu Sans,Arial" font-size="12" font-weight="800">BLOCKED</text>
+
+<rect x="84" y="278" width="1280" height="64" rx="12" fill="#241117" stroke="#be123c33"/>
+<text x="100" y="308" fill="#e2e8f0" font-family="DejaVu Sans,Arial" font-size="13" font-weight="700">Retrieved injection</text>
+<text x="500" y="308" fill="#cbd5e1" font-family="DejaVu Sans Mono,monospace" font-size="12">acme-injected</text>
+<text x="900" y="308" fill="#a7b1c2" font-family="DejaVu Sans,Arial" font-size="12">tenant=acme + marker scan</text>
+<rect x="1168" y="290" width="150" height="32" rx="16" fill="#be123c22" stroke="#be123c"/><text x="1243" y="311" text-anchor="middle" fill="#be123c" font-family="DejaVu Sans,Arial" font-size="12" font-weight="800">BLOCKED</text>
+
+<rect x="84" y="364" width="1280" height="64" rx="12" fill="#241117" stroke="#be123c33"/>
+<text x="100" y="394" fill="#e2e8f0" font-family="DejaVu Sans,Arial" font-size="13" font-weight="700">Unicode obfuscation</text>
+<text x="500" y="394" fill="#cbd5e1" font-family="DejaVu Sans Mono,monospace" font-size="12">ignore\u200b…</text>
+<text x="900" y="394" fill="#a7b1c2" font-family="DejaVu Sans,Arial" font-size="12">normalization + marker scan</text>
+<rect x="1168" y="376" width="150" height="32" rx="16" fill="#be123c22" stroke="#be123c"/><text x="1243" y="397" text-anchor="middle" fill="#be123c" font-family="DejaVu Sans,Arial" font-size="12" font-weight="800">BLOCKED</text>
+
+<rect x="84" y="450" width="1280" height="64" rx="12" fill="#0c2119" stroke="#16a34a33"/>
+<text x="100" y="480" fill="#e2e8f0" font-family="DejaVu Sans,Arial" font-size="13" font-weight="700">Cross-tenant query</text>
+<text x="500" y="480" fill="#cbd5e1" font-family="DejaVu Sans Mono,monospace" font-size="12">Acme question as Globex</text>
+<text x="900" y="480" fill="#a7b1c2" font-family="DejaVu Sans,Arial" font-size="12">tenant filter on vector/graph</text>
+<rect x="1168" y="462" width="150" height="32" rx="16" fill="#16a34a22" stroke="#16a34a"/><text x="1243" y="483" text-anchor="middle" fill="#16a34a" font-family="DejaVu Sans,Arial" font-size="12" font-weight="800">0 LEAKS</text>
+
+<rect x="84" y="536" width="1280" height="64" rx="12" fill="#0c2119" stroke="#16a34a33"/>
+<text x="100" y="566" fill="#e2e8f0" font-family="DejaVu Sans,Arial" font-size="13" font-weight="700">Normal query</text>
+<text x="500" y="566" fill="#cbd5e1" font-family="DejaVu Sans Mono,monospace" font-size="12">incident records</text>
+<text x="900" y="566" fill="#a7b1c2" font-family="DejaVu Sans,Arial" font-size="12">authorized tenant + evidence</text>
+<rect x="1168" y="548" width="150" height="32" rx="16" fill="#16a34a22" stroke="#16a34a"/><text x="1243" y="569" text-anchor="middle" fill="#16a34a" font-family="DejaVu Sans,Arial" font-size="12" font-weight="800">ALLOWED</text>
+
+
+<rect x="84" y="682" width="1280" height="0" stroke="#2b3d55"/>
+<text x="92" y="738" fill="#86efac" font-family="DejaVu Sans,Arial" font-size="14" font-weight="700">Defense path</text>
+<text x="210" y="738" fill="#cbd5e1" font-family="DejaVu Sans Mono,monospace" font-size="13">JWT → tenant context → vector/graph filters → evidence scan → answer model</text>
+</svg>
