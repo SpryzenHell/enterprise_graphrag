@@ -634,74 +634,40 @@ These numbers describe only the five-document fixture in `enterprise_data/corpus
 ### Additional fixture experiments
 
 <p align="center">
-  <img src="docs/assets/fixture-dataset-profile.svg" alt="Checked-in corpus profile" width="950">
+  <img src="docs/assets/experiment-command-center.svg" alt="Experiment command-center dashboard" width="1200">
 </p>
 
 <p align="center">
-  <img src="docs/assets/retrieval-experiments.svg" alt="Retrieval depth experiment" width="950">
+  <img src="docs/assets/retrieval-heatmap.svg" alt="Retrieval stability heatmap" width="1100">
 </p>
 
 <p align="center">
-  <img src="docs/assets/rrf-weight-sensitivity.svg" alt="RRF weight sensitivity experiment" width="950">
+  <img src="docs/assets/security-matrix.svg" alt="Security and tenant test matrix" width="1100">
 </p>
 
 <p align="center">
-  <img src="docs/assets/security-experiment.svg" alt="Security and tenant isolation experiments" width="950">
+  <img src="docs/assets/graph-rag-explorer.svg" alt="GraphRAG evidence explorer" width="1100">
 </p>
 
-The experiment suite is reproducible with:
+The experiment suite records:
+
+- dataset size, text size and tenant counts;
+- retrieval depth and RRF weight sweeps;
+- vector/graph top-K overlap and source mix;
+- query variants;
+- graph entity and edge counts;
+- full tenant-by-question isolation matrix;
+- direct, retrieved and Unicode-obfuscated injection cases;
+- persistence, upsert and incomplete-storage checks;
+- FAISS artifact inventory.
+
+Run it with:
 
 ```bash
 python scripts/analyze_fixture.py
 ```
 
-The generated report is `enterprise_data/fixture_experiments.json`. The CI workflow also uploads that file as evidence.
-
-### Runtime probe
-
-```bash
-python scripts/runtime_probe.py \
-  --base-url http://127.0.0.1:8000 \
-  --token "$TOKEN" \
-  --tenant acme \
-  --query "incident records" \
-  --expected-doc-id acme-retention
-```
-
-It checks health, readiness, authenticated tenant context, the query response, expected citations and cross-tenant leakage.
-
-### MCP probe
-
-```bash
-python scripts/mcp_probe.py \
-  --url http://127.0.0.1:8000/mcp/ \
-  --token "$TOKEN" \
-  --tenant acme \
-  --query "incident records" \
-  --expected-doc-id acme-retention
-```
-
-### Neo4j integration
-
-```bash
-pytest -q enterprise_graphrag/tests/test_neo4j_integration.py -m integration
-```
-
-### CI validation snapshot
-
-The following image summarizes the verified GitHub Actions run #600. It is based on the actual completed job metadata and is presented as a high-contrast terminal-style evidence panel so the command/status text remains readable on GitHub.
-
-<p align="center">
-  <img src="docs/assets/ci-validation-run-600.svg" alt="High-contrast CI validation snapshot for run 600" width="1050">
-</p>
-
-The job durations shown there are CI wall-clock durations and should not be interpreted as application latency.
-
-### Validation flow
-
-<p align="center">
-  <img src="docs/assets/validation-flow.svg" alt="Validation flow from local checks to integration validation" width="1100">
-</p>
+The report is written to `enterprise_data/fixture_experiments.json`.
 
 ## Private HPC / vLLM
 
