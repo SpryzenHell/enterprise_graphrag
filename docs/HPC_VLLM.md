@@ -89,9 +89,15 @@ Then run:
 
 From the repository root:
 
-    python scripts/provider_probe.py       --base-url "$VLLM_BASE_URL"       --api-key "$VLLM_API_KEY"       --chat-model "$VLLM_MODEL"       --embedding-model "$EMBEDDING_MODEL"       --embedding-dimension "$EMBEDDING_DIMENSION"
+    export VLLM_API_KEY="<generation-key-or-empty>"
+    export EMBEDDING_API_KEY="<embedding-key-or-empty>"
+    python scripts/provider_probe.py \
+      --base-url "$VLLM_BASE_URL" \
+      --chat-model "$VLLM_MODEL" \
+      --embedding-model "$EMBEDDING_MODEL" \
+      --embedding-dimension "$EMBEDDING_DIMENSION"
 
-This checks chat completions, embeddings, and observed prompt-token logprobs before attempting the full GraphRAG application. Set `EMBEDDING_API_KEY` separately when the embedding service uses a different credential.
+This checks chat completions, embeddings, and observed prompt-token logprobs before the full GraphRAG application. The two provider keys are read from environment variables.
 
 ## 6. Access GraphRAG from your laptop without opening an HPC port
 
@@ -141,7 +147,7 @@ The important requirement is that your HPC policy permits SSH local forwarding. 
 
 Keep both inference and GraphRAG services on 127.0.0.1 unless your HPC networking policy explicitly requires another interface.
 
-The vLLM documentation notes that API-key authentication does not protect every endpoint on its HTTP server, so a private binding or reverse proxy remains important even when a vLLM API key is configured.
+Keep the vLLM server private even when an API key is configured.
 
 For production GraphRAG, use the enterprise identity provider for GraphRAG JWTs. The repository's demo token CLI is for development/test use only.
 
@@ -152,7 +158,7 @@ The repository now includes `.github/workflows/gpu-validation.yml`. It is design
 
 The GPU workflow is intentionally separate from normal CI. It targets a custom `gpu-a100` self-hosted runner label, uses `contents: read`, disables checkout credential persistence, and does not run automatically on pull requests.
 
-GitHub self-hosted runners connect outbound to GitHub over HTTPS and can be routed by custom labels. GitHub also warns that self-hosted runners are not isolated clean environments and strongly recommends using them only with private repositories; for this public repository, keep the GPU workflow owner-gated and never put credentials in the repository or in checked-out files. See the GitHub Actions self-hosted runner security guidance.
+The GPU workflow is kept separate from normal CI and is owner-gated. Never put credentials in the repository or in checked-out files.
 
 ### Register the runner
 
