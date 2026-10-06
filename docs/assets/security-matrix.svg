@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1450" height="820" viewBox="0 0 1450 820">
 <rect width="1450" height="820" fill="#111827"/>
-<text x="64" y="66" fill="#f8fafc" font-family="DejaVu Sans,Arial" font-size="34" font-weight="700">Security & Tenant Test Matrix</text>
+<text x="64" y="66" fill="#f8fafc" font-family="DejaVu Sans,Arial" font-size="34" font-weight="700">Security &amp; Tenant Test Matrix</text>
 <text x="64" y="100" fill="#94a3b8" font-family="DejaVu Sans,Arial" font-size="17">Five security paths exercised against the same tenant-scoped runtime</text>
 
 <rect x="64" y="140" width="1322" height="560" rx="22" fill="#0b1220" stroke="#2b3d55"/>
