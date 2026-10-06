@@ -5,6 +5,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+IGNORED_DIRS = {".git", ".pytest_cache", ".venv", "venv", "__pycache__"}
 
 FORBIDDEN_PATHS = {
     "main.png",
