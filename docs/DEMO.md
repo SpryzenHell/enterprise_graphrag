@@ -102,3 +102,10 @@ The deterministic demo uses the local shared-secret token mode. A production dep
     GRAGRAPH_JWT_JWKS_URL=https://<issuer>/.well-known/jwks.json
 
 In JWKS mode, the demo token CLI is disabled; GraphRAG expects tokens issued by the configured identity provider. Keep the JWKS endpoint HTTPS-only in production.
+
+
+## Workbench views
+
+After running a query in the browser, the workbench provides separate views for the answer, graph, retrieved sources, security decision, execution trace and raw JSON. The Graph view is built from the graph trace returned by the API rather than from a separate mock data source.
+
+See [VISUALS.md](VISUALS.md) for the repository's detailed UI and diagram gallery.
