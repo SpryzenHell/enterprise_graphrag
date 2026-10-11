@@ -166,7 +166,7 @@ def metrics(rankings, qrels):
     }
 
 
-def candidate_pool_sweep(query_ids, qrels, vector_candidates, graph_candidates, seed):
+def evaluate_candidate_pool_sweep(query_ids, qrels, vector_candidates, graph_candidates, seed):
     """Tune RRF weights and retrieval pool size on a fixed calibration subset.
 
     The remaining query IDs are held out for the selected configuration. The
@@ -393,7 +393,7 @@ def run_retrieval(cache_dir, max_queries, seed, embedding_model_name=EMBEDDING_M
                     wranks[qid] = [h.doc_id for h in fused]
                 weight_sweep[str(vw)] = metrics(wranks, qrels)
 
-            candidate_pool_sweep = candidate_pool_sweep(
+            candidate_pool_sweep = evaluate_candidate_pool_sweep(
                 ids,
                 qrels,
                 candidates["vector"],
@@ -429,7 +429,7 @@ def run_retrieval(cache_dir, max_queries, seed, embedding_model_name=EMBEDDING_M
                         "graph_neo4j_top100_ms": latency_stats(candidate_times["graph_neo4j_top100_ms"])
                     },
                     "rrf_weight_sweep": neo4j_weight_sweep,
-                    "candidate_pool_sweep": candidate_pool_sweep(
+                    "candidate_pool_sweep": evaluate_candidate_pool_sweep(
                         ids,
                         qrels,
                         candidates["vector"],
