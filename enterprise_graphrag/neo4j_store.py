@@ -185,21 +185,32 @@ class Neo4jTenantStore:
         LIMIT $limit
         """
 
+        def collect_rows(result) -> list:
+            # Neo4j Driver Result is iterable; a data() method is also supported
+            # by some driver cursors and simple result doubles in contract tests.
+            data_method = getattr(result, "data", None)
+            if callable(data_method):
+                return list(data_method())
+            try:
+                return list(result)
+            except TypeError:
+                # Schema/write-only test doubles return a result with only
+                # consume(); those should behave as an empty result set.
+                return []
+
         with self.driver.session(database=self.database) as session:
-            direct_rows = session.run(
+            direct_rows = collect_rows(session.run(
                 direct_query,
                 tenant=tenant,
                 terms=terms,
                 limit=limit,
-            )
-            direct_rows = list(direct_rows)
-            traversal_rows = session.run(
+            ))
+            traversal_rows = collect_rows(session.run(
                 traversal_query,
                 tenant=tenant,
                 terms=terms,
                 limit=limit,
-            )
-            traversal_rows = list(traversal_rows)
+            ))
 
         hits_by_id: dict[str, Hit] = {}
         for row in direct_rows:
