@@ -804,7 +804,7 @@ def main():
         "", "## Provenance and licences", "",
         "- SciFact: CC BY-SA 4.0. Attribute source and preserve share-alike requirements for redistributed derivatives.",
         "- Prompt Injection Eval Suite synthetic_v2_test config: Apache-2.0 per that dataset card; other mixed-license configs are not loaded.",
-        "- sentence-transformers/all-MiniLM-L6-v2: Apache-2.0.",
+        f"- Embedding model {result['results'].get('retrieval', {}).get('embedding_model', 'not loaded')}: {result['results'].get('retrieval', {}).get('embedding_model_license', 'license not resolved')}.",
         "- Optional GPU generation model Qwen/Qwen2.5-0.5B-Instruct: Apache-2.0.",
         "- Semantic injection baseline Horizon-Labs/prompt-injection-guard-small: Apache-2.0.",
         "", "Only aggregate metrics are written to the report. The fixed seed, source commit, model IDs, data sources, and machine details are included in JSON.",
