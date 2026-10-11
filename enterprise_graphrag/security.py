@@ -206,7 +206,7 @@ class SecurityGateway:
         return "".join(
             char
             for char in normalized
-            if char not in "\\u200b\\u200c\\u200d\\ufeff"
+            if char not in "\u200b\u200c\u200d\ufeff"
         )
 
     @staticmethod
