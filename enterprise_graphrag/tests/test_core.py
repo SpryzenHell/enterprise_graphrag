@@ -919,3 +919,34 @@ def test_candidate_limit_must_not_be_smaller_than_output_limit():
         assert "candidate_limit" in str(exc)
     else:
         raise AssertionError("candidate_limit smaller than limit was accepted")
+
+
+
+def test_faiss_deeper_search_restores_hnsw_ef_search(tmp_path):
+    store = TenantFAISS(
+        str(tmp_path / "faiss"),
+        HashEmbedder(64),
+    )
+    store.add(
+        "acme",
+        [
+            {
+                "doc_id": "doc-1",
+                "title": "Acme Retention Policy",
+                "text": "Acme retains records for 365 days.",
+            },
+            {
+                "doc_id": "doc-2",
+                "title": "Acme Access Policy",
+                "text": "Acme reviews security access monthly.",
+            },
+        ],
+    )
+    index = store._load("acme")
+    hnsw = index.index.hnsw
+    configured_ef_search = int(hnsw.efSearch)
+
+    hits = store.search("acme", "retention policy", 100)
+
+    assert len(hits) == 2
+    assert int(hnsw.efSearch) == configured_ef_search
