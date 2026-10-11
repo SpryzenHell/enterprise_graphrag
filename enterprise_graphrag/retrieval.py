@@ -355,6 +355,8 @@ class HybridRetriever:
 
         allowed = []
         blocked = []
+        tenant_hits = []
+        tenant_texts = []
 
         for hit in fused:
             if hit.tenant_id != tenant:
@@ -365,11 +367,20 @@ class HybridRetriever:
                     }
                 )
                 continue
+            tenant_hits.append(hit)
+            tenant_texts.append(hit.title + "\n" + hit.text)
 
-            decision = self.security.inspect(
-                hit.title + "\n" + hit.text,
-                direct=False,
-            )
+        inspect_many = getattr(self.security, "inspect_many", None)
+        if inspect_many is not None:
+            decisions = inspect_many(tenant_texts, direct=False)
+        else:
+            # Preserve compatibility with simple test doubles and external gates.
+            decisions = [
+                self.security.inspect(text, direct=False)
+                for text in tenant_texts
+            ]
+
+        for hit, decision in zip(tenant_hits, decisions):
             if decision["allowed"]:
                 allowed.append(hit)
             else:
@@ -378,7 +389,7 @@ class HybridRetriever:
                         "doc_id": hit.doc_id,
                         "reason": decision["reason"],
                         "marker_count": decision["marker_count"],
-                        "perplexity": decision["perplexity"],
+                        "perplexity": decision.get("perplexity"),
                         "classifier_score": decision.get("classifier_score"),
                     }
                 )
