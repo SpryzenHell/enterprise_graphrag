@@ -18,6 +18,12 @@ from enterprise_graphrag.security import SecurityGateway
 
 DATASET_ID = "Horizon-Labs/prompt-injection-eval-suite"
 MODEL_ID = "Horizon-Labs/prompt-injection-guard-small"
+MODEL_LICENSES = {
+    "Horizon-Labs/prompt-injection-guard-small": "Apache-2.0",
+    "Horizon-Labs/prompt-injection-guard-base": "Apache-2.0",
+    "protectai/deberta-v3-base-prompt-injection-v2": "Apache-2.0",
+    "deepset/deberta-v3-base-injection": "MIT",
+}
 DEFAULT_CONFIGS = (
     "synthetic_direct_test",
     "synthetic_v2_test",
@@ -359,7 +365,7 @@ def main() -> None:
         },
         "model": {
             "id": args.model,
-            "license": "Apache-2.0",
+            "license": MODEL_LICENSES.get(args.model, "See model card"),
             "max_length": args.max_length,
             "window_overlap": args.window_overlap,
         },
@@ -383,7 +389,7 @@ def main() -> None:
         f"- Completed UTC: {result['completed_utc']}",
         f"- Source commit: {result['git_commit']}",
         f"- Elapsed seconds: {result['elapsed_seconds']}",
-        f"- Model: {args.model} (Apache-2.0), device={result['environment']['classifier_device']}, maximum window={args.max_length}, overlap={args.window_overlap}.",
+        f"- Model: {args.model} ({result['model']['license']}), device={result['environment']['classifier_device']}, maximum window={args.max_length}, overlap={args.window_overlap}.",
         f"- PPL path enabled: {bool(ppl_url and ppl_model)}; model={ppl_model or 'not configured'}.",
         f"- Fixed seed: {args.seed}; maximum selected examples per class/config: {args.max_per_class}.",
         "",
@@ -420,7 +426,7 @@ def main() -> None:
     lines += [
         "## Dataset and model licenses",
         "",
-        "- The semantic detector is Apache-2.0.",
+        f"- Semantic detector {args.model}: {result['model']['license']}.",
         "- Configs retain their per-config licenses. BIPIA is CC-BY-SA-4.0; PIArena and NotInject are MIT; OR-Bench-hard is CC-BY-4.0; the listed synthetic configs are Apache-2.0.",
         "- Only aggregate results and error summaries are saved; text rows are not written to the reports.",
         "",
