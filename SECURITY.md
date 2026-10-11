@@ -51,9 +51,20 @@ The security layer:
 - checks for common instruction override and prompt-exfiltration phrases;
 - blocks direct malicious queries;
 - blocks retrieved text that reaches the configured marker threshold;
-- can use prompt-token logprobs from vLLM as an additional signal.
+- can use prompt-token logprobs from vLLM as an additional signal;
+- can use an optional semantic prompt-injection classifier to catch markerless indirect attacks.
 
-The prompt-logprob check is an extra safety layer. It does not prove that every prompt injection will be detected.
+To enable the optional semantic classifier, install the security extra and configure the Apache-2.0 `Horizon-Labs-Inc/tripwire-prompt-injection-small` checkpoint:
+
+    pip install -e ".[security]"
+    SECURITY_CLASSIFIER_MODEL=Horizon-Labs-Inc/tripwire-prompt-injection-small
+    SECURITY_CLASSIFIER_THRESHOLD=0.5
+    SECURITY_CLASSIFIER_MAX_LENGTH=8192
+    SECURITY_CLASSIFIER_DEVICE=auto
+
+The classifier is disabled when `SECURITY_CLASSIFIER_MODEL` is empty. When explicitly enabled, a model-load or inference error blocks the inspected item rather than silently reverting to marker-only checks. `auto` uses GPU 1 if more than one CUDA device is available (to avoid collocating with vLLM on GPU 0), otherwise it chooses the available GPU or CPU. A threshold is not a universal safety guarantee and must be validated against representative benign and malicious documents before production use.
+
+The prompt-logprob check is an extra safety layer. In this implementation, a high PPL result only blocks when at least one injection marker is also present; markerless attacks therefore require the optional semantic classifier or another dedicated detector. No single detector proves that every prompt injection will be detected.
 
 ## Deployment
 
