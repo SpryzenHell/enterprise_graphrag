@@ -25,6 +25,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.3,<9"]
+security = ["torch>=2.5,<3", "transformers>=4.48,<5", "safetensors>=0.4"]
 
 [project.scripts]
 enterprise-graphrag = "enterprise_graphrag.run:main"
