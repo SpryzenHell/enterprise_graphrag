@@ -943,7 +943,7 @@ def test_faiss_deeper_search_restores_hnsw_ef_search(tmp_path):
         ],
     )
     index = store._load("acme")
-    hnsw = index.index.hnsw
+    hnsw = store.faiss.downcast_index(index.index).hnsw
     configured_ef_search = int(hnsw.efSearch)
 
     hits = store.search("acme", "retention policy", 100)
