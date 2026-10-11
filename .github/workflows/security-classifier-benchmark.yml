@@ -28,7 +28,7 @@ jobs:
       HF_HUB_DISABLE_PROGRESS_BARS: "1"
       TRANSFORMERS_VERBOSITY: error
       TOKENIZERS_PARALLELISM: "false"
-      GRAGRAPH_SECURITY_MAX_PER_CLASS: "400"
+      GRAGRAPH_SECURITY_MAX_PER_CLASS: "100"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -53,6 +53,8 @@ jobs:
             --output-dir artifacts/security-ood \
             --cache-dir "$HOME/.cache/graphrag-security-ood" \
             --max-per-class "$GRAGRAPH_SECURITY_MAX_PER_CLASS" \
+            --max-length 1024 \
+            --window-overlap 128 \
             --seed 20261012
       - name: Upload security evaluation reports
         if: always()
