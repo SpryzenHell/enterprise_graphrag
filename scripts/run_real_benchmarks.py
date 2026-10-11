@@ -27,19 +27,34 @@ from enterprise_graphrag.vector_faiss import TenantFAISS
 
 SCIFACT_URL = "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/scifact.zip"
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+EMBEDDING_MODEL_LICENSES = {
+    "sentence-transformers/all-MiniLM-L6-v2": "Apache-2.0",
+    "BAAI/bge-base-en-v1.5": "MIT",
+}
+EMBEDDING_QUERY_PREFIXES = {
+    "BAAI/bge-base-en-v1.5": "Represent this sentence for searching relevant passages: ",
+}
 INJECTION_DATASET = "Horizon-Labs/prompt-injection-eval-suite"
 INJECTION_CONFIG = "synthetic_v2_test"
 INJECTION_CLASSIFIER = "Horizon-Labs/prompt-injection-guard-small"
 
 
 class STEmbedder:
-    def __init__(self, model):
+    def __init__(self, model, query_prefix=""):
         self.model = model
         self.dimension = int(model.get_sentence_embedding_dimension())
+        self.query_prefix = query_prefix
 
     def embed(self, texts):
+        # The FAISS caller passes title + newline + body for indexed docs and one
+        # single-line string for queries. BGE's documented query prompt is used on
+        # queries only; indexing text remains unprefixed.
+        prepared = [
+            (self.query_prefix + text) if self.query_prefix and "\\n" not in text else text
+            for text in texts
+        ]
         return self.model.encode(
-            texts,
+            prepared,
             batch_size=int(os.getenv("GRAGRAPH_EMBED_BATCH_SIZE", "64")),
             convert_to_numpy=True,
             normalize_embeddings=False,
@@ -152,7 +167,7 @@ def metrics(rankings, qrels):
     }
 
 
-def run_retrieval(cache_dir, max_queries, seed):
+def run_retrieval(cache_dir, max_queries, seed, embedding_model_name=EMBEDDING_MODEL):
     corpus, queries, all_qrels = load_scifact(cache_dir)
     ids = sorted(qid for qid, rel in all_qrels.items() if qid in queries and any(int(v) > 0 for v in rel.values()))
     if max_queries > 0 and len(ids) > max_queries:
@@ -161,8 +176,9 @@ def run_retrieval(cache_dir, max_queries, seed):
         raise RuntimeError("SciFact has no qrels-backed test queries after filtering")
     qrels = {qid: all_qrels[qid] for qid in ids}
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = SentenceTransformer(EMBEDDING_MODEL, device=device)
-    embedder = STEmbedder(model)
+    model = SentenceTransformer(embedding_model_name, device=device)
+    query_prefix = EMBEDDING_QUERY_PREFIXES.get(embedding_model_name, "")
+    embedder = STEmbedder(model, query_prefix=query_prefix)
     security = SecurityGateway(
         threshold=float(os.getenv("SECURITY_PPL_THRESHOLD", "80")),
         marker_threshold=int(os.getenv("SECURITY_MARKER_THRESHOLD", "2")),
@@ -305,8 +321,9 @@ def run_retrieval(cache_dir, max_queries, seed):
             return {
                 "dataset": "BEIR SciFact official test qrels",
                 "dataset_license": "CC-BY-SA-4.0; https://huggingface.co/datasets/BeIR/scifact",
-                "embedding_model": EMBEDDING_MODEL,
-                "embedding_model_license": "Apache-2.0",
+                "embedding_model": embedding_model_name,
+                "embedding_model_license": EMBEDDING_MODEL_LICENSES.get(embedding_model_name, "See model card"),
+                "embedding_query_prefix": query_prefix,
                 "device": device,
                 "embedding_dimension": embedder.dimension,
                 "corpus_documents": len(corpus),
@@ -526,6 +543,7 @@ def main():
     parser.add_argument("--output-dir", default="artifacts/graphrag-eval")
     parser.add_argument("--cache-dir", default="artifacts/graphrag-cache")
     parser.add_argument("--max-beir-queries", type=int, default=int(os.getenv("GRAGRAPH_MAX_BEIR_QUERIES", "150")))
+    parser.add_argument("--embedding-model", default=os.getenv("GRAGRAPH_EMBEDDING_MODEL", EMBEDDING_MODEL))
     parser.add_argument("--max-security-samples", type=int, default=int(os.getenv("GRAGRAPH_MAX_SECURITY_SAMPLES", "400")))
     parser.add_argument("--seed", type=int, default=20261011)
     parser.add_argument("--skip-retrieval", action="store_true")
@@ -551,7 +569,7 @@ def main():
             "faiss": faiss_version,
         },
         "models": {
-            EMBEDDING_MODEL: "Apache-2.0",
+            args.embedding_model: EMBEDDING_MODEL_LICENSES.get(args.embedding_model, "See model card"),
             "Qwen/Qwen2.5-0.5B-Instruct": "Apache-2.0 (optional GPU PPL backend)",
             INJECTION_CLASSIFIER: "Apache-2.0 (semantic prompt-injection baseline)",
         },
@@ -563,7 +581,7 @@ def main():
     }
     started_perf = time.perf_counter()
     if not args.skip_retrieval:
-        result["results"]["retrieval"] = run_retrieval(Path(args.cache_dir) / "scifact", args.max_beir_queries, args.seed)
+        result["results"]["retrieval"] = run_retrieval(Path(args.cache_dir) / "scifact", args.max_beir_queries, args.seed, args.embedding_model)
     if not args.skip_security:
         result["results"]["security"] = run_security(args.max_security_samples, args.seed)
     result["elapsed_seconds"] = round(time.perf_counter() - started_perf, 3)
@@ -582,7 +600,7 @@ def main():
     if retrieval:
         lines += [
             f"- Corpus: {retrieval['corpus_documents']} docs; evaluated queries: {retrieval['evaluated_queries']}; embedding device: {retrieval['device']}.",
-            f"- Model: {retrieval['embedding_model']} (Apache-2.0), dim={retrieval['embedding_dimension']}; vector + memory graph index build={retrieval['vector_and_memory_graph_index_build_seconds']} sec.",
+            f"- Model: {retrieval['embedding_model']} ({retrieval['embedding_model_license']}), dim={retrieval['embedding_dimension']}; query prefix={retrieval['embedding_query_prefix'] or 'none'}; vector + memory graph index build={retrieval['vector_and_memory_graph_index_build_seconds']} sec.",
             "", "| Method | Recall@1 | Recall@5 | Recall@10 | MRR@10 | nDCG@10 |",
             "|---|---:|---:|---:|---:|---:|",
         ]
