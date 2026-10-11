@@ -737,6 +737,23 @@ def main():
         lines += ["", "RRF weight sweep:", ""]
         for weight, m in retrieval["rrf_weight_sweep"].items():
             lines.append(f"- vector={weight}, graph={1-float(weight):.2f}: Recall@10={m['recall@10']:.4f}, MRR@10={m['mrr@10']:.4f}, nDCG@10={m['ndcg@10']:.4f}")
+        def report_candidate_sweep(title, sweep):
+            selected = sweep["selected_hybrid_on_calibration"]
+            control = sweep["vector_only_control_on_calibration"]
+            def metrics_line(label, record, split):
+                value = record[f"{split}_metrics"]
+                return f"- {label}: depth={record['candidate_limit']}, vector/graph={record['vector_weight']:.2f}/{record['graph_weight']:.2f}; {split} Recall@10={value['recall@10']:.4f}, MRR@10={value['mrr@10']:.4f}, nDCG@10={value['ndcg@10']:.4f}."
+            lines.extend([
+                "",
+                f"### {title} candidate depth calibration",
+                "",
+                f"- Split: {sweep['calibration_query_count']} calibration queries, {sweep['holdout_query_count']} held-out queries.",
+                f"- Selection rule: {sweep['selection_rule']}",
+                metrics_line("Selected hybrid", selected, "holdout"),
+                metrics_line("Vector-only control", control, "holdout"),
+                f"- Warning: {sweep['warning']}",
+            ])
+        report_candidate_sweep("In-memory graph", retrieval["candidate_pool_sweep"])
         neo = retrieval.get("neo4j")
         if neo:
             lines += [
@@ -756,6 +773,7 @@ def main():
             lines += ["", "Neo4j RRF weight sweep:", ""]
             for weight, m in neo["rrf_weight_sweep"].items():
                 lines.append(f"- vector={weight}, graph={1-float(weight):.2f}: Recall@10={m['recall@10']:.4f}, MRR@10={m['mrr@10']:.4f}, nDCG@10={m['ndcg@10']:.4f}")
+            report_candidate_sweep("Neo4j graph", neo["candidate_pool_sweep"])
         else:
             lines += ["", "Real Neo4j evaluation skipped: NEO4J_URI/NEO4J_PASSWORD were not both configured."]
     lines += ["", "## Security (synthetic indirect-prompt-injection test config)", ""]
