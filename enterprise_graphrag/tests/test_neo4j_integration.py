@@ -106,3 +106,82 @@ def test_neo4j_tenant_isolation():
         )
     finally:
         store.close()
+
+
+
+@pytest.mark.integration
+def test_neo4j_bulk_upsert_and_tenant_isolation():
+    uri = os.getenv("NEO4J_URI")
+    password = os.getenv("NEO4J_PASSWORD")
+    if not uri or not password:
+        pytest.skip("NEO4J_URI/NEO4J_PASSWORD not configured")
+
+    store = Neo4jTenantStore(
+        uri,
+        os.getenv("NEO4J_USER", "neo4j"),
+        password,
+        os.getenv("NEO4J_DATABASE", "neo4j"),
+    )
+    try:
+        for _ in range(30):
+            try:
+                store.verify()
+                break
+            except Exception:
+                time.sleep(1)
+        else:
+            pytest.fail("Neo4j did not become ready")
+
+        store.ensure_schema()
+        store.add_many(
+            "acme",
+            [
+                {
+                    "doc_id": "bulk-integration-acme-1",
+                    "title": "Acme Bulk Security Policy",
+                    "text": "Acme Security Operations owns account recovery.",
+                },
+                {
+                    "doc_id": "bulk-integration-acme-2",
+                    "title": "Acme Bulk Incident Policy",
+                    "text": "Acme Incident Response retains reports for 365 days.",
+                },
+            ],
+        )
+        store.add_many(
+            "globex",
+            [
+                {
+                    "doc_id": "bulk-integration-globex-1",
+                    "title": "Globex Bulk Security Policy",
+                    "text": "Globex Risk Operations owns external reviews.",
+                },
+            ],
+        )
+
+        acme_hits = store.search("acme", "Security Operations", 10)
+        assert any(hit.doc_id == "bulk-integration-acme-1" for hit in acme_hits)
+        assert all(hit.tenant_id == "acme" for hit in acme_hits)
+        assert all(hit.doc_id != "bulk-integration-globex-1" for hit in acme_hits)
+
+        store.add_many(
+            "acme",
+            [
+                {
+                    "doc_id": "bulk-integration-acme-1",
+                    "title": "Acme Bulk Finance Policy",
+                    "text": "Acme Finance Operations owns account recovery.",
+                },
+            ],
+        )
+        # Query only for the removed term; "Operations" remains in the replacement document.
+        stale_hits = store.search("acme", "Security", 10)
+        updated_hits = store.search("acme", "Finance Operations", 10)
+        assert all(hit.doc_id != "bulk-integration-acme-1" for hit in stale_hits)
+        assert any(hit.doc_id == "bulk-integration-acme-1" for hit in updated_hits)
+
+        trace = store.trace("acme", ["bulk-integration-acme-1"])
+        assert trace["nodes"]
+        assert all(node["tenant_id"] == "acme" for node in trace["nodes"])
+    finally:
+        store.close()
