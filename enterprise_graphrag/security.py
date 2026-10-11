@@ -110,9 +110,11 @@ class SecurityGateway:
         else:
             raise RuntimeError(f"Cannot identify injection class in classifier labels: {labels}")
 
-    def _semantic_score(self, text: str) -> float:
+    def _semantic_scores(self, texts: list[str]) -> list[float]:
+        if not texts:
+            return []
         if self._classifier_score_fn is not None:
-            score = float(self._classifier_score_fn(text))
+            scores = [float(self._classifier_score_fn(text)) for text in texts]
         else:
             if not (
                 self._classifier_enabled
@@ -123,8 +125,9 @@ class SecurityGateway:
                 raise RuntimeError("semantic classifier was enabled but is not initialized")
 
             encoded = self._classifier_tokenizer(
-                text,
+                texts,
                 return_tensors="pt",
+                padding=True,
                 truncation=True,
                 max_length=self.classifier_max_length,
             )
@@ -134,13 +137,17 @@ class SecurityGateway:
             }
             with self._classifier_torch.inference_mode():
                 logits = self._classifier(**encoded).logits.float()
-                score = float(
-                    self._classifier_torch.softmax(logits, dim=-1)[0, self._positive_class_index].item()
-                )
+                scores = self._classifier_torch.softmax(logits, dim=-1)[:, self._positive_class_index].cpu().tolist()
+                scores = [float(score) for score in scores]
 
-        if not math.isfinite(score) or not 0.0 <= score <= 1.0:
+        if len(scores) != len(texts):
+            raise ValueError("semantic classifier returned the wrong number of probabilities")
+        if any(not math.isfinite(score) or not 0.0 <= score <= 1.0 for score in scores):
             raise ValueError("semantic classifier returned an invalid probability")
-        return score
+        return scores
+
+    def _semantic_score(self, text: str) -> float:
+        return self._semantic_scores([text])[0]
 
     def perplexity(self, text: str) -> float | None:
         if not (self.base_url and self.model):
@@ -226,54 +233,82 @@ class SecurityGateway:
         }
 
     def inspect(self, text: str, direct: bool = False) -> dict:
-        text = self._normalize(text)
-        marker_count = sum(
-            len(pattern.findall(text))
-            for pattern in self.patterns
-        )
+        return self.inspect_many([text], direct=direct)[0]
 
-        if direct and marker_count:
-            return self._decision(False, "direct injection marker", marker_count)
-        if marker_count >= self.marker_threshold:
-            return self._decision(False, "retrieved injection markers", marker_count)
+    def inspect_many(self, texts: list[str], direct: bool = False) -> list[dict]:
+        """Inspect several untrusted passages with one batched classifier forward pass."""
+        normalized = [self._normalize(text) for text in texts]
+        decisions: list[dict | None] = [None] * len(normalized)
+        marker_counts = [
+            sum(len(pattern.findall(text)) for pattern in self.patterns)
+            for text in normalized
+        ]
+        pending: list[int] = []
 
-        classifier_score = None
-        if self._classifier_enabled:
+        for index, marker_count in enumerate(marker_counts):
+            if direct and marker_count:
+                decisions[index] = self._decision(False, "direct injection marker", marker_count)
+            elif marker_count >= self.marker_threshold:
+                decisions[index] = self._decision(False, "retrieved injection markers", marker_count)
+            else:
+                pending.append(index)
+
+        classifier_scores: dict[int, float] = {}
+        if self._classifier_enabled and pending:
             try:
-                classifier_score = self._semantic_score(text)
+                scores = self._semantic_scores([normalized[index] for index in pending])
+                for index, score in zip(pending, scores):
+                    classifier_scores[index] = score
             except Exception:
                 # An explicitly configured detector must not silently fail open.
-                return self._decision(
-                    False,
-                    "semantic injection classifier failure (blocked closed)",
-                    marker_count,
-                )
-            if classifier_score >= self.classifier_threshold:
-                return self._decision(
+                for index in pending:
+                    decisions[index] = self._decision(
+                        False,
+                        "semantic injection classifier failure (blocked closed)",
+                        marker_counts[index],
+                    )
+                pending = []
+
+        after_classifier: list[int] = []
+        for index in pending:
+            score = classifier_scores.get(index)
+            if score is not None and score >= self.classifier_threshold:
+                decisions[index] = self._decision(
                     False,
                     "semantic injection classifier",
+                    marker_counts[index],
+                    classifier_score=score,
+                )
+            else:
+                after_classifier.append(index)
+
+        # PPL is only requested where it can change this gateway's decision.
+        # Markerless text can be blocked by the semantic classifier; the current PPL
+        # policy requires at least one marker, so calling vLLM for markerless text
+        # wastes latency without changing the outcome.
+        for index in after_classifier:
+            marker_count = marker_counts[index]
+            classifier_score = classifier_scores.get(index)
+            perplexity = self.perplexity(normalized[index]) if marker_count >= 1 else None
+            if (
+                perplexity is not None
+                and perplexity >= self.threshold
+                and marker_count >= 1
+            ):
+                decisions[index] = self._decision(
+                    False,
+                    "high perplexity plus injection marker",
                     marker_count,
-                    classifier_score=classifier_score,
+                    perplexity,
+                    classifier_score,
+                )
+            else:
+                decisions[index] = self._decision(
+                    True,
+                    "allowed",
+                    marker_count,
+                    perplexity,
+                    classifier_score,
                 )
 
-        perplexity = self.perplexity(text)
-        if (
-            perplexity is not None
-            and perplexity >= self.threshold
-            and marker_count >= 1
-        ):
-            return self._decision(
-                False,
-                "high perplexity plus injection marker",
-                marker_count,
-                perplexity,
-                classifier_score,
-            )
-
-        return self._decision(
-            True,
-            "allowed",
-            marker_count,
-            perplexity,
-            classifier_score,
-        )
+        return [decision if decision is not None else self._decision(False, "security decision unavailable", marker_counts[index]) for index, decision in enumerate(decisions)]
