@@ -582,7 +582,7 @@ def main():
     if retrieval:
         lines += [
             f"- Corpus: {retrieval['corpus_documents']} docs; evaluated queries: {retrieval['evaluated_queries']}; embedding device: {retrieval['device']}.",
-            f"- Model: {retrieval['embedding_model']} (Apache-2.0), dim={retrieval['embedding_dimension']}; index build={retrieval['index_build_seconds']} sec.",
+            f"- Model: {retrieval['embedding_model']} (Apache-2.0), dim={retrieval['embedding_dimension']}; vector + memory graph index build={retrieval['vector_and_memory_graph_index_build_seconds']} sec.",
             "", "| Method | Recall@1 | Recall@5 | Recall@10 | MRR@10 | nDCG@10 |",
             "|---|---:|---:|---:|---:|---:|",
         ]
@@ -594,6 +594,27 @@ def main():
         lines += ["", "RRF weight sweep:", ""]
         for weight, m in retrieval["rrf_weight_sweep"].items():
             lines.append(f"- vector={weight}, graph={1-float(weight):.2f}: Recall@10={m['recall@10']:.4f}, MRR@10={m['mrr@10']:.4f}, nDCG@10={m['ndcg@10']:.4f}")
+        neo = retrieval.get("neo4j")
+        if neo:
+            lines += [
+                "",
+                f"## Real Neo4j backend",
+                "",
+                f"- Bulk corpus ingest: {neo['graph_index_build_seconds']} sec for {retrieval['corpus_documents']} documents.",
+                "",
+                "| Method | Recall@1 | Recall@5 | Recall@10 | MRR@10 | nDCG@10 |",
+                "|---|---:|---:|---:|---:|---:|",
+            ]
+            for name, m in neo["metrics"].items():
+                lines.append(f"| {name} | {m['recall@1']:.4f} | {m['recall@5']:.4f} | {m['recall@10']:.4f} | {m['mrr@10']:.4f} | {m['ndcg@10']:.4f} |")
+            lines += ["", "| Neo4j query path | P50 ms | P95 ms | Max ms |", "|---|---:|---:|---:|"]
+            for name, lat in neo["query_latency"].items():
+                lines.append(f"| {name} | {lat['p50_ms']} | {lat['p95_ms']} | {lat['max_ms']} |")
+            lines += ["", "Neo4j RRF weight sweep:", ""]
+            for weight, m in neo["rrf_weight_sweep"].items():
+                lines.append(f"- vector={weight}, graph={1-float(weight):.2f}: Recall@10={m['recall@10']:.4f}, MRR@10={m['mrr@10']:.4f}, nDCG@10={m['ndcg@10']:.4f}")
+        else:
+            lines += ["", "Real Neo4j evaluation skipped: NEO4J_URI/NEO4J_PASSWORD were not both configured."]
     lines += ["", "## Security (synthetic indirect-prompt-injection test config)", ""]
     sec = result["results"].get("security")
     if sec:
