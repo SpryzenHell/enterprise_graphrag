@@ -147,6 +147,7 @@ def build_agent() -> EnterpriseGraphRAGAgent:
         classifier_threshold=settings.security_classifier_threshold,
         classifier_max_length=settings.security_classifier_max_length,
         classifier_device=settings.security_classifier_device,
+        classifier_window_overlap=settings.security_classifier_window_overlap,
     )
 
     retriever = HybridRetriever(
