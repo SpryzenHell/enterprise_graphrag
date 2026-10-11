@@ -66,63 +66,58 @@ def digest_context(text: str) -> str:
 
 
 def prepare_window(
-    text: str,
+    context: str,
     tokenizer,
     attack: str,
     position: str,
     is_poisoned: bool,
 ) -> dict:
-    """Select comparable clean/poisoned context windows around the insertion point.
+    """Build matched-length clean/poisoned inputs and retain the insert location.
 
-    For poisoned samples, center the window around the detected attack span. For
-    clean counterparts, select the equivalent source-context region using the
-    recorded insertion position and the attack token length. This avoids the
-    shortcut where a positive gets a middle/end window but its clean counterpart
-    is always truncated from the beginning.
+    Both labels start from the same clean context and receive an inserted span at
+    the same start/middle/end position. The positive span is the source attack;
+    the negative span is benign text tokenized to exactly the same number of
+    tokens. This prevents a trivial inserted-span/length shortcut.
     """
     special_count = int(tokenizer.num_special_tokens_to_add(pair=False))
     content_limit = MAX_LENGTH - special_count
-    token_ids = tokenizer.encode(text, add_special_tokens=False, truncation=False)
+    context_ids = tokenizer.encode(context, add_special_tokens=False, truncation=False)
     attack_ids = tokenizer.encode(attack, add_special_tokens=False, truncation=False) if attack else []
-    attack_start = -1
-    attack_end = -1
-    if is_poisoned and attack_ids and len(attack_ids) <= len(token_ids):
-        for candidate_start in range(len(token_ids) - len(attack_ids) + 1):
-            if token_ids[candidate_start:candidate_start + len(attack_ids)] == attack_ids:
-                attack_start = candidate_start
-                attack_end = candidate_start + len(attack_ids)
-                break
+    if not attack_ids:
+        attack_ids = tokenizer.encode("ordinary context note", add_special_tokens=False, truncation=False)[:1]
 
-    # The clean pair doesn't contain the attack tokens, but its window is aligned
-    # to the expected insertion region in the original context.
-    normalized_position = (position or "end").lower()
-    attack_length = len(attack_ids)
-    if is_poisoned and attack_start >= 0:
-        anchor_start = attack_start - max(0, (content_limit - (attack_end - attack_start)) // 2)
-        max_start = max(0, len(token_ids) - content_limit)
-        start = min(max(0, anchor_start), max_start)
-    elif is_poisoned and normalized_position == "start":
-        # If tokenizer boundary effects prevent exact attack-span matching, the
-        # injected string is still at the start of this poisoned example.
-        start = 0
-    elif is_poisoned and normalized_position == "middle":
-        start = max(0, len(token_ids) // 2 - content_limit // 2)
-    elif is_poisoned:
-        # The full poisoned text already includes the attack, so use its final
-        # window as a fallback when the attack substring cannot be token-matched.
-        start = max(0, len(token_ids) - content_limit)
-    elif normalized_position == "start":
-        start = 0
-    elif normalized_position == "middle":
-        anchor = len(token_ids) // 2
-        start = max(0, anchor - max(0, (content_limit - attack_length) // 2))
+    if is_poisoned:
+        inserted_ids = attack_ids
     else:
-        # Align clean end-position context with the corresponding positive
-        # window: leave room for the absent attack tokens in the slice offset.
-        start = max(0, min(len(token_ids), len(token_ids) + attack_length - content_limit))
+        filler_ids = tokenizer.encode(
+            "Ordinary background context information for this document. ",
+            add_special_tokens=False,
+            truncation=False,
+        )
+        if not filler_ids:
+            filler_ids = [tokenizer.unk_token_id or tokenizer.eos_token_id or 0]
+        repetitions = (len(attack_ids) + len(filler_ids) - 1) // len(filler_ids)
+        inserted_ids = (filler_ids * repetitions)[:len(attack_ids)]
+
+    normalized_position = (position or "end").lower()
+    if normalized_position == "start":
+        insert_at = 0
+    elif normalized_position == "middle":
+        insert_at = len(context_ids) // 2
+    else:
+        insert_at = len(context_ids)
+
+    token_ids = context_ids[:insert_at] + inserted_ids + context_ids[insert_at:]
+    inserted_start = insert_at
+    inserted_end = inserted_start + len(inserted_ids)
 
     if len(token_ids) > content_limit:
+        # Both classes have an equal-length inserted span and therefore choose
+        # equivalent windows around that span for the same source context.
+        wanted_start = inserted_start - max(0, (content_limit - len(inserted_ids)) // 2)
+        start = min(max(0, wanted_start), len(token_ids) - content_limit)
         token_ids = token_ids[start:start + content_limit]
+
     encoded = tokenizer.prepare_for_model(
         token_ids,
         add_special_tokens=True,
@@ -130,7 +125,11 @@ def prepare_window(
         max_length=MAX_LENGTH,
         return_attention_mask=True,
     )
-    return {key: value for key, value in encoded.items() if key in ("input_ids", "attention_mask", "token_type_ids")}
+    return {
+        key: value
+        for key, value in encoded.items()
+        if key in ("input_ids", "attention_mask", "token_type_ids")
+    }
 
 
 def load_bipia_pairs(cache_dir: str, max_rows: int, seed: int):
@@ -157,9 +156,11 @@ def load_bipia_pairs(cache_dir: str, max_rows: int, seed: int):
             clean = context
             poisoned = insert_attack(context, attack, str(row.get("position") or "end"))
             reconstructed += 1
-        if len(clean) < 8 or len(poisoned) < 8:
+        if len(clean) < 8:
             continue
-        groups[digest_context(clean)].append((clean, poisoned, attack, str(row.get("position") or "end"), str(row.get("id", ""))))
+        # Build the injected text at tokenization time from the same base context
+        # used by the matched benign placeholder; both labels have equal span size.
+        groups[digest_context(clean)].append((clean, attack, str(row.get("position") or "end"), str(row.get("id", ""))))
 
     group_ids = list(groups)
     random.Random(seed + 19).shuffle(group_ids)
@@ -169,9 +170,9 @@ def load_bipia_pairs(cache_dir: str, max_rows: int, seed: int):
     train_examples, val_examples = [], []
     for group_id, variants in groups.items():
         target = val_examples if group_id in val_groups else train_examples
-        for clean, poisoned, attack, position, row_id in variants:
+        for clean, attack, position, row_id in variants:
             target.append({"text": clean, "labels": 0, "attack": attack, "position": position, "group": group_id, "row_id": row_id})
-            target.append({"text": poisoned, "labels": 1, "attack": attack, "position": position, "group": group_id, "row_id": row_id})
+            target.append({"text": clean, "labels": 1, "attack": attack, "position": position, "group": group_id, "row_id": row_id})
     info = {
         "dataset": f"{BIPIA_DATASET}/bipia",
         "license": "CC-BY-SA-4.0",
