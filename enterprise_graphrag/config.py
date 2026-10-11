@@ -186,6 +186,12 @@ class Settings:
         "SECURITY_CLASSIFIER_DEVICE",
         "auto",
     )
+    security_classifier_window_overlap: int = int(
+        os.getenv(
+            "SECURITY_CLASSIFIER_WINDOW_OVERLAP",
+            "512",
+        )
+    )
 
     rrf_k: int = int(
         os.getenv(
@@ -337,6 +343,10 @@ class Settings:
         if self.security_classifier_device not in {"auto", "cpu", "cuda", "cuda:0", "cuda:1", "cuda:2", "cuda:3"}:
             problems.append(
                 "SECURITY_CLASSIFIER_DEVICE must be auto, cpu, cuda, or cuda:N for N in 0..3"
+            )
+        if not 0 <= self.security_classifier_window_overlap < self.security_classifier_max_length - 2:
+            problems.append(
+                "SECURITY_CLASSIFIER_WINDOW_OVERLAP must be non-negative and smaller than SECURITY_CLASSIFIER_MAX_LENGTH - 2"
             )
         if self.rrf_k <= 0:
             problems.append("RRF_K must be greater than zero")
