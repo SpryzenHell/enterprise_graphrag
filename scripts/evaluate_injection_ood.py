@@ -206,11 +206,44 @@ def score_one_config(
     ppl_gate_results = ppl_gate.inspect_many(texts, direct=False)
     integrated_gateway_seconds = time.perf_counter() - started
     ppl_gate_predictions = [0 if result["allowed"] else 1 for result in ppl_gate_results]
-    ppl_scores = [float(result["perplexity"]) for result in ppl_gate_results if result.get("perplexity") is not None]
+    # The production gate deliberately calls PPL conditionally (marker-positive text only).
+    # Separately score every selected item here to test whether markerless PPL can help
+    # generalize to indirect attacks, without silently changing the production policy.
+    ppl_scores_by_row: list[float | None] = [
+        float(result["perplexity"]) if result.get("perplexity") is not None else None
+        for result in ppl_gate_results
+    ]
     ppl_candidates = sum(
         0 < marker_count < marker_threshold and score < 0.5
         for marker_count, score in zip(marker_counts, scores)
     )
+    ppl_direct_latency_ms: list[float] = []
+    if ppl_url and ppl_model:
+        for index, text in enumerate(texts):
+            if ppl_scores_by_row[index] is not None:
+                continue
+            started = time.perf_counter()
+            ppl_scores_by_row[index] = ppl_gate.perplexity(text)
+            ppl_direct_latency_ms.append((time.perf_counter() - started) * 1000)
+    observed_ppl = [score for score in ppl_scores_by_row if score is not None]
+    ppl_labels = [label for label, score in zip(labels, ppl_scores_by_row) if score is not None]
+    ppl_only_threshold_sweep: dict[str, dict] = {}
+    semantic_or_ppl_threshold_sweep: dict[str, dict] = {}
+    ppl_thresholds = (20.0, 40.0, 60.0, 80.0, 100.0, 150.0, 250.0)
+    for threshold in ppl_thresholds:
+        key = f"{threshold:.0f}"
+        # Missing PPL scores are treated as not blocked for the standalone signal,
+        # so infrastructure/model errors cannot inflate detection recall.
+        ppl_predictions = [
+            int(score is not None and score >= threshold)
+            for score in ppl_scores_by_row
+        ]
+        combined_predictions = [
+            int(semantic_predictions[index] or ppl_predictions[index])
+            for index in range(len(texts))
+        ]
+        ppl_only_threshold_sweep[key] = binary_metrics(labels, ppl_predictions)
+        semantic_or_ppl_threshold_sweep[key] = binary_metrics(labels, combined_predictions)
 
     # Single-input latency is measured after warm-up with real model inference, not the score cache.
     single_latency_ms = []
@@ -249,11 +282,18 @@ def score_one_config(
         },
         "perplexity": {
             "configured": bool(ppl_url and ppl_model),
-            "eligible_texts": ppl_candidates,
-            "observed_scores": len(ppl_scores),
-            "score_coverage": round(len(ppl_scores) / max(len(texts), 1), 6),
-            "p50": percentile(ppl_scores, 0.50),
-            "p95": percentile(ppl_scores, 0.95),
+            "production_gate_eligible_texts": ppl_candidates,
+            "production_gate_observed_scores": sum(
+                result.get("perplexity") is not None for result in ppl_gate_results
+            ),
+            "observed_scores": len(observed_ppl),
+            "score_coverage": round(len(observed_ppl) / max(len(texts), 1), 6),
+            "p50": percentile(observed_ppl, 0.50),
+            "p95": percentile(observed_ppl, 0.95),
+            "direct_markerless_and_marker_positive_latency_ms": latency_stats(ppl_direct_latency_ms),
+            "threshold_sweep_ppl_only": ppl_only_threshold_sweep,
+            "threshold_sweep_semantic_or_ppl": semantic_or_ppl_threshold_sweep,
+            "missing_scores_treated_as_blocked": False,
         },
         "marker_count_distribution": {
             str(value): sum(count == value for count in marker_counts)
@@ -408,10 +448,22 @@ def main() -> None:
             f"- Semantic inference: {values['semantic_inference']['rows_per_second']} rows/s; "
             f"single-input p50/p95={values['semantic_inference']['single_input_latency_ms']['p50_ms']}/"
             f"{values['semantic_inference']['single_input_latency_ms']['p95_ms']} ms.",
-            f"- PPL eligible/observed: {values['perplexity']['eligible_texts']}/"
-            f"{values['perplexity']['observed_scores']}; coverage={values['perplexity']['score_coverage']:.4f}.",
+            f"- PPL production eligible/observed: {values['perplexity']['production_gate_eligible_texts']}/"
+            f"{values['perplexity']['production_gate_observed_scores']}; all-text score coverage="
+            f"{values['perplexity']['score_coverage']:.4f}.",
+            f"- Extra all-text PPL timing (outside production gate): p50/p95="
+            f"{values['perplexity']['direct_markerless_and_marker_positive_latency_ms']['p50_ms']}/"
+            f"{values['perplexity']['direct_markerless_and_marker_positive_latency_ms']['p95_ms']} ms.",
+            "",
+            "PPL-only threshold sweep (threshold: TPR / FPR / F1):",
             "",
         ]
+        for threshold, scores in values["perplexity"]["threshold_sweep_ppl_only"].items():
+            lines.append(f"- PPL {threshold}: {scores['recall_tpr']:.4f} / {scores['fpr']:.4f} / {scores['f1']:.4f}")
+        lines += ["", "Semantic OR PPL threshold sweep (threshold: TPR / FPR / F1):", ""]
+        for threshold, scores in values["perplexity"]["threshold_sweep_semantic_or_ppl"].items():
+            lines.append(f"- Semantic OR PPL {threshold}: {scores['recall_tpr']:.4f} / {scores['fpr']:.4f} / {scores['f1']:.4f}")
+        lines.append("")
     if errors:
         lines += ["## Configs not completed", ""]
         for name, error in errors.items():
