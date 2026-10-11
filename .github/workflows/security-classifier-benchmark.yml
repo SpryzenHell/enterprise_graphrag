@@ -6,6 +6,7 @@ on:
       - security/semantic-injection-gate-2026-10-11
     paths:
       - "scripts/run_real_benchmarks.py"
+      - "scripts/evaluate_injection_ood.py"
       - ".github/workflows/security-classifier-benchmark.yml"
       - "enterprise_graphrag/security.py"
   workflow_dispatch:
@@ -21,13 +22,13 @@ jobs:
   classifier-benchmark:
     name: Balanced injection / benign classifier benchmark
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     env:
       HF_HUB_DISABLE_TELEMETRY: "1"
       HF_HUB_DISABLE_PROGRESS_BARS: "1"
       TRANSFORMERS_VERBOSITY: error
       TOKENIZERS_PARALLELISM: "false"
-      GRAGRAPH_MAX_SECURITY_SAMPLES: "200"
+      GRAGRAPH_SECURITY_MAX_PER_CLASS: "400"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,17 +47,17 @@ jobs:
         run: |
           python -m compileall -q enterprise_graphrag scripts
           pytest -q enterprise_graphrag/tests -m "not integration and not gpu"
-      - name: Download the licensed evaluation config and classifier, then score
+      - name: Score synthetic and independent indirect-injection datasets
         run: |
-          python scripts/run_real_benchmarks.py \
-            --skip-retrieval \
-            --max-security-samples "$GRAGRAPH_MAX_SECURITY_SAMPLES" \
-            --output-dir artifacts/security-classifier \
-            --cache-dir "$HOME/.cache/graphrag-security-eval"
-      - name: Upload security evaluation report
+          python scripts/evaluate_injection_ood.py \
+            --output-dir artifacts/security-ood \
+            --cache-dir "$HOME/.cache/graphrag-security-ood" \
+            --max-per-class "$GRAGRAPH_SECURITY_MAX_PER_CLASS" \
+            --seed 20261012
+      - name: Upload security evaluation reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: graphrag-semantic-classifier-${{ github.run_id }}
-          path: artifacts/security-classifier/
+          name: graphrag-security-ood-${{ github.run_id }}
+          path: artifacts/security-ood/
           if-no-files-found: warn
