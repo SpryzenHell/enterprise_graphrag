@@ -950,3 +950,22 @@ def test_faiss_deeper_search_restores_hnsw_ef_search(tmp_path):
 
     assert len(hits) == 2
     assert int(hnsw.efSearch) == configured_ef_search
+
+
+
+def test_request_body_cannot_override_jwt_tenant(tmp_path):
+    client = TestClient(create_app(seeded_agent(tmp_path)))
+    token = issue_demo_token("u", "acme", ["graphrag:query"])
+    response = client.post(
+        "/v1/query",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "query": "Globex retains incident records",
+            "tenant_id": "globex",
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert all(item["tenant_id"] == "acme" for item in body["citations"])
+    assert all(item["doc_id"] != "g1" for item in body["citations"])
+    assert body["trace"]["tenant_id"] == "acme"
