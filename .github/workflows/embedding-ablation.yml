@@ -72,8 +72,8 @@ jobs:
           prefix = "Represent this sentence for searching relevant passages: "
           fake = FakeModel()
           adapter = STEmbedder(fake, query_prefix=prefix)
-          adapter.embed(["a search query", "Document title\\nDocument body"])
-          assert fake.seen == [prefix + "a search query", "Document title\\nDocument body"], fake.seen
+          adapter.embed(["a search query", "Document title\nDocument body"])
+          assert fake.seen == [prefix + "a search query", "Document title\nDocument body"], fake.seen
           print("BGE query prefix applies only to query input.")
           PY
       - name: Compile and run tenant / Neo4j regression tests
