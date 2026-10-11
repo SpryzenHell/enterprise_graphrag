@@ -63,7 +63,7 @@ jobs:
             --cache-dir "$HOME/.cache/graphrag-eval" \
             --max-beir-queries "$GRAGRAPH_MAX_BEIR_QUERIES" \
             --max-security-samples "$GRAGRAPH_MAX_SECURITY_SAMPLES"
-      - name: Upload metrics and provenance
+      - name: Upload metrics and license notes
         if: always()
         uses: actions/upload-artifact@v4
         with:
