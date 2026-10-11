@@ -191,13 +191,15 @@ class Neo4jTenantStore:
                 tenant=tenant,
                 terms=terms,
                 limit=limit,
-            ).data()
+            )
+            direct_rows = list(direct_rows)
             traversal_rows = session.run(
                 traversal_query,
                 tenant=tenant,
                 terms=terms,
                 limit=limit,
-            ).data()
+            )
+            traversal_rows = list(traversal_rows)
 
         hits_by_id: dict[str, Hit] = {}
         for row in direct_rows:
