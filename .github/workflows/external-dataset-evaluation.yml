@@ -21,7 +21,7 @@ jobs:
   external-evaluation:
     name: SciFact retrieval + indirect injection dataset (CPU baseline)
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     services:
       neo4j:
         image: neo4j:2026-community
@@ -46,6 +46,8 @@ jobs:
       TOKENIZERS_PARALLELISM: "false"
       GRAGRAPH_MAX_BEIR_QUERIES: "150"
       GRAGRAPH_MAX_SECURITY_SAMPLES: "400"
+      GRAGRAPH_EMBEDDING_MODEL: "BAAI/bge-base-en-v1.5"
+      GRAGRAPH_EMBED_BATCH_SIZE: "128"
     steps:
       - uses: actions/checkout@v4
         with:
