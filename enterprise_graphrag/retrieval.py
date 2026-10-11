@@ -379,6 +379,7 @@ class HybridRetriever:
                         "reason": decision["reason"],
                         "marker_count": decision["marker_count"],
                         "perplexity": decision["perplexity"],
+                        "classifier_score": decision.get("classifier_score"),
                     }
                 )
 
