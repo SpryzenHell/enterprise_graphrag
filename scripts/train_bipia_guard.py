@@ -101,16 +101,25 @@ def prepare_window(
         anchor_start = attack_start - max(0, (content_limit - (attack_end - attack_start)) // 2)
         max_start = max(0, len(token_ids) - content_limit)
         start = min(max(0, anchor_start), max_start)
+    elif is_poisoned and normalized_position == "start":
+        # If tokenizer boundary effects prevent exact attack-span matching, the
+        # injected string is still at the start of this poisoned example.
+        start = 0
+    elif is_poisoned and normalized_position == "middle":
+        start = max(0, len(token_ids) // 2 - content_limit // 2)
+    elif is_poisoned:
+        # The full poisoned text already includes the attack, so use its final
+        # window as a fallback when the attack substring cannot be token-matched.
+        start = max(0, len(token_ids) - content_limit)
     elif normalized_position == "start":
         start = 0
     elif normalized_position == "middle":
         anchor = len(token_ids) // 2
         start = max(0, anchor - max(0, (content_limit - attack_length) // 2))
     else:
-        # A poisoned end-position sample contains the clean context followed by
-        # attack tokens. Starting the clean sample at len(clean)+attack_len-k
-        # aligns the source tokens with the positive window where possible.
-        start = max(0, len(token_ids) + attack_length - content_limit)
+        # Align clean end-position context with the corresponding positive
+        # window: leave room for the absent attack tokens in the slice offset.
+        start = max(0, min(len(token_ids), len(token_ids) + attack_length - content_limit))
 
     if len(token_ids) > content_limit:
         token_ids = token_ids[start:start + content_limit]
