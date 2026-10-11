@@ -765,7 +765,8 @@ def test_perplexity_blocks_single_marker_when_score_is_high(monkeypatch):
 
 
 def test_semantic_classifier_scans_long_document_tail(monkeypatch):
-    import torch
+    import pytest
+    torch = pytest.importorskip("torch")
     from types import SimpleNamespace
 
     class FakeTokenizer:
