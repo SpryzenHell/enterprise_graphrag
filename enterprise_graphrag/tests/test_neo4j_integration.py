@@ -174,7 +174,8 @@ def test_neo4j_bulk_upsert_and_tenant_isolation():
                 },
             ],
         )
-        stale_hits = store.search("acme", "Security Operations", 10)
+        # Query only for the removed term; "Operations" remains in the replacement document.
+        stale_hits = store.search("acme", "Security", 10)
         updated_hits = store.search("acme", "Finance Operations", 10)
         assert all(hit.doc_id != "bulk-integration-acme-1" for hit in stale_hits)
         assert any(hit.doc_id == "bulk-integration-acme-1" for hit in updated_hits)
