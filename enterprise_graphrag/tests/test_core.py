@@ -762,3 +762,59 @@ def test_perplexity_blocks_single_marker_when_score_is_high(monkeypatch):
     assert result["reason"] == "high perplexity plus injection marker"
     assert result["perplexity"] == 100.0
     assert len(calls) == 1
+
+
+def test_semantic_classifier_scans_long_document_tail(monkeypatch):
+    import torch
+    from types import SimpleNamespace
+
+    class FakeTokenizer:
+        def num_special_tokens_to_add(self, pair=False):
+            return 2
+
+        def encode(self, text, add_special_tokens=False, truncation=False):
+            return [999 if token == "INJECTION_TAG" else 1 for token in text.split()]
+
+        def prepare_for_model(self, token_ids, **kwargs):
+            ids = [101] + list(token_ids) + [102]
+            return {"input_ids": ids, "attention_mask": [1] * len(ids)}
+
+        def pad(self, features, padding=True, return_tensors="pt"):
+            max_len = max(len(item["input_ids"]) for item in features)
+            ids, masks = [], []
+            for item in features:
+                missing = max_len - len(item["input_ids"])
+                ids.append(item["input_ids"] + [0] * missing)
+                masks.append(item["attention_mask"] + [0] * missing)
+            return {
+                "input_ids": torch.tensor(ids, dtype=torch.long),
+                "attention_mask": torch.tensor(masks, dtype=torch.long),
+            }
+
+    class FakeClassifier:
+        def __call__(self, input_ids, attention_mask=None):
+            attack = ((input_ids == 999) & (attention_mask == 1)).any(dim=1).float()
+            logits = torch.stack((8.0 * (1.0 - attack), 8.0 * attack), dim=1)
+            return SimpleNamespace(logits=logits)
+
+    def fake_load(self, requested_device):
+        self._classifier_tokenizer = FakeTokenizer()
+        self._classifier = FakeClassifier()
+        self._classifier_torch = torch
+        self._classifier_device = torch.device("cpu")
+        self._positive_class_index = 1
+
+    monkeypatch.setattr(SecurityGateway, "_load_semantic_classifier", fake_load)
+    gateway = SecurityGateway(
+        classifier_model="fake-injection-model",
+        classifier_threshold=0.5,
+        classifier_max_length=16,
+        classifier_window_overlap=4,
+        classifier_device="cpu",
+    )
+    long_document = " ".join(["routine"] * 40 + ["INJECTION_TAG"])
+    decision = gateway.inspect(long_document, direct=False)
+
+    assert decision["marker_count"] == 0
+    assert decision["allowed"] is False
+    assert decision["reason"] == "semantic injection classifier"
