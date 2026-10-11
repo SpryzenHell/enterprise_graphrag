@@ -143,6 +143,10 @@ def build_agent() -> EnterpriseGraphRAGAgent:
         model=settings.vllm_model,
         threshold=settings.security_ppl_threshold,
         marker_threshold=settings.security_marker_threshold,
+        classifier_model=settings.security_classifier_model,
+        classifier_threshold=settings.security_classifier_threshold,
+        classifier_max_length=settings.security_classifier_max_length,
+        classifier_device=settings.security_classifier_device,
     )
 
     retriever = HybridRetriever(
