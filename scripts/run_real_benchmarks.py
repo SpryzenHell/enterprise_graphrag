@@ -50,7 +50,7 @@ class STEmbedder:
         # single-line string for queries. BGE's documented query prompt is used on
         # queries only; indexing text remains unprefixed.
         prepared = [
-            (self.query_prefix + text) if self.query_prefix and "\\n" not in text else text
+            (self.query_prefix + text) if self.query_prefix and "\n" not in text else text
             for text in texts
         ]
         return self.model.encode(
