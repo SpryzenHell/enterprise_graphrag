@@ -431,10 +431,25 @@ class TenantFAISS:
             if index.ntotal == 0:
                 return []
 
-            scores, ids = index.search(
-                query_vector,
-                limit,
-            )
+            # HNSW's exploration breadth should be at least k; otherwise a
+            # deeper RRF candidate request can ask for more neighbors than the
+            # graph explores, silently reducing recall. Restore the configured
+            # value after this query so small top-k traffic stays inexpensive.
+            base_index = getattr(index, "index", None)
+            hnsw = getattr(base_index, "hnsw", None)
+            previous_ef_search = None
+            if hnsw is not None:
+                previous_ef_search = int(hnsw.efSearch)
+                if limit > previous_ef_search:
+                    hnsw.efSearch = int(limit)
+            try:
+                scores, ids = index.search(
+                    query_vector,
+                    limit,
+                )
+            finally:
+                if hnsw is not None and previous_ef_search is not None:
+                    hnsw.efSearch = previous_ef_search
             hits = []
 
             for vector_id, score in zip(
