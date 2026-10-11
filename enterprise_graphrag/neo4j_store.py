@@ -113,6 +113,14 @@ class Neo4jTenantStore:
         query_text: str,
         limit: int,
     ) -> list[Hit]:
+        """Return lexical/entity matches plus tenant-safe two-hop graph neighbors.
+
+        The direct path preserves the previous ranking behavior. The traversal path
+        follows query-matched entity -> anchor document -> shared entity ->
+        candidate document, which can retrieve evidence that does not repeat the
+        query's exact terms. Every node match is constrained by the authenticated
+        tenant so a shared entity name cannot bridge two tenants.
+        """
         terms = [
             token.lower()
             for token in re.findall(
@@ -120,10 +128,10 @@ class Neo4jTenantStore:
                 query_text,
             )
         ][:12]
-        if not terms:
+        if not terms or limit < 1:
             return []
 
-        query = """
+        direct_query = """
         MATCH (d:Document {tenant_id:$tenant})
         OPTIONAL MATCH (d)-[:MENTIONS]->(e:Entity {tenant_id:$tenant})
         WITH d, collect(DISTINCT e.name) AS entity_names
@@ -149,29 +157,100 @@ class Neo4jTenantStore:
         LIMIT $limit
         """
 
+        # Bounded two-hop traversal over the tenant's bipartite document/entity
+        # graph. It only seeds entities that match query terms and then discovers
+        # documents attached through a different entity on the anchor document.
+        traversal_query = """
+        UNWIND $terms AS term
+        MATCH (seed:Entity {tenant_id:$tenant})
+        WHERE toLower(seed.name) CONTAINS term
+        MATCH (seed)<-[:MENTIONS]-(anchor:Document {tenant_id:$tenant})
+        MATCH (anchor)-[:MENTIONS]->(bridge:Entity {tenant_id:$tenant})
+        WHERE bridge.key <> seed.key
+        MATCH (bridge)<-[:MENTIONS]-(candidate:Document {tenant_id:$tenant})
+        WHERE candidate.doc_id <> anchor.doc_id
+        WITH candidate,
+             collect(DISTINCT anchor.doc_id) AS anchor_docs,
+             collect(DISTINCT bridge.key) AS bridge_keys,
+             collect(DISTINCT seed.key) AS seed_keys
+        RETURN candidate.doc_id AS doc_id,
+               candidate.title AS title,
+               candidate.text AS text,
+               (0.8 * size(anchor_docs)
+                + 0.25 * size(bridge_keys)
+                + 0.1 * size(seed_keys)) AS score,
+               anchor_docs AS anchor_docs,
+               bridge_keys AS bridge_keys
+        ORDER BY score DESC, doc_id
+        LIMIT $limit
+        """
+
         with self.driver.session(database=self.database) as session:
-            rows = session.run(
-                query,
+            direct_rows = session.run(
+                direct_query,
                 tenant=tenant,
                 terms=terms,
                 limit=limit,
+            ).data()
+            traversal_rows = session.run(
+                traversal_query,
+                tenant=tenant,
+                terms=terms,
+                limit=limit,
+            ).data()
+
+        hits_by_id: dict[str, Hit] = {}
+        for row in direct_rows:
+            doc_id = row["doc_id"]
+            hits_by_id[doc_id] = Hit(
+                doc_id=doc_id,
+                title=row["title"],
+                tenant_id=tenant,
+                text=row["text"],
+                score=float(row["score"]),
+                source="graph",
+                metadata={
+                    "doc_id": doc_id,
+                    "title": row["title"],
+                    "text": row["text"],
+                    "traversal_hops": 0,
+                    "traversal_score": 0.0,
+                },
             )
-            return [
-                Hit(
-                    doc_id=row["doc_id"],
+
+        for row in traversal_rows:
+            doc_id = row["doc_id"]
+            traversal_score = float(row["score"])
+            if doc_id in hits_by_id:
+                hit = hits_by_id[doc_id]
+                hit.score += 0.5 * traversal_score
+                hit.metadata["traversal_score"] = traversal_score
+                hit.metadata["traversal_hops"] = 2
+                hit.metadata["anchor_docs"] = row["anchor_docs"]
+                hit.metadata["bridge_entities"] = row["bridge_keys"]
+            else:
+                hits_by_id[doc_id] = Hit(
+                    doc_id=doc_id,
                     title=row["title"],
                     tenant_id=tenant,
                     text=row["text"],
-                    score=float(row["score"]),
+                    score=traversal_score,
                     source="graph",
                     metadata={
-                        "doc_id": row["doc_id"],
+                        "doc_id": doc_id,
                         "title": row["title"],
                         "text": row["text"],
+                        "traversal_hops": 2,
+                        "traversal_score": traversal_score,
+                        "anchor_docs": row["anchor_docs"],
+                        "bridge_entities": row["bridge_keys"],
                     },
                 )
-                for row in rows
-            ]
+
+        return sorted(
+            hits_by_id.values(),
+            key=lambda hit: (-hit.score, hit.doc_id),
+        )[:limit]
 
     def trace(
         self,
