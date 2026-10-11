@@ -21,6 +21,7 @@ from sentence_transformers import SentenceTransformer
 
 from enterprise_graphrag.fusion import weighted_rrf
 from enterprise_graphrag.retrieval import HybridRetriever, TenantMemoryGraph
+from enterprise_graphrag.neo4j_store import Neo4jTenantStore
 from enterprise_graphrag.security import SecurityGateway
 from enterprise_graphrag.vector_faiss import TenantFAISS
 
@@ -156,6 +157,8 @@ def run_retrieval(cache_dir, max_queries, seed):
     ids = sorted(qid for qid, rel in all_qrels.items() if qid in queries and any(int(v) > 0 for v in rel.values()))
     if max_queries > 0 and len(ids) > max_queries:
         ids = sorted(random.Random(seed).sample(ids, max_queries))
+    if not ids:
+        raise RuntimeError("SciFact has no qrels-backed test queries after filtering")
     qrels = {qid: all_qrels[qid] for qid in ids}
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = SentenceTransformer(EMBEDDING_MODEL, device=device)
@@ -164,65 +167,165 @@ def run_retrieval(cache_dir, max_queries, seed):
         threshold=float(os.getenv("SECURITY_PPL_THRESHOLD", "80")),
         marker_threshold=int(os.getenv("SECURITY_MARKER_THRESHOLD", "2")),
     )
+    graph_build_seconds = None
+    neo4j_build_seconds = None
+    neo4j_result = None
+    neo4j_uri = os.getenv("NEO4J_URI", "").strip()
+    neo4j_password = os.getenv("NEO4J_PASSWORD", "")
+    neo4j_user = os.getenv("NEO4J_USER", "neo4j")
+    neo4j_database = os.getenv("NEO4J_DATABASE", "neo4j")
+    neo_store = None
+    if bool(neo4j_uri) != bool(neo4j_password):
+        raise ValueError("NEO4J_URI and NEO4J_PASSWORD must both be configured for live Neo4j evaluation")
+
     with tempfile.TemporaryDirectory(prefix="graphrag-benchmark-") as tmp:
         vector = TenantFAISS(str(Path(tmp) / "faiss"), embedder)
         graph = TenantMemoryGraph()
         retriever = HybridRetriever(vector, graph, security, 0.55, 0.45, 60)
         start = time.perf_counter()
         retriever.add("scifact", corpus)
-        index_seconds = time.perf_counter() - start
-        warm_query = queries[ids[0]]
-        embedder.embed(["warmup"])
-        vector.search("scifact", warm_query, 10)
-        graph.search("scifact", warm_query, 10)
-        retriever.search("scifact", warm_query, 10)
-        ranks = {"vector": {}, "graph": {}, "hybrid_rrf": {}}
-        times = {"vector_ms": [], "graph_ms": [], "hybrid_ms": []}
-        lists = {"vector": {}, "graph": {}}
-        for qid in ids:
-            query = queries[qid]
-            t = time.perf_counter()
-            vh = vector.search("scifact", query, 10)
-            times["vector_ms"].append((time.perf_counter() - t) * 1000)
-            t = time.perf_counter()
-            gh = graph.search("scifact", query, 10)
-            times["graph_ms"].append((time.perf_counter() - t) * 1000)
-            t = time.perf_counter()
-            hh, _, _, _ = retriever.search("scifact", query, 10)
-            times["hybrid_ms"].append((time.perf_counter() - t) * 1000)
-            lists["vector"][qid], lists["graph"][qid] = vh, gh
-            ranks["vector"][qid] = [h.doc_id for h in vh]
-            ranks["graph"][qid] = [h.doc_id for h in gh]
-            ranks["hybrid_rrf"][qid] = [h.doc_id for h in hh]
-        weight_sweep = {}
-        for vw in (0.25, 0.50, 0.55, 0.75):
-            wranks = {}
-            for qid in ids:
-                fused = weighted_rrf(
-                    {"vector": lists["vector"][qid], "graph": lists["graph"][qid]},
-                    {"vector": vw, "graph": 1 - vw},
-                    k=60,
-                    limit=10,
-                )
-                wranks[qid] = [h.doc_id for h in fused]
-            weight_sweep[str(vw)] = metrics(wranks, qrels)
-        return {
-            "dataset": "BEIR SciFact official test qrels",
-            "dataset_license": "CC-BY-SA-4.0; https://huggingface.co/datasets/BeIR/scifact",
-            "embedding_model": EMBEDDING_MODEL,
-            "embedding_model_license": "Apache-2.0",
-            "device": device,
-            "embedding_dimension": embedder.dimension,
-            "corpus_documents": len(corpus),
-            "queries_with_qrels": len(all_qrels),
-            "evaluated_queries": len(ids),
-            "seed": seed,
-            "index_build_seconds": round(index_seconds, 3),
-            "metrics": {name: metrics(ranking, qrels) for name, ranking in ranks.items()},
-            "query_latency": {name: latency_stats(values) for name, values in times.items()},
-            "rrf_weight_sweep": weight_sweep,
-        }
+        local_index_seconds = time.perf_counter() - start
+        graph_build_seconds = local_index_seconds
 
+        neo4j_retriever = None
+        if neo4j_uri and neo4j_password:
+            neo_store = Neo4jTenantStore(neo4j_uri, neo4j_user, neo4j_password, neo4j_database)
+            try:
+                for _ in range(30):
+                    try:
+                        neo_store.verify()
+                        break
+                    except Exception:
+                        time.sleep(1)
+                else:
+                    raise RuntimeError("Neo4j did not become ready after 30 seconds")
+                neo_store.ensure_schema()
+                # The extra store is isolated by the dedicated 'scifact' tenant. Bulk upsert limits round trips.
+                start = time.perf_counter()
+                neo_store.add_many("scifact", corpus)
+                neo4j_build_seconds = time.perf_counter() - start
+                neo4j_retriever = HybridRetriever(vector, neo_store, security, 0.55, 0.45, 60)
+            except Exception:
+                neo_store.close()
+                neo_store = None
+                raise
+
+        try:
+            warm_query = queries[ids[0]]
+            embedder.embed(["warmup"])
+            vector.search("scifact", warm_query, 10)
+            graph.search("scifact", warm_query, 10)
+            retriever.search("scifact", warm_query, 10)
+            if neo4j_retriever is not None:
+                neo4j_retriever.graph.search("scifact", warm_query, 10)
+                neo4j_retriever.search("scifact", warm_query, 10)
+
+            ranks = {"vector": {}, "graph_memory": {}, "hybrid_rrf_memory": {}}
+            times = {"vector_ms": [], "graph_memory_ms": [], "hybrid_memory_ms": []}
+            lists = {"vector": {}, "graph_memory": {}}
+            if neo4j_retriever is not None:
+                ranks["graph_neo4j"] = {}
+                ranks["hybrid_rrf_neo4j"] = {}
+                times["graph_neo4j_ms"] = []
+                times["hybrid_neo4j_ms"] = []
+                lists["graph_neo4j"] = {}
+
+            for qid in ids:
+                query = queries[qid]
+                started = time.perf_counter()
+                vh = vector.search("scifact", query, 10)
+                times["vector_ms"].append((time.perf_counter() - started) * 1000)
+
+                started = time.perf_counter()
+                gh = graph.search("scifact", query, 10)
+                times["graph_memory_ms"].append((time.perf_counter() - started) * 1000)
+
+                started = time.perf_counter()
+                hh, blocked, _, _ = retriever.search("scifact", query, 10)
+                times["hybrid_memory_ms"].append((time.perf_counter() - started) * 1000)
+
+                lists["vector"][qid], lists["graph_memory"][qid] = vh, gh
+                ranks["vector"][qid] = [h.doc_id for h in vh]
+                ranks["graph_memory"][qid] = [h.doc_id for h in gh]
+                ranks["hybrid_rrf_memory"][qid] = [h.doc_id for h in hh]
+
+                if neo4j_retriever is not None:
+                    started = time.perf_counter()
+                    ngh = neo4j_retriever.graph.search("scifact", query, 10)
+                    times["graph_neo4j_ms"].append((time.perf_counter() - started) * 1000)
+
+                    started = time.perf_counter()
+                    nhh, nblocked, _, _ = neo4j_retriever.search("scifact", query, 10)
+                    times["hybrid_neo4j_ms"].append((time.perf_counter() - started) * 1000)
+
+                    lists["graph_neo4j"][qid] = ngh
+                    ranks["graph_neo4j"][qid] = [h.doc_id for h in ngh]
+                    ranks["hybrid_rrf_neo4j"][qid] = [h.doc_id for h in nhh]
+
+            weight_sweep = {}
+            for vw in (0.25, 0.50, 0.55, 0.75, 0.90, 1.00):
+                wranks = {}
+                for qid in ids:
+                    fused = weighted_rrf(
+                        {"vector": lists["vector"][qid], "graph": lists["graph_memory"][qid]},
+                        {"vector": vw, "graph": 1 - vw},
+                        k=60,
+                        limit=10,
+                    )
+                    wranks[qid] = [h.doc_id for h in fused]
+                weight_sweep[str(vw)] = metrics(wranks, qrels)
+
+            if neo4j_retriever is not None:
+                neo4j_weight_sweep = {}
+                for vw in (0.25, 0.50, 0.55, 0.75, 0.90, 1.00):
+                    wranks = {}
+                    for qid in ids:
+                        fused = weighted_rrf(
+                            {"vector": lists["vector"][qid], "graph": lists["graph_neo4j"][qid]},
+                            {"vector": vw, "graph": 1 - vw},
+                            k=60,
+                            limit=10,
+                        )
+                        wranks[qid] = [h.doc_id for h in fused]
+                    neo4j_weight_sweep[str(vw)] = metrics(wranks, qrels)
+                neo4j_result = {
+                    "backend": "Neo4jTenantStore",
+                    "graph_index_build_seconds": round(neo4j_build_seconds, 3),
+                    "metrics": {
+                        "graph_neo4j": metrics(ranks["graph_neo4j"], qrels),
+                        "hybrid_rrf_neo4j": metrics(ranks["hybrid_rrf_neo4j"], qrels),
+                    },
+                    "query_latency": {
+                        name: latency_stats(times[name])
+                        for name in ("graph_neo4j_ms", "hybrid_neo4j_ms")
+                    },
+                    "rrf_weight_sweep": neo4j_weight_sweep,
+                }
+
+            return {
+                "dataset": "BEIR SciFact official test qrels",
+                "dataset_license": "CC-BY-SA-4.0; https://huggingface.co/datasets/BeIR/scifact",
+                "embedding_model": EMBEDDING_MODEL,
+                "embedding_model_license": "Apache-2.0",
+                "device": device,
+                "embedding_dimension": embedder.dimension,
+                "corpus_documents": len(corpus),
+                "queries_with_qrels": len(all_qrels),
+                "evaluated_queries": len(ids),
+                "seed": seed,
+                "vector_and_memory_graph_index_build_seconds": round(local_index_seconds, 3),
+                "metrics": {name: metrics(ranking, qrels) for name, ranking in ranks.items() if name in ("vector", "graph_memory", "hybrid_rrf_memory")},
+                "query_latency": {
+                    name: latency_stats(values)
+                    for name, values in times.items()
+                    if name in ("vector_ms", "graph_memory_ms", "hybrid_memory_ms")
+                },
+                "rrf_weight_sweep": weight_sweep,
+                "neo4j": neo4j_result,
+            }
+        finally:
+            if neo_store is not None:
+                neo_store.close()
 
 def sample_security_rows(rows, max_samples, seed):
     groups = {0: [], 1: []}
