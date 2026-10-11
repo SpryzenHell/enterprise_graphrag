@@ -65,26 +65,54 @@ def digest_context(text: str) -> str:
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
-def prepare_window(text: str, tokenizer, attack: str | None) -> dict:
+def prepare_window(
+    text: str,
+    tokenizer,
+    attack: str,
+    position: str,
+    is_poisoned: bool,
+) -> dict:
+    """Select comparable clean/poisoned context windows around the insertion point.
+
+    For poisoned samples, center the window around the detected attack span. For
+    clean counterparts, select the equivalent source-context region using the
+    recorded insertion position and the attack token length. This avoids the
+    shortcut where a positive gets a middle/end window but its clean counterpart
+    is always truncated from the beginning.
+    """
     special_count = int(tokenizer.num_special_tokens_to_add(pair=False))
     content_limit = MAX_LENGTH - special_count
     token_ids = tokenizer.encode(text, add_special_tokens=False, truncation=False)
+    attack_ids = tokenizer.encode(attack, add_special_tokens=False, truncation=False) if attack else []
     attack_start = -1
     attack_end = -1
-    if attack:
-        needle = tokenizer.encode(attack, add_special_tokens=False, truncation=False)
-        if needle and len(needle) <= len(token_ids):
-            for start in range(len(token_ids) - len(needle) + 1):
-                if token_ids[start:start + len(needle)] == needle:
-                    attack_start = start
-                    attack_end = start + len(needle)
-                    break
+    if is_poisoned and attack_ids and len(attack_ids) <= len(token_ids):
+        for candidate_start in range(len(token_ids) - len(attack_ids) + 1):
+            if token_ids[candidate_start:candidate_start + len(attack_ids)] == attack_ids:
+                attack_start = candidate_start
+                attack_end = candidate_start + len(attack_ids)
+                break
+
+    # The clean pair doesn't contain the attack tokens, but its window is aligned
+    # to the expected insertion region in the original context.
+    normalized_position = (position or "end").lower()
+    attack_length = len(attack_ids)
+    if is_poisoned and attack_start >= 0:
+        anchor_start = attack_start - max(0, (content_limit - (attack_end - attack_start)) // 2)
+        max_start = max(0, len(token_ids) - content_limit)
+        start = min(max(0, anchor_start), max_start)
+    elif normalized_position == "start":
+        start = 0
+    elif normalized_position == "middle":
+        anchor = len(token_ids) // 2
+        start = max(0, anchor - max(0, (content_limit - attack_length) // 2))
+    else:
+        # A poisoned end-position sample contains the clean context followed by
+        # attack tokens. Starting the clean sample at len(clean)+attack_len-k
+        # aligns the source tokens with the positive window where possible.
+        start = max(0, len(token_ids) + attack_length - content_limit)
+
     if len(token_ids) > content_limit:
-        if attack_start >= 0:
-            wanted_start = max(0, attack_start - max(0, (content_limit - (attack_end - attack_start)) // 2))
-            start = min(wanted_start, len(token_ids) - content_limit)
-        else:
-            start = 0
         token_ids = token_ids[start:start + content_limit]
     encoded = tokenizer.prepare_for_model(
         token_ids,
@@ -122,7 +150,7 @@ def load_bipia_pairs(cache_dir: str, max_rows: int, seed: int):
             reconstructed += 1
         if len(clean) < 8 or len(poisoned) < 8:
             continue
-        groups[digest_context(clean)].append((clean, poisoned, attack, str(row.get("id", ""))))
+        groups[digest_context(clean)].append((clean, poisoned, attack, str(row.get("position") or "end"), str(row.get("id", ""))))
 
     group_ids = list(groups)
     random.Random(seed + 19).shuffle(group_ids)
@@ -132,9 +160,9 @@ def load_bipia_pairs(cache_dir: str, max_rows: int, seed: int):
     train_examples, val_examples = [], []
     for group_id, variants in groups.items():
         target = val_examples if group_id in val_groups else train_examples
-        for clean, poisoned, attack, row_id in variants:
-            target.append({"text": clean, "labels": 0, "attack": "", "group": group_id, "row_id": row_id})
-            target.append({"text": poisoned, "labels": 1, "attack": attack, "group": group_id, "row_id": row_id})
+        for clean, poisoned, attack, position, row_id in variants:
+            target.append({"text": clean, "labels": 0, "attack": attack, "position": position, "group": group_id, "row_id": row_id})
+            target.append({"text": poisoned, "labels": 1, "attack": attack, "position": position, "group": group_id, "row_id": row_id})
     info = {
         "dataset": f"{BIPIA_DATASET}/bipia",
         "license": "CC-BY-SA-4.0",
@@ -279,8 +307,8 @@ def main():
 
     def tokenize_batch(batch):
         encoded_rows = [
-            prepare_window(text, tokenizer, attack if int(label) == 1 else None)
-            for text, attack, label in zip(batch["text"], batch["attack"], batch["labels"])
+            prepare_window(text, tokenizer, attack, position, int(label) == 1)
+            for text, attack, position, label in zip(batch["text"], batch["attack"], batch["position"], batch["labels"])
         ]
         features = {
             key: [row[key] for row in encoded_rows]
@@ -348,6 +376,7 @@ def main():
         "checkpoint_dir": str(model_dir),
         "training_dataset": train_info,
         "training_dataset_license": "CC-BY-SA-4.0",
+        "window_alignment": "clean and poisoned samples use corresponding insertion-position windows; poisoned windows are centered on detected attack span when possible",
         "training_config": {
             "epochs": args.epochs,
             "train_batch_size": args.train_batch_size,
