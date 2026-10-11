@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - eval/real-dataset-benchmarks-2026-10-11
+      - security/semantic-injection-gate-2026-10-11
     paths:
       - "scripts/run_real_benchmarks.py"
       - ".github/workflows/external-dataset-evaluation.yml"
