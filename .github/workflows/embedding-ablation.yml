@@ -1,0 +1,81 @@
+name: GraphRAG BGE Embedding Ablation
+
+on:
+  push:
+    branches:
+      - eval/bge-ablation-2026-10-12
+    paths:
+      - "scripts/run_real_benchmarks.py"
+      - ".github/workflows/embedding-ablation.yml"
+      - "enterprise_graphrag/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: graphrag-bge-ablation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bge-ablation:
+    name: BGE-base vs MiniLM baseline on SciFact + Neo4j
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    services:
+      neo4j:
+        image: neo4j:2026-community
+        env:
+          NEO4J_AUTH: neo4j/benchmark-password
+        ports:
+          - 7687:7687
+          - 7474:7474
+        options: >-
+          --health-cmd "wget -q --spider http://localhost:7474 || exit 1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      NEO4J_URI: bolt://localhost:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: benchmark-password
+      NEO4J_DATABASE: neo4j
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      HF_HUB_DISABLE_PROGRESS_BARS: "1"
+      TOKENIZERS_PARALLELISM: "false"
+      GRAGRAPH_MAX_BEIR_QUERIES: "300"
+      GRAGRAPH_EMBED_MODEL: "BAAI/bge-base-en-v1.5"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install application and evaluation dependencies
+        run: |
+          python -m pip install --upgrade pip wheel
+          python -m pip install -r requirements-enterprise.txt
+          python -m pip install "datasets==3.6.0" "sentence-transformers==4.1.0"
+          python -m pip check
+      - name: Compile and run tenant / Neo4j regression tests
+        run: |
+          python -m compileall -q enterprise_graphrag scripts
+          pytest -q enterprise_graphrag/tests -m "not integration and not gpu"
+          pytest -q enterprise_graphrag/tests/test_neo4j_integration.py -m integration
+      - name: Download licensed SciFact corpus and BGE model; measure retrieval quality
+        run: |
+          python scripts/run_real_benchmarks.py \
+            --output-dir artifacts/bge-ablation \
+            --cache-dir "$HOME/.cache/graphrag-eval" \
+            --embedding-model "BAAI/bge-base-en-v1.5" \
+            --max-beir-queries 300 \
+            --seed 20261012 \
+            --skip-security
+      - name: Upload BGE and Neo4j benchmark
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: graphrag-bge-ablation-${{ github.run_id }}
+          path: artifacts/bge-ablation/
+          if-no-files-found: warn
