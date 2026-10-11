@@ -374,7 +374,7 @@ def main():
         f"- Runtime: {result['elapsed_seconds']} seconds",
         f"- Base model: {args.base_model} (MIT)",
         f"- Training source: {BIPIA_DATASET}/bipia (CC-BY-SA-4.0)",
-        f"- Selected source rows: {train_info['selected_rows']} / {train_info['dataset_rows_available']}",
+        f"- Selected source rows: {train_info['selected_source_rows']} / {train_info['dataset_rows_available']}",
         f"- Unique contexts: {train_info['unique_clean_contexts']}; training pairs: {train_info['train_examples']}; validation pairs: {train_info['validation_examples']}",
         f"- Context attack-match ratio: {train_info['matched_attack_ratio']:.4f}; reconstructed rows: {train_info['reconstructed_from_metadata']}",
         f"- Epochs: {args.epochs}; sequence length: {MAX_LENGTH}; device: {'CUDA' if on_gpu else 'CPU'}",
