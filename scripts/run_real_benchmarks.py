@@ -27,19 +27,33 @@ from enterprise_graphrag.vector_faiss import TenantFAISS
 
 SCIFACT_URL = "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/scifact.zip"
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+EMBEDDING_MODEL_LICENSES = {
+    "sentence-transformers/all-MiniLM-L6-v2": "Apache-2.0",
+    "BAAI/bge-base-en-v1.5": "MIT",
+}
+EMBEDDING_QUERY_PREFIXES = {
+    "BAAI/bge-base-en-v1.5": "Represent this sentence for searching relevant passages: ",
+}
 INJECTION_DATASET = "Horizon-Labs/prompt-injection-eval-suite"
 INJECTION_CONFIG = "synthetic_v2_test"
 INJECTION_CLASSIFIER = "Horizon-Labs/prompt-injection-guard-small"
 
 
 class STEmbedder:
-    def __init__(self, model):
+    def __init__(self, model, query_prefix=""):
         self.model = model
         self.dimension = int(model.get_sentence_embedding_dimension())
+        self.query_prefix = query_prefix
 
     def embed(self, texts):
+        # Indexed documents contain a newline between title and body; query inputs
+        # are single-line strings. BGE's retrieval prefix is applied only to queries.
+        prepared = [
+            (self.query_prefix + text) if self.query_prefix and "\\n" not in text else text
+            for text in texts
+        ]
         return self.model.encode(
-            texts,
+            prepared,
             batch_size=int(os.getenv("GRAGRAPH_EMBED_BATCH_SIZE", "64")),
             convert_to_numpy=True,
             normalize_embeddings=False,
@@ -152,7 +166,94 @@ def metrics(rankings, qrels):
     }
 
 
-def run_retrieval(cache_dir, max_queries, seed):
+def candidate_pool_sweep(query_ids, qrels, vector_candidates, graph_candidates, seed):
+    """Tune RRF weights and retrieval pool size on a fixed calibration subset.
+
+    The remaining query IDs are held out for the selected configuration. The
+    sweep retains vector-only as a control and selects only from true hybrid
+    configurations (graph_weight > 0).
+    """
+    shuffled = list(query_ids)
+    random.Random(seed + 17).shuffle(shuffled)
+    if len(shuffled) >= 4:
+        midpoint = len(shuffled) // 2
+        calibration_ids = shuffled[:midpoint]
+        holdout_ids = shuffled[midpoint:]
+    else:
+        calibration_ids = shuffled
+        holdout_ids = shuffled
+
+    depths = (10, 20, 50, 100)
+    vector_weights = (0.50, 0.55, 0.75, 0.90, 0.95, 0.99, 1.00)
+    records = []
+    for depth in depths:
+        for vector_weight in vector_weights:
+            rankings = {}
+            for qid in query_ids:
+                fused = weighted_rrf(
+                    {
+                        "vector": vector_candidates[qid][:depth],
+                        "graph": graph_candidates[qid][:depth],
+                    },
+                    {"vector": vector_weight, "graph": 1.0 - vector_weight},
+                    k=60,
+                    limit=10,
+                )
+                rankings[qid] = [hit.doc_id for hit in fused]
+            cal_metrics = metrics(
+                {qid: rankings[qid] for qid in calibration_ids},
+                {qid: qrels[qid] for qid in calibration_ids},
+            )
+            holdout_metrics = metrics(
+                {qid: rankings[qid] for qid in holdout_ids},
+                {qid: qrels[qid] for qid in holdout_ids},
+            )
+            full_metrics = metrics(rankings, qrels)
+            records.append({
+                "candidate_limit": depth,
+                "vector_weight": vector_weight,
+                "graph_weight": round(1.0 - vector_weight, 2),
+                "is_vector_only_control": vector_weight == 1.0,
+                "calibration_metrics": cal_metrics,
+                "holdout_metrics": holdout_metrics,
+                "all_queries_metrics": full_metrics,
+            })
+
+    hybrid_records = [record for record in records if not record["is_vector_only_control"]]
+    best = max(
+        hybrid_records,
+        key=lambda record: (
+            record["calibration_metrics"]["mrr@10"],
+            record["calibration_metrics"]["ndcg@10"],
+            record["calibration_metrics"]["recall@10"],
+            record["vector_weight"],
+            -record["candidate_limit"],
+        ),
+    )
+    vector_only = max(
+        (record for record in records if record["is_vector_only_control"]),
+        key=lambda record: (
+            record["calibration_metrics"]["mrr@10"],
+            record["calibration_metrics"]["ndcg@10"],
+            record["calibration_metrics"]["recall@10"],
+            -record["candidate_limit"],
+        ),
+    )
+    return {
+        "selection_rule": "Maximize calibration MRR@10, then nDCG@10, then Recall@10; ties prefer more vector weight then the smaller candidate pool.",
+        "candidate_depths": list(depths),
+        "vector_weights": list(vector_weights),
+        "calibration_query_count": len(calibration_ids),
+        "holdout_query_count": len(holdout_ids),
+        "seed": seed,
+        "selected_hybrid_on_calibration": best,
+        "vector_only_control_on_calibration": vector_only,
+        "all_configurations": records,
+        "warning": "The split is internal to the selected SciFact official test-qrels queries. Do not treat calibration scores as independent test results; use the held-out subset to compare the frozen selected configuration.",
+    }
+
+
+def run_retrieval(cache_dir, max_queries, seed, embedding_model_name=EMBEDDING_MODEL):
     corpus, queries, all_qrels = load_scifact(cache_dir)
     ids = sorted(qid for qid, rel in all_qrels.items() if qid in queries and any(int(v) > 0 for v in rel.values()))
     if max_queries > 0 and len(ids) > max_queries:
@@ -161,13 +262,13 @@ def run_retrieval(cache_dir, max_queries, seed):
         raise RuntimeError("SciFact has no qrels-backed test queries after filtering")
     qrels = {qid: all_qrels[qid] for qid in ids}
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = SentenceTransformer(EMBEDDING_MODEL, device=device)
-    embedder = STEmbedder(model)
+    model = SentenceTransformer(embedding_model_name, device=device)
+    query_prefix = EMBEDDING_QUERY_PREFIXES.get(embedding_model_name, "")
+    embedder = STEmbedder(model, query_prefix=query_prefix)
     security = SecurityGateway(
         threshold=float(os.getenv("SECURITY_PPL_THRESHOLD", "80")),
         marker_threshold=int(os.getenv("SECURITY_MARKER_THRESHOLD", "2")),
     )
-    graph_build_seconds = None
     neo4j_build_seconds = None
     neo4j_result = None
     neo4j_uri = os.getenv("NEO4J_URI", "").strip()
@@ -178,6 +279,7 @@ def run_retrieval(cache_dir, max_queries, seed):
     if bool(neo4j_uri) != bool(neo4j_password):
         raise ValueError("NEO4J_URI and NEO4J_PASSWORD must both be configured for live Neo4j evaluation")
 
+    candidate_depth = 100
     with tempfile.TemporaryDirectory(prefix="graphrag-benchmark-") as tmp:
         vector = TenantFAISS(str(Path(tmp) / "faiss"), embedder)
         graph = TenantMemoryGraph()
@@ -185,7 +287,6 @@ def run_retrieval(cache_dir, max_queries, seed):
         start = time.perf_counter()
         retriever.add("scifact", corpus)
         local_index_seconds = time.perf_counter() - start
-        graph_build_seconds = local_index_seconds
 
         neo4j_retriever = None
         if neo4j_uri and neo4j_password:
@@ -200,7 +301,6 @@ def run_retrieval(cache_dir, max_queries, seed):
                 else:
                     raise RuntimeError("Neo4j did not become ready after 30 seconds")
                 neo_store.ensure_schema()
-                # The extra store is isolated by the dedicated 'scifact' tenant. Bulk upsert limits round trips.
                 start = time.perf_counter()
                 neo_store.add_many("scifact", corpus)
                 neo4j_build_seconds = time.perf_counter() - start
@@ -212,54 +312,72 @@ def run_retrieval(cache_dir, max_queries, seed):
 
         try:
             warm_query = queries[ids[0]]
-            embedder.embed(["warmup"])
-            vector.search("scifact", warm_query, 10)
-            graph.search("scifact", warm_query, 10)
+            embedder.embed(["warmup query"])
+            vector.search("scifact", warm_query, candidate_depth)
+            graph.search("scifact", warm_query, candidate_depth)
             retriever.search("scifact", warm_query, 10)
             if neo4j_retriever is not None:
-                neo4j_retriever.graph.search("scifact", warm_query, 10)
+                neo4j_retriever.graph.search("scifact", warm_query, candidate_depth)
                 neo4j_retriever.search("scifact", warm_query, 10)
 
             ranks = {"vector": {}, "graph_memory": {}, "hybrid_rrf_memory": {}}
             times = {"vector_ms": [], "graph_memory_ms": [], "hybrid_memory_ms": []}
-            lists = {"vector": {}, "graph_memory": {}}
+            candidate_times = {"vector_top100_ms": [], "graph_memory_top100_ms": []}
+            lists10 = {"vector": {}, "graph_memory": {}}
+            candidates = {"vector": {}, "graph_memory": {}}
             if neo4j_retriever is not None:
                 ranks["graph_neo4j"] = {}
                 ranks["hybrid_rrf_neo4j"] = {}
                 times["graph_neo4j_ms"] = []
                 times["hybrid_neo4j_ms"] = []
-                lists["graph_neo4j"] = {}
+                candidate_times["graph_neo4j_top100_ms"] = []
+                lists10["graph_neo4j"] = {}
+                candidates["graph_neo4j"] = {}
 
             for qid in ids:
                 query = queries[qid]
+
                 started = time.perf_counter()
-                vh = vector.search("scifact", query, 10)
+                vh10 = vector.search("scifact", query, 10)
                 times["vector_ms"].append((time.perf_counter() - started) * 1000)
 
                 started = time.perf_counter()
-                gh = graph.search("scifact", query, 10)
+                gh10 = graph.search("scifact", query, 10)
                 times["graph_memory_ms"].append((time.perf_counter() - started) * 1000)
 
                 started = time.perf_counter()
-                hh, blocked, _, _ = retriever.search("scifact", query, 10)
+                hh, _, _, _ = retriever.search("scifact", query, 10)
                 times["hybrid_memory_ms"].append((time.perf_counter() - started) * 1000)
 
-                lists["vector"][qid], lists["graph_memory"][qid] = vh, gh
-                ranks["vector"][qid] = [h.doc_id for h in vh]
-                ranks["graph_memory"][qid] = [h.doc_id for h in gh]
+                started = time.perf_counter()
+                vh100 = vector.search("scifact", query, candidate_depth)
+                candidate_times["vector_top100_ms"].append((time.perf_counter() - started) * 1000)
+                started = time.perf_counter()
+                gh100 = graph.search("scifact", query, candidate_depth)
+                candidate_times["graph_memory_top100_ms"].append((time.perf_counter() - started) * 1000)
+
+                lists10["vector"][qid], lists10["graph_memory"][qid] = vh10, gh10
+                candidates["vector"][qid], candidates["graph_memory"][qid] = vh100, gh100
+                ranks["vector"][qid] = [h.doc_id for h in vh10]
+                ranks["graph_memory"][qid] = [h.doc_id for h in gh10]
                 ranks["hybrid_rrf_memory"][qid] = [h.doc_id for h in hh]
 
                 if neo4j_retriever is not None:
                     started = time.perf_counter()
-                    ngh = neo4j_retriever.graph.search("scifact", query, 10)
+                    ngh10 = neo4j_retriever.graph.search("scifact", query, 10)
                     times["graph_neo4j_ms"].append((time.perf_counter() - started) * 1000)
 
                     started = time.perf_counter()
-                    nhh, nblocked, _, _ = neo4j_retriever.search("scifact", query, 10)
+                    nhh, _, _, _ = neo4j_retriever.search("scifact", query, 10)
                     times["hybrid_neo4j_ms"].append((time.perf_counter() - started) * 1000)
 
-                    lists["graph_neo4j"][qid] = ngh
-                    ranks["graph_neo4j"][qid] = [h.doc_id for h in ngh]
+                    started = time.perf_counter()
+                    ngh100 = neo4j_retriever.graph.search("scifact", query, candidate_depth)
+                    candidate_times["graph_neo4j_top100_ms"].append((time.perf_counter() - started) * 1000)
+
+                    lists10["graph_neo4j"][qid] = ngh10
+                    candidates["graph_neo4j"][qid] = ngh100
+                    ranks["graph_neo4j"][qid] = [h.doc_id for h in ngh10]
                     ranks["hybrid_rrf_neo4j"][qid] = [h.doc_id for h in nhh]
 
             weight_sweep = {}
@@ -267,7 +385,7 @@ def run_retrieval(cache_dir, max_queries, seed):
                 wranks = {}
                 for qid in ids:
                     fused = weighted_rrf(
-                        {"vector": lists["vector"][qid], "graph": lists["graph_memory"][qid]},
+                        {"vector": lists10["vector"][qid], "graph": lists10["graph_memory"][qid]},
                         {"vector": vw, "graph": 1 - vw},
                         k=60,
                         limit=10,
@@ -275,13 +393,21 @@ def run_retrieval(cache_dir, max_queries, seed):
                     wranks[qid] = [h.doc_id for h in fused]
                 weight_sweep[str(vw)] = metrics(wranks, qrels)
 
+            candidate_pool_sweep = candidate_pool_sweep(
+                ids,
+                qrels,
+                candidates["vector"],
+                candidates["graph_memory"],
+                seed,
+            )
+
             if neo4j_retriever is not None:
                 neo4j_weight_sweep = {}
                 for vw in (0.25, 0.50, 0.55, 0.75, 0.90, 1.00):
                     wranks = {}
                     for qid in ids:
                         fused = weighted_rrf(
-                            {"vector": lists["vector"][qid], "graph": lists["graph_neo4j"][qid]},
+                            {"vector": lists10["vector"][qid], "graph": lists10["graph_neo4j"][qid]},
                             {"vector": vw, "graph": 1 - vw},
                             k=60,
                             limit=10,
@@ -299,14 +425,25 @@ def run_retrieval(cache_dir, max_queries, seed):
                         name: latency_stats(times[name])
                         for name in ("graph_neo4j_ms", "hybrid_neo4j_ms")
                     },
+                    "top100_candidate_fetch_latency": {
+                        "graph_neo4j_top100_ms": latency_stats(candidate_times["graph_neo4j_top100_ms"])
+                    },
                     "rrf_weight_sweep": neo4j_weight_sweep,
+                    "candidate_pool_sweep": candidate_pool_sweep(
+                        ids,
+                        qrels,
+                        candidates["vector"],
+                        candidates["graph_neo4j"],
+                        seed,
+                    ),
                 }
 
             return {
                 "dataset": "BEIR SciFact official test qrels",
                 "dataset_license": "CC-BY-SA-4.0; https://huggingface.co/datasets/BeIR/scifact",
-                "embedding_model": EMBEDDING_MODEL,
-                "embedding_model_license": "Apache-2.0",
+                "embedding_model": embedding_model_name,
+                "embedding_model_license": EMBEDDING_MODEL_LICENSES.get(embedding_model_name, "See model card"),
+                "embedding_query_prefix": query_prefix,
                 "device": device,
                 "embedding_dimension": embedder.dimension,
                 "corpus_documents": len(corpus),
@@ -320,7 +457,12 @@ def run_retrieval(cache_dir, max_queries, seed):
                     for name, values in times.items()
                     if name in ("vector_ms", "graph_memory_ms", "hybrid_memory_ms")
                 },
+                "top100_candidate_fetch_latency": {
+                    "vector_top100_ms": latency_stats(candidate_times["vector_top100_ms"]),
+                    "graph_memory_top100_ms": latency_stats(candidate_times["graph_memory_top100_ms"]),
+                },
                 "rrf_weight_sweep": weight_sweep,
+                "candidate_pool_sweep": candidate_pool_sweep,
                 "neo4j": neo4j_result,
             }
         finally:
@@ -526,6 +668,7 @@ def main():
     parser.add_argument("--output-dir", default="artifacts/graphrag-eval")
     parser.add_argument("--cache-dir", default="artifacts/graphrag-cache")
     parser.add_argument("--max-beir-queries", type=int, default=int(os.getenv("GRAGRAPH_MAX_BEIR_QUERIES", "150")))
+    parser.add_argument("--embedding-model", default=os.getenv("GRAGRAPH_EMBEDDING_MODEL", EMBEDDING_MODEL))
     parser.add_argument("--max-security-samples", type=int, default=int(os.getenv("GRAGRAPH_MAX_SECURITY_SAMPLES", "400")))
     parser.add_argument("--seed", type=int, default=20261011)
     parser.add_argument("--skip-retrieval", action="store_true")
@@ -551,7 +694,7 @@ def main():
             "faiss": faiss_version,
         },
         "models": {
-            EMBEDDING_MODEL: "Apache-2.0",
+            args.embedding_model: EMBEDDING_MODEL_LICENSES.get(args.embedding_model, "See model card"),
             "Qwen/Qwen2.5-0.5B-Instruct": "Apache-2.0 (optional GPU PPL backend)",
             INJECTION_CLASSIFIER: "Apache-2.0 (semantic prompt-injection baseline)",
         },
@@ -563,7 +706,7 @@ def main():
     }
     started_perf = time.perf_counter()
     if not args.skip_retrieval:
-        result["results"]["retrieval"] = run_retrieval(Path(args.cache_dir) / "scifact", args.max_beir_queries, args.seed)
+        result["results"]["retrieval"] = run_retrieval(Path(args.cache_dir) / "scifact", args.max_beir_queries, args.seed, args.embedding_model)
     if not args.skip_security:
         result["results"]["security"] = run_security(args.max_security_samples, args.seed)
     result["elapsed_seconds"] = round(time.perf_counter() - started_perf, 3)
@@ -582,7 +725,7 @@ def main():
     if retrieval:
         lines += [
             f"- Corpus: {retrieval['corpus_documents']} docs; evaluated queries: {retrieval['evaluated_queries']}; embedding device: {retrieval['device']}.",
-            f"- Model: {retrieval['embedding_model']} (Apache-2.0), dim={retrieval['embedding_dimension']}; vector + memory graph index build={retrieval['vector_and_memory_graph_index_build_seconds']} sec.",
+            f"- Model: {retrieval['embedding_model']} ({retrieval['embedding_model_license']}), dim={retrieval['embedding_dimension']}; query prefix={retrieval['embedding_query_prefix'] or 'none'}; vector + memory graph index build={retrieval['vector_and_memory_graph_index_build_seconds']} sec.",
             "", "| Method | Recall@1 | Recall@5 | Recall@10 | MRR@10 | nDCG@10 |",
             "|---|---:|---:|---:|---:|---:|",
         ]
