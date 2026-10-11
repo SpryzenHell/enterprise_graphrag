@@ -436,6 +436,8 @@ class TenantFAISS:
             # graph explores, silently reducing recall. Restore the configured
             # value after this query so small top-k traffic stays inexpensive.
             base_index = getattr(index, "index", None)
+            if base_index is not None and hasattr(self.faiss, "downcast_index"):
+                base_index = self.faiss.downcast_index(base_index)
             hnsw = getattr(base_index, "hnsw", None)
             previous_ef_search = None
             if hnsw is not None:
