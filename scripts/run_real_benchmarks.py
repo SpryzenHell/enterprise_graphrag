@@ -450,6 +450,7 @@ def main():
         "models": {
             EMBEDDING_MODEL: "Apache-2.0",
             "Qwen/Qwen2.5-0.5B-Instruct": "Apache-2.0 (optional GPU PPL backend)",
+            INJECTION_CLASSIFIER: "Apache-2.0 (semantic prompt-injection baseline)",
         },
         "datasets": {
             "BEIR SciFact": "CC-BY-SA-4.0; https://huggingface.co/datasets/BeIR/scifact",
@@ -496,15 +497,23 @@ def main():
         lines += [
             f"- Dataset: {sec['dataset']}; total test rows={sec['total_test_rows']}; evaluated balanced sample={sec['evaluated_rows']} ({sec['sample_per_class']} per class).",
             f"- vLLM PPL enabled={sec['ppl_enabled']}; model={sec['ppl_model'] or 'not configured'}.",
-            "", "| Path | Accuracy | Precision | Recall/TPR | FPR | F1 | TP | FN | FP | TN |",
+            f"- Semantic detector: {sec['semantic_classifier_model']} ({sec['semantic_classifier_license']}); device={sec['semantic_classifier_device']}; batched throughput={sec['semantic_classifier_batch']['throughput_rows_per_second']} rows/s.",
+            f"- Semantic detector single-input latency after warm-up: P50={sec['semantic_classifier_latency_ms']['p50_ms']} ms; P95={sec['semantic_classifier_latency_ms']['p95_ms']} ms.",
+            "", "| Detector path | Accuracy | Precision | Recall/TPR | FPR | F1 | TP | FN | FP | TN |",
             "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
         ]
-        for name, m in [("marker-only", sec["marker_only_metrics"]), ("gateway", sec["gateway_metrics"])]:
+        for name, m in [
+            ("marker-only", sec["marker_only_metrics"]),
+            ("existing gateway", sec["gateway_metrics"]),
+            ("semantic classifier", sec["semantic_classifier_metrics"]),
+            ("marker OR classifier", sec["combined_marker_or_classifier_metrics"]),
+        ]:
             lines.append(f"| {name} | {m['accuracy']:.4f} | {m['precision']:.4f} | {m['recall_tpr']:.4f} | {m['fpr']:.4f} | {m['f1']:.4f} | {m['tp']} | {m['fn']} | {m['fp']} | {m['tn']} |")
         lines += [
             "", f"- PPL candidates={sec['perplexity']['eligible_for_ppl_checks']}; observed scores={sec['perplexity']['observed_scores']}; coverage={sec['perplexity']['coverage_over_all_rows']:.4f}.",
-            f"- Security latency after warm-up: P50={sec['latency_ms']['p50_ms']} ms; P95={sec['latency_ms']['p95_ms']} ms.",
-            "", "Interpretation: current gateway invokes PPL only conditionally; these rates apply only to this fixed sample and do not establish universal defense.",
+            f"- Existing gateway latency after warm-up: P50={sec['gateway_latency_ms']['p50_ms']} ms; P95={sec['gateway_latency_ms']['p95_ms']} ms.",
+            "- Semantic threshold sweep (F1 / TPR / FPR): " + "; ".join(f"{threshold}: {scores['f1']:.4f}/{scores['recall_tpr']:.4f}/{scores['fpr']:.4f}" for threshold, scores in sec["semantic_classifier_threshold_sweep"].items()) + ".",
+            "", "Interpretation: the semantic classifier is an evaluated baseline, not yet wired into the application gate. Existing gateway perplexity remains conditional. These measurements apply to this fixed sample and do not establish universal defense.",
         ]
     lines += [
         "", "## Provenance and licences", "",
@@ -512,6 +521,7 @@ def main():
         "- Prompt Injection Eval Suite synthetic_v2_test config: Apache-2.0 per that dataset card; other mixed-license configs are not loaded.",
         "- sentence-transformers/all-MiniLM-L6-v2: Apache-2.0.",
         "- Optional GPU generation model Qwen/Qwen2.5-0.5B-Instruct: Apache-2.0.",
+        "- Semantic injection baseline Horizon-Labs-Inc/tripwire-prompt-injection-small: Apache-2.0.",
         "", "Only aggregate metrics are written to the report. The fixed seed, source commit, model IDs, data sources, and machine details are included in JSON.",
     ]
     (out / "real_evaluation.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
