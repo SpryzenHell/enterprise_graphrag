@@ -29,7 +29,7 @@ SCIFACT_URL = "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/dataset
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 INJECTION_DATASET = "Horizon-Labs/prompt-injection-eval-suite"
 INJECTION_CONFIG = "synthetic_v2_test"
-INJECTION_CLASSIFIER = "Horizon-Labs-Inc/tripwire-prompt-injection-small"
+INJECTION_CLASSIFIER = "Horizon-Labs/prompt-injection-guard-small"
 
 
 class STEmbedder:
@@ -645,7 +645,7 @@ def main():
         "- Prompt Injection Eval Suite synthetic_v2_test config: Apache-2.0 per that dataset card; other mixed-license configs are not loaded.",
         "- sentence-transformers/all-MiniLM-L6-v2: Apache-2.0.",
         "- Optional GPU generation model Qwen/Qwen2.5-0.5B-Instruct: Apache-2.0.",
-        "- Semantic injection baseline Horizon-Labs-Inc/tripwire-prompt-injection-small: Apache-2.0.",
+        "- Semantic injection baseline Horizon-Labs/prompt-injection-guard-small: Apache-2.0.",
         "", "Only aggregate metrics are written to the report. The fixed seed, source commit, model IDs, data sources, and machine details are included in JSON.",
     ]
     (out / "real_evaluation.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
