@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: graphrag-security-model-ablation-${{ github.ref }}-${{ matrix.key }}
+  group: graphrag-security-model-ablation-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
