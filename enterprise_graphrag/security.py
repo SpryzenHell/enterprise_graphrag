@@ -39,6 +39,7 @@ class SecurityGateway:
         classifier_threshold: float = 0.5,
         classifier_max_length: int = 8192,
         classifier_device: str = "auto",
+        classifier_window_overlap: int = 512,
         classifier_score_fn: Callable[[str], float] | None = None,
     ) -> None:
         if marker_threshold < 1:
@@ -47,6 +48,8 @@ class SecurityGateway:
             raise ValueError("classifier_threshold must be between 0 and 1")
         if classifier_max_length < 8 or classifier_max_length > 8192:
             raise ValueError("classifier_max_length must be between 8 and 8192")
+        if classifier_window_overlap < 0 or classifier_window_overlap >= classifier_max_length - 2:
+            raise ValueError("classifier_window_overlap must be non-negative and smaller than classifier_max_length - 2")
 
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
@@ -56,6 +59,7 @@ class SecurityGateway:
         self.classifier_model = classifier_model.strip()
         self.classifier_threshold = float(classifier_threshold)
         self.classifier_max_length = int(classifier_max_length)
+        self.classifier_window_overlap = int(classifier_window_overlap)
         self.patterns = [
             re.compile(pattern, re.IGNORECASE)
             for pattern in PATTERNS
@@ -124,21 +128,63 @@ class SecurityGateway:
             ):
                 raise RuntimeError("semantic classifier was enabled but is not initialized")
 
-            encoded = self._classifier_tokenizer(
-                texts,
-                return_tensors="pt",
-                padding=True,
-                truncation=True,
-                max_length=self.classifier_max_length,
-            )
-            encoded = {
-                key: value.to(self._classifier_device)
-                for key, value in encoded.items()
-            }
-            with self._classifier_torch.inference_mode():
-                logits = self._classifier(**encoded).logits.float()
-                scores = self._classifier_torch.softmax(logits, dim=-1)[:, self._positive_class_index].cpu().tolist()
-                scores = [float(score) for score in scores]
+            tokenizer = self._classifier_tokenizer
+            torch = self._classifier_torch
+            special_tokens = int(tokenizer.num_special_tokens_to_add(pair=False))
+            content_limit = self.classifier_max_length - special_tokens
+            step = content_limit - self.classifier_window_overlap
+            windows: list[dict] = []
+            owners: list[int] = []
+
+            # Scan the complete input. Truncating only the prefix could miss an injected
+            # instruction deliberately placed near the end of a long retrieved document.
+            for owner, text in enumerate(texts):
+                token_ids = tokenizer.encode(
+                    text,
+                    add_special_tokens=False,
+                    truncation=False,
+                )
+                starts = [0]
+                if len(token_ids) > content_limit:
+                    starts = list(range(0, len(token_ids), step))
+                    last_start = max(0, len(token_ids) - content_limit)
+                    if starts[-1] < last_start:
+                        starts.append(last_start)
+                for start in starts:
+                    content = token_ids[start:start + content_limit]
+                    encoded = tokenizer.prepare_for_model(
+                        content,
+                        add_special_tokens=True,
+                        truncation=True,
+                        max_length=self.classifier_max_length,
+                        return_attention_mask=True,
+                    )
+                    windows.append(encoded)
+                    owners.append(owner)
+                    if start + content_limit >= len(token_ids):
+                        break
+
+            window_scores: list[list[float]] = [[] for _ in texts]
+            batch_size = 16
+            for offset in range(0, len(windows), batch_size):
+                batch = tokenizer.pad(
+                    windows[offset:offset + batch_size],
+                    padding=True,
+                    return_tensors="pt",
+                )
+                batch = {
+                    key: value.to(self._classifier_device)
+                    for key, value in batch.items()
+                }
+                with torch.inference_mode():
+                    logits = self._classifier(**batch).logits.float()
+                    probs = torch.softmax(logits, dim=-1)[:, self._positive_class_index]
+                    values = [float(value) for value in probs.detach().cpu().tolist()]
+                for owner, value in zip(owners[offset:offset + batch_size], values):
+                    window_scores[owner].append(value)
+            # Model guidance for long inputs is max-over-windows: any malicious region
+            # must be sufficient to block the passage, regardless of where it occurs.
+            scores = [max(values, default=0.0) for values in window_scores]
 
         if len(scores) != len(texts):
             raise ValueError("semantic classifier returned the wrong number of probabilities")
