@@ -9,14 +9,14 @@ import httpx
 
 
 PATTERNS = [
-    r"ignore\\s+(?:(?:all|any)\\s+)?(?:(?:previous|prior)\\s+)?instructions",
-    r"system\\s+prompt",
-    r"developer\\s+message",
-    r"reveal\\s+(your|the)\\s+(prompt|instructions|secrets?)",
-    r"send\\s+(this|the)\\s+(data|document|prompt)",
-    r"disable\\s+(safety|security|policy)",
-    r"execute\\s+.*(shell|command|code)",
-    r"you\\s+are\\s+now\\s+(the|a)",
+    r"ignore\s+(?:(?:all|any)\s+)?(?:(?:previous|prior)\s+)?instructions",
+    r"system\s+prompt",
+    r"developer\s+message",
+    r"reveal\s+(your|the)\s+(prompt|instructions|secrets?)",
+    r"send\s+(this|the)\s+(data|document|prompt)",
+    r"disable\s+(safety|security|policy)",
+    r"execute\s+.*(shell|command|code)",
+    r"you\s+are\s+now\s+(the|a)",
 ]
 
 
