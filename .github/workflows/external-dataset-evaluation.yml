@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: graphrag-external-evaluation-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   external-evaluation:
