@@ -22,7 +22,24 @@ jobs:
     name: SciFact retrieval + indirect injection dataset (CPU baseline)
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    services:
+      neo4j:
+        image: neo4j:2026-community
+        env:
+          NEO4J_AUTH: neo4j/benchmark-password
+        ports:
+          - 7687:7687
+          - 7474:7474
+        options: >-
+          --health-cmd "wget -q --spider http://localhost:7474 || exit 1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
     env:
+      NEO4J_URI: bolt://localhost:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: benchmark-password
+      NEO4J_DATABASE: neo4j
       HF_HUB_DISABLE_TELEMETRY: "1"
       HF_HUB_DISABLE_PROGRESS_BARS: "1"
       TRANSFORMERS_VERBOSITY: error
