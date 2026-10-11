@@ -49,7 +49,7 @@ class STEmbedder:
         # Indexed documents contain a newline between title and body; query inputs
         # are single-line strings. BGE's retrieval prefix is applied only to queries.
         prepared = [
-            (self.query_prefix + text) if self.query_prefix and "\\n" not in text else text
+            (self.query_prefix + text) if self.query_prefix and "\n" not in text else text
             for text in texts
         ]
         return self.model.encode(
