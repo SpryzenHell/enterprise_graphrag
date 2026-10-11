@@ -54,10 +54,10 @@ The security layer:
 - can use prompt-token logprobs from vLLM as an additional signal;
 - can use an optional semantic prompt-injection classifier to catch markerless indirect attacks.
 
-To enable the optional semantic classifier, install the security extra and configure the Apache-2.0 `Horizon-Labs-Inc/tripwire-prompt-injection-small` checkpoint:
+To enable the optional semantic classifier, install the security extra and configure the Apache-2.0 `Horizon-Labs/prompt-injection-guard-small` checkpoint:
 
     pip install -e ".[security]"
-    SECURITY_CLASSIFIER_MODEL=Horizon-Labs-Inc/tripwire-prompt-injection-small
+    SECURITY_CLASSIFIER_MODEL=Horizon-Labs/prompt-injection-guard-small
     SECURITY_CLASSIFIER_THRESHOLD=0.5
     SECURITY_CLASSIFIER_MAX_LENGTH=8192
     SECURITY_CLASSIFIER_DEVICE=auto
