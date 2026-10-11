@@ -58,6 +58,24 @@ jobs:
           python -m pip install -r requirements-enterprise.txt
           python -m pip install "datasets==3.6.0" "sentence-transformers==4.1.0"
           python -m pip check
+      - name: Verify BGE query prompt is not applied to document embeddings
+        run: |
+          PYTHONPATH=scripts python - <<'PY'
+          import numpy as np
+          from run_real_benchmarks import STEmbedder
+          class FakeModel:
+              def get_sentence_embedding_dimension(self):
+                  return 4
+              def encode(self, texts, **kwargs):
+                  self.seen = list(texts)
+                  return np.zeros((len(texts), 4), dtype=np.float32)
+          prefix = "Represent this sentence for searching relevant passages: "
+          fake = FakeModel()
+          adapter = STEmbedder(fake, query_prefix=prefix)
+          adapter.embed(["a search query", "Document title\\nDocument body"])
+          assert fake.seen == [prefix + "a search query", "Document title\\nDocument body"], fake.seen
+          print("BGE query prefix applies only to query input.")
+          PY
       - name: Compile and run tenant / Neo4j regression tests
         run: |
           python -m compileall -q enterprise_graphrag scripts
