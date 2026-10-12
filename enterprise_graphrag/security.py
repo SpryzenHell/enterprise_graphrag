@@ -204,39 +204,33 @@ class SecurityGateway:
             headers["Authorization"] = f"Bearer {self.api_key}"
 
         try:
+            # vLLM 0.7.x accepts prompt_logprobs for sampling, but its
+            # return_token_ids extension is ignored. Use the OpenAI-compatible
+            # echo/logprobs response instead: echoed-prompt token_logprobs are
+            # aligned to actual prompt tokens, so no non-standard token-ID field
+            # is needed to compute perplexity.
             response = httpx.post(
                 f"{self.base_url}/v1/completions",
                 headers=headers,
                 json={
                     "model": self.model,
                     "prompt": text[:12000],
-                    "max_tokens": 1,
+                    "max_tokens": 0,
                     "temperature": 0.0,
-                    "prompt_logprobs": 1,
-                    "return_token_ids": True,
+                    "echo": True,
+                    "logprobs": 1,
                 },
-                timeout=60,
+                timeout=120,
             )
             response.raise_for_status()
             choice = response.json()["choices"][0]
-            entries = choice.get("prompt_logprobs") or []
-            token_ids = choice.get("prompt_token_ids") or []
-            if len(entries) != len(token_ids):
-                return None
-
-            observed = []
-            for position, entry in enumerate(entries):
-                if position == 0 or entry is None:
-                    continue
-                token_id = token_ids[position]
-                token_data = entry.get(str(token_id))
-                if token_data is None:
-                    token_data = entry.get(token_id)
-                if not isinstance(token_data, dict):
-                    continue
-                logprob = token_data.get("logprob")
-                if isinstance(logprob, (int, float)):
-                    observed.append(float(logprob))
+            logprobs = choice.get("logprobs") or {}
+            token_logprobs = logprobs.get("token_logprobs") or []
+            observed = [
+                float(value)
+                for value in token_logprobs
+                if isinstance(value, (int, float)) and math.isfinite(float(value))
+            ]
 
             if not observed:
                 return None
