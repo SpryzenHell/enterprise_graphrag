@@ -185,3 +185,67 @@ def test_neo4j_bulk_upsert_and_tenant_isolation():
         assert all(node["tenant_id"] == "acme" for node in trace["nodes"])
     finally:
         store.close()
+
+
+
+@pytest.mark.integration
+def test_neo4j_two_hop_traversal_retrieves_related_tenant_document():
+    uri = os.getenv("NEO4J_URI")
+    password = os.getenv("NEO4J_PASSWORD")
+    if not uri or not password:
+        pytest.skip("NEO4J_URI/NEO4J_PASSWORD not configured")
+
+    store = Neo4jTenantStore(
+        uri,
+        os.getenv("NEO4J_USER", "neo4j"),
+        password,
+        os.getenv("NEO4J_DATABASE", "neo4j"),
+    )
+    try:
+        for _ in range(30):
+            try:
+                store.verify()
+                break
+            except Exception:
+                time.sleep(1)
+        else:
+            pytest.fail("Neo4j did not become ready")
+
+        store.ensure_schema()
+        store.add_many(
+            "acme",
+            [
+                {
+                    "doc_id": "two-hop-acme-anchor-20261012",
+                    "title": "Acme Incident Response",
+                    "text": "Acme coordinates with Helios Analytics for incident response.",
+                },
+                {
+                    "doc_id": "two-hop-acme-related-20261012",
+                    "title": "Telemetry Operations",
+                    "text": "Helios Analytics provides orbital telemetry through Orion Instruments.",
+                },
+            ],
+        )
+        store.add(
+            "globex",
+            {
+                "doc_id": "two-hop-globex-similar-20261012",
+                "title": "Globex Partner Review",
+                "text": "Globex works with Helios Analytics on independent partner reviews.",
+            },
+        )
+
+        hits = store.search("acme", "Acme incident", 10)
+        by_id = {hit.doc_id: hit for hit in hits}
+
+        assert "two-hop-acme-anchor-20261012" in by_id
+        assert "two-hop-acme-related-20261012" in by_id, [
+            (hit.doc_id, hit.score, hit.metadata)
+            for hit in hits
+        ]
+        assert by_id["two-hop-acme-related-20261012"].metadata["traversal_hops"] == 2
+        assert all(hit.tenant_id == "acme" for hit in hits)
+        assert "two-hop-globex-similar-20261012" not in by_id
+    finally:
+        store.close()
