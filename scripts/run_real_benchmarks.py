@@ -303,7 +303,15 @@ def evaluate_candidate_pool_sweep(query_ids, qrels, vector_candidates, graph_can
                 "all_queries_metrics": full_metrics,
             })
 
-    hybrid_records = [record for record in records if not record["is_vector_only_control"]]
+    # Require a non-trivial graph contribution for the selected hybrid.
+    # The 0.99 vector-weight configuration remains in the logged sweep as a
+    # near-vector-only control, but it is not eligible to represent graph gains.
+    minimum_hybrid_graph_weight = 0.05
+    hybrid_records = [
+        record for record in records
+        if not record["is_vector_only_control"]
+        and record["graph_weight"] >= minimum_hybrid_graph_weight
+    ]
     best = max(
         hybrid_records,
         key=lambda record: (
@@ -324,7 +332,8 @@ def evaluate_candidate_pool_sweep(query_ids, qrels, vector_candidates, graph_can
         ),
     )
     return {
-        "selection_rule": "Maximize calibration MRR@10, then nDCG@10, then Recall@10; ties prefer more vector weight then the smaller candidate pool.",
+        "selection_rule": "Among hybrids with graph weight >= 0.05, maximize calibration MRR@10, then nDCG@10, then Recall@10; ties prefer more vector weight then the smaller candidate pool.",
+        "minimum_hybrid_graph_weight": minimum_hybrid_graph_weight,
         "candidate_depths": list(depths),
         "vector_weights": list(vector_weights),
         "calibration_query_count": len(calibration_ids),
