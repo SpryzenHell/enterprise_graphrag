@@ -236,11 +236,24 @@ class Neo4jTenantStore:
             traversal_score = float(row["score"])
             if doc_id in hits_by_id:
                 hit = hits_by_id[doc_id]
-                hit.score += 0.5 * traversal_score
-                hit.metadata["traversal_score"] = traversal_score
-                hit.metadata["traversal_hops"] = 2
-                hit.metadata["anchor_docs"] = row["anchor_docs"]
-                hit.metadata["bridge_entities"] = row["bridge_keys"]
+                # Hit is a frozen dataclass. Rebuild it with the combined score
+                # instead of assigning to hit.score; keep direct and traversal
+                # evidence together so the benchmark works for overlap candidates.
+                hits_by_id[doc_id] = Hit(
+                    doc_id=hit.doc_id,
+                    title=hit.title,
+                    tenant_id=hit.tenant_id,
+                    text=hit.text,
+                    score=hit.score + 0.5 * traversal_score,
+                    source=hit.source,
+                    metadata={
+                        **hit.metadata,
+                        "traversal_score": traversal_score,
+                        "traversal_hops": 2,
+                        "anchor_docs": row["anchor_docs"],
+                        "bridge_entities": row["bridge_keys"],
+                    },
+                )
             else:
                 hits_by_id[doc_id] = Hit(
                     doc_id=doc_id,
