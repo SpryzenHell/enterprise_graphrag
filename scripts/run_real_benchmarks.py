@@ -78,7 +78,7 @@ def latency_stats(values):
     }
 
 
-def load_scifact(cache_dir):
+def _load_scifact_from_zip(cache_dir):
     cache_dir.mkdir(parents=True, exist_ok=True)
     zip_path = cache_dir / "scifact.zip"
     if not zip_path.exists() or not zip_path.stat().st_size:
@@ -134,6 +134,67 @@ def load_scifact(cache_dir):
         raise RuntimeError(f"Incomplete SciFact files: docs={len(corpus)}, queries={len(queries)}, qrels={len(qrels)}")
     return corpus, queries, dict(qrels)
 
+
+
+def _load_scifact_from_hf(cache_dir: Path):
+    """Load the official BEIR SciFact corpus, queries and test qrels via HF Hub."""
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    corpus_rows = load_dataset("BeIR/scifact", "corpus", split="corpus", cache_dir=str(cache_dir))
+    query_rows = load_dataset("BeIR/scifact", "queries", split="queries", cache_dir=str(cache_dir))
+    qrel_rows = load_dataset("BeIR/scifact-qrels", split="test", cache_dir=str(cache_dir))
+
+    corpus = []
+    for raw in corpus_rows:
+        row = dict(raw)
+        doc_id = str(row.get("_id", row.get("id", row.get("doc_id", ""))))
+        text = str(row.get("text") or "").strip()
+        if doc_id and text:
+            corpus.append({"doc_id": doc_id, "title": str(row.get("title") or doc_id), "text": text})
+
+    queries = {}
+    for raw in query_rows:
+        row = dict(raw)
+        query_id = str(row.get("_id", row.get("id", row.get("query_id", ""))))
+        text = str(row.get("text") or row.get("title") or "").strip()
+        if query_id and text:
+            queries[query_id] = text
+
+    qrels = defaultdict(dict)
+    for raw in qrel_rows:
+        row = dict(raw)
+        query_id = row.get("query-id", row.get("query_id", row.get("qid", row.get("_id"))))
+        doc_id = row.get("corpus-id", row.get("corpus_id", row.get("doc_id", row.get("pid"))))
+        score = row.get("score", row.get("relevance", row.get("label", 1)))
+        if query_id is not None and doc_id is not None:
+            qrels[str(query_id)][str(doc_id)] = int(float(score))
+
+    if not corpus or not queries or not qrels:
+        raise RuntimeError(
+            "Incomplete Hugging Face SciFact mirror: "
+            f"docs={len(corpus)}, queries={len(queries)}, qrels={len(qrels)}"
+        )
+    return corpus, queries, dict(qrels)
+
+
+def load_scifact(cache_dir: Path):
+    """Prefer canonical BEIR files, falling back to the official HF Hub mirror."""
+    try:
+        return _load_scifact_from_zip(cache_dir)
+    except Exception as zip_error:
+        print(
+            "Direct SciFact ZIP download/load failed; falling back to "
+            f"Hugging Face BeIR/scifact mirror: {type(zip_error).__name__}: {zip_error}",
+            file=sys.stderr,
+            flush=True,
+        )
+        try:
+            return _load_scifact_from_hf(cache_dir / "hf-mirror")
+        except Exception as hf_error:
+            raise RuntimeError(
+                "SciFact load failed from both sources; "
+                f"ZIP error={type(zip_error).__name__}: {zip_error}; "
+                f"HF error={type(hf_error).__name__}: {hf_error}"
+            ) from hf_error
 
 def dcg(rels):
     import math
@@ -219,7 +280,13 @@ def evaluate_candidate_pool_sweep(query_ids, qrels, vector_candidates, graph_can
                 "all_queries_metrics": full_metrics,
             })
 
-    hybrid_records = [record for record in records if not record["is_vector_only_control"]]
+    # Do not label a near-vector-only configuration as a meaningful hybrid.
+    minimum_hybrid_graph_weight = 0.05
+    hybrid_records = [
+        record for record in records
+        if not record["is_vector_only_control"]
+        and record["graph_weight"] >= minimum_hybrid_graph_weight
+    ]
     best = max(
         hybrid_records,
         key=lambda record: (
@@ -240,7 +307,8 @@ def evaluate_candidate_pool_sweep(query_ids, qrels, vector_candidates, graph_can
         ),
     )
     return {
-        "selection_rule": "Maximize calibration MRR@10, then nDCG@10, then Recall@10; ties prefer more vector weight then the smaller candidate pool.",
+        "selection_rule": "Among hybrids with graph weight >= 0.05, maximize calibration MRR@10, then nDCG@10, then Recall@10; ties prefer more vector weight then the smaller candidate pool.",
+        "minimum_hybrid_graph_weight": minimum_hybrid_graph_weight,
         "candidate_depths": list(depths),
         "vector_weights": list(vector_weights),
         "calibration_query_count": len(calibration_ids),
