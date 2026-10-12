@@ -313,7 +313,7 @@ def main():
     started_utc = datetime.now(timezone.utc).isoformat()
     start_time = time.perf_counter()
     train_rows, val_rows, train_info = load_bipia_pairs(cache_dir, args.max_train_rows, args.seed)
-    tokenizer = AutoTokenizer.from_pretrained(args.base_model)
+    tokenizer = AutoTokenizer.from_pretrained(args.base_model, use_fast=False)
 
     def tokenize_batch(batch):
         encoded_rows = [
