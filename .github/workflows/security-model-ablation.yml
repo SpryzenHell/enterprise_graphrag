@@ -58,7 +58,7 @@ jobs:
           python -m pip install --upgrade pip wheel
           python -m pip install -r requirements-enterprise.txt
           python -m pip install "torch==2.6.0" --index-url https://download.pytorch.org/whl/cpu
-          python -m pip install "datasets==3.6.0" "transformers>=4.48,<5" "sentencepiece>=0.2,<1"
+          python -m pip install "datasets==3.6.0" "pyarrow==18.1.0" "transformers>=4.48,<5" "sentencepiece>=0.2,<1"
           python -m pip check
 
       - name: Compile and run security regression tests
