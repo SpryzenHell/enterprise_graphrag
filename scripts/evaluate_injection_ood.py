@@ -150,6 +150,7 @@ def score_one_config(
     ppl_key: str,
     marker_threshold: int,
     ppl_threshold: float,
+    integrated_semantic_threshold: float,
 ) -> dict:
     picked, sample_meta = choose_rows(dataset_rows, max_per_class, seed)
     if not picked:
@@ -171,6 +172,10 @@ def score_one_config(
         for threshold in thresholds
     }
     semantic_predictions = [int(score >= 0.50) for score in scores]
+    integrated_semantic_predictions = [
+        int(score >= integrated_semantic_threshold)
+        for score in scores
+    ]
 
     marker_gate = SecurityGateway(marker_threshold=marker_threshold, threshold=ppl_threshold)
     marker_results = marker_gate.inspect_many(texts, direct=False)
@@ -183,7 +188,7 @@ def score_one_config(
     score_lookup = {normalize_text(text): score for text, score in zip(texts, scores)}
     score_fn = lambda text: score_lookup.get(normalize_text(text), 0.0)
     semantic_gate = SecurityGateway(
-        classifier_threshold=0.5,
+        classifier_threshold=integrated_semantic_threshold,
         classifier_score_fn=score_fn,
         marker_threshold=marker_threshold,
         threshold=ppl_threshold,
@@ -197,7 +202,7 @@ def score_one_config(
         model=ppl_model,
         threshold=ppl_threshold,
         marker_threshold=marker_threshold,
-        classifier_threshold=0.5,
+        classifier_threshold=integrated_semantic_threshold,
         classifier_score_fn=score_fn,
     )
     if ppl_url and ppl_model:
@@ -214,7 +219,7 @@ def score_one_config(
         for result in ppl_gate_results
     ]
     ppl_candidates = sum(
-        0 < marker_count < marker_threshold and score < 0.5
+        0 < marker_count < marker_threshold and score < integrated_semantic_threshold
         for marker_count, score in zip(marker_counts, scores)
     )
     ppl_direct_latency_ms: list[float] = []
@@ -239,7 +244,7 @@ def score_one_config(
             for score in ppl_scores_by_row
         ]
         combined_predictions = [
-            int(semantic_predictions[index] or ppl_predictions[index])
+            int(integrated_semantic_predictions[index] or ppl_predictions[index])
             for index in range(len(texts))
         ]
         ppl_only_threshold_sweep[key] = binary_metrics(labels, ppl_predictions)
@@ -261,6 +266,7 @@ def score_one_config(
         "seed": seed,
         "semantic_classifier_model": classifier.classifier_model,
         "semantic_classifier_threshold": 0.5,
+        "integrated_semantic_threshold": integrated_semantic_threshold,
         "roc_auc": roc_auc(labels, scores),
         "semantic_threshold_sweep": threshold_metrics,
         "semantic_classifier_metrics_at_0.50": threshold_metrics["0.50"],
@@ -319,6 +325,12 @@ def main() -> None:
     parser.add_argument("--model", default=os.getenv("GRAGRAPH_INJECTION_CLASSIFIER", MODEL_ID))
     parser.add_argument("--max-length", type=int, default=8192)
     parser.add_argument("--window-overlap", type=int, default=512)
+    parser.add_argument(
+        "--integrated-semantic-threshold",
+        type=float,
+        default=float(os.getenv("SECURITY_CLASSIFIER_THRESHOLD", "0.5")),
+        help="Semantic threshold for marker/semantic/PPL integrated gateway evaluation.",
+    )
     args = parser.parse_args()
     if args.max_per_class < 1:
         raise SystemExit("--max-per-class must be at least 1")
@@ -378,6 +390,7 @@ def main() -> None:
                 ppl_key,
                 marker_threshold,
                 ppl_threshold,
+                args.integrated_semantic_threshold,
             )
         except Exception as exc:
             errors[config_name] = f"{type(exc).__name__}: {str(exc)[:400]}"
@@ -424,6 +437,7 @@ def main() -> None:
         f"- Source commit: {result['git_commit']}",
         f"- Elapsed seconds: {result['elapsed_seconds']}",
         f"- Model: {args.model} (Apache-2.0), device={result['environment']['classifier_device']}, maximum window={args.max_length}, overlap={args.window_overlap}.",
+        f"- Integrated gate semantic threshold: {args.integrated_semantic_threshold}; marker threshold: {marker_threshold}; PPL threshold: {ppl_threshold}.",
         f"- PPL path enabled: {bool(ppl_url and ppl_model)}; model={ppl_model or 'not configured'}.",
         f"- Fixed seed: {args.seed}; maximum selected examples per class/config: {args.max_per_class}.",
         "",
