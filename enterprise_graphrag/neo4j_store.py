@@ -71,27 +71,40 @@ class Neo4jTenantStore:
                 session.run(query).consume()
 
     def add(self, tenant: str, doc: dict) -> None:
-        entities = extract_entities(doc["text"])
+        self.add_many(tenant, [doc])
+
+    def add_many(self, tenant: str, documents: list[dict]) -> None:
+        """Bulk-upsert documents and tenant-scoped entity relationships in one query."""
+        if not documents:
+            return
+        rows = [
+            {
+                "doc_id": doc["doc_id"],
+                "title": doc["title"],
+                "text": doc["text"],
+                "entities": extract_entities(doc["text"]),
+            }
+            for doc in documents
+        ]
         query = """
-        MERGE (d:Document {tenant_id:$tenant, doc_id:$doc_id})
-        SET d.title=$title, d.text=$text
-        WITH d
+        UNWIND $documents AS item
+        MERGE (d:Document {tenant_id:$tenant, doc_id:item.doc_id})
+        SET d.title=item.title, d.text=item.text
+        WITH d, item
         OPTIONAL MATCH (d)-[r:MENTIONS]->(:Entity {tenant_id:$tenant})
         DELETE r
-        WITH d
-        UNWIND $entities AS name
-        MERGE (e:Entity {tenant_id:$tenant, key:toLower(name)})
-        SET e.name=name
-        MERGE (d)-[:MENTIONS]->(e)
+        WITH DISTINCT d, item
+        FOREACH (name IN item.entities |
+            MERGE (e:Entity {tenant_id:$tenant, key:toLower(name)})
+            SET e.name=name
+            MERGE (d)-[:MENTIONS]->(e)
+        )
         """
         with self.driver.session(database=self.database) as session:
             session.run(
                 query,
                 tenant=tenant,
-                doc_id=doc["doc_id"],
-                title=doc["title"],
-                text=doc["text"],
-                entities=entities,
+                documents=rows,
             ).consume()
 
     def search(

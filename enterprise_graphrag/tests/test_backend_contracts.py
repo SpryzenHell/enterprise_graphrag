@@ -1,3 +1,5 @@
+import pytest
+import math
 import types
 
 import httpx
@@ -65,15 +67,15 @@ def test_vllm_prompt_logprob_ppl_contract(monkeypatch):
             return None
 
         def json(self):
+            # OpenAI-compatible /v1/completions echo+logprobs response returned
+            # by vLLM 0.7.x. The first prompt token commonly has no predecessor.
             return {
                 "choices": [
                     {
-                        "prompt_logprobs": [
-                            None,
-                            {"11": {"logprob": -1.0}},
-                            {"12": {"logprob": -1.5}},
-                        ],
-                        "prompt_token_ids": [10, 11, 12]
+                        "logprobs": {
+                            "token_logprobs": [None, -1.0, -1.5],
+                            "tokens": ["hello", " world", "!"],
+                        }
                     }
                 ]
             }
@@ -95,10 +97,15 @@ def test_vllm_prompt_logprob_ppl_contract(monkeypatch):
     score = gateway.perplexity("hello world")
 
     assert score is not None
+    assert score == pytest.approx(math.exp(1.25))
     assert captured["url"] == "http://localhost:8000/v1/completions"
-    assert captured["json"]["prompt_logprobs"] == 1
-    assert captured["json"]["return_token_ids"] is True
-
+    assert captured["json"]["model"] == "served-model"
+    assert captured["json"]["prompt"] == "hello world"
+    assert captured["json"]["echo"] is True
+    assert captured["json"]["logprobs"] == 1
+    assert captured["json"]["max_tokens"] == 0
+    assert "prompt_logprobs" not in captured["json"]
+    assert "return_token_ids" not in captured["json"]
 
 def test_neo4j_adapter_keeps_tenant_predicates(monkeypatch):
     calls = []

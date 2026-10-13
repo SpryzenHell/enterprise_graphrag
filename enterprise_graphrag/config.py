@@ -166,6 +166,32 @@ class Settings:
             "2",
         )
     )
+    security_classifier_model: str = os.getenv(
+        "SECURITY_CLASSIFIER_MODEL",
+        "",
+    )
+    security_classifier_threshold: float = float(
+        os.getenv(
+            "SECURITY_CLASSIFIER_THRESHOLD",
+            "0.5",
+        )
+    )
+    security_classifier_max_length: int = int(
+        os.getenv(
+            "SECURITY_CLASSIFIER_MAX_LENGTH",
+            "8192",
+        )
+    )
+    security_classifier_device: str = os.getenv(
+        "SECURITY_CLASSIFIER_DEVICE",
+        "auto",
+    )
+    security_classifier_window_overlap: int = int(
+        os.getenv(
+            "SECURITY_CLASSIFIER_WINDOW_OVERLAP",
+            "512",
+        )
+    )
 
     rrf_k: int = int(
         os.getenv(
@@ -305,6 +331,22 @@ class Settings:
         if self.security_marker_threshold <= 0:
             problems.append(
                 "SECURITY_MARKER_THRESHOLD must be greater than zero"
+            )
+        if not 0.0 <= self.security_classifier_threshold <= 1.0:
+            problems.append(
+                "SECURITY_CLASSIFIER_THRESHOLD must be between 0 and 1"
+            )
+        if not 8 <= self.security_classifier_max_length <= 8192:
+            problems.append(
+                "SECURITY_CLASSIFIER_MAX_LENGTH must be between 8 and 8192"
+            )
+        if self.security_classifier_device not in {"auto", "cpu", "cuda", "cuda:0", "cuda:1", "cuda:2", "cuda:3"}:
+            problems.append(
+                "SECURITY_CLASSIFIER_DEVICE must be auto, cpu, cuda, or cuda:N for N in 0..3"
+            )
+        if not 0 <= self.security_classifier_window_overlap < self.security_classifier_max_length - 2:
+            problems.append(
+                "SECURITY_CLASSIFIER_WINDOW_OVERLAP must be non-negative and smaller than SECURITY_CLASSIFIER_MAX_LENGTH - 2"
             )
         if self.rrf_k <= 0:
             problems.append("RRF_K must be greater than zero")

@@ -53,7 +53,7 @@ def main() -> None:
     parser.add_argument(
         "--timeout",
         type=float,
-        default=10.0,
+        default=180.0,
     )
     args = parser.parse_args()
 
