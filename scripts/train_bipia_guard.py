@@ -19,6 +19,7 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer, Data
 BIPIA_DATASET = "geodesic-research/bipia"
 EVAL_DATASET = "Horizon-Labs/prompt-injection-eval-suite"
 BASE_MODEL = "microsoft/deberta-v3-base"
+MODEL_LICENSE = "MIT"
 MAX_LENGTH = 512
 WINDOW_OVERLAP = 64
 DATASET_LICENSES = {
