@@ -512,6 +512,13 @@ def main() -> None:
         lines += ["", "Semantic OR PPL threshold sweep (threshold: TPR / FPR / F1):", ""]
         for threshold, scores in values["perplexity"]["threshold_sweep_semantic_or_ppl"].items():
             lines.append(f"- Semantic OR PPL {threshold}: {scores['recall_tpr']:.4f} / {scores['fpr']:.4f} / {scores['f1']:.4f}")
+        lines += ["", "Conditional cascade sweep (semantic min / PPL threshold: TPR / FPR / F1):", ""]
+        for min_score, sweep in values["perplexity"]["conditional_policy_min_semantic_score_sweep"].items():
+            for threshold, scores in sweep.items():
+                lines.append(
+                    f"- semantic_min={min_score}, PPL={threshold}: "
+                    f"{scores['recall_tpr']:.4f} / {scores['fpr']:.4f} / {scores['f1']:.4f}"
+                )
         lines.append("")
     if errors:
         lines += ["## Configs not completed", ""]
