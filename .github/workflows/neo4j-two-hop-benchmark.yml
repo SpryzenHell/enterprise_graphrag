@@ -9,6 +9,7 @@ on:
       - "enterprise_graphrag/neo4j_store.py"
       - "enterprise_graphrag/tests/test_neo4j_integration.py"
       - "scripts/run_real_benchmarks.py"
+      - "scripts/benchmark_multihop_enterprise.py"
   workflow_dispatch:
 
 permissions:
@@ -82,10 +83,20 @@ jobs:
             --skip-security \
             --seed 20261012
 
+      - name: Measure enterprise multi-hop contribution and held-out RRF
+        run: |
+          set -euo pipefail
+          python scripts/benchmark_multihop_enterprise.py \
+            --output-dir artifacts/enterprise-multihop \
+            --num-queries 40 \
+            --seed 20261014
+
       - name: Upload retrieval metrics
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: graphrag-neo4j-two-hop-${{ github.run_id }}
-          path: artifacts/neo4j-two-hop/
+          path: |
+            artifacts/neo4j-two-hop/
+            artifacts/enterprise-multihop/
           if-no-files-found: warn
