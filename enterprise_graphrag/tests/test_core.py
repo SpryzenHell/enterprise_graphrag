@@ -1097,3 +1097,12 @@ def test_ppl_not_configured_does_not_block_second_stage_by_accident(monkeypatch)
     decision = gateway.inspect("ordinary contextual passage", direct=False)
     assert decision["allowed"] is True
     assert decision["reason"] == "allowed"
+
+
+def test_ppl_policy_helper_matches_fail_closed_configuration_contract():
+    block = SecurityGateway._ppl_policy_blocks
+    assert block(eligible=True, configured=True, perplexity=None, threshold=80) is True
+    assert block(eligible=True, configured=False, perplexity=None, threshold=80) is False
+    assert block(eligible=True, configured=True, perplexity=79.99, threshold=80) is False
+    assert block(eligible=True, configured=True, perplexity=80.0, threshold=80) is True
+    assert block(eligible=False, configured=True, perplexity=None, threshold=80) is False
