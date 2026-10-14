@@ -94,7 +94,10 @@ def load_mixed_rows(cache_dir: str, max_bipia_rows: int, seed: int):
         label = parse_label(row.get("label"))
         if len(text) < 8 or label is None:
             continue
-        group_id = str(row.get("group_id") or normalized_hash(text))
+        raw_group_id = row.get("group_id")
+        group_id = str(raw_group_id).strip() if raw_group_id is not None else ""
+        if not group_id or group_id.casefold() in {"nan", "none", "null"}:
+            group_id = normalized_hash(text)
         grouped["mixed:" + group_id].append({
             "text": text,
             "label": label,
