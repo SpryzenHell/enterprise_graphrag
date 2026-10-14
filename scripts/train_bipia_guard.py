@@ -34,12 +34,13 @@ DATASET_LICENSES = {
 def remove_attack(text: str, attack: str) -> tuple[str, bool]:
     if not attack:
         return text, False
-    pos = text.find(attack)
-    if pos < 0:
-        pos = text.lower().find(attack.lower())
-    if pos < 0:
+    # Remove every occurrence case-insensitively. A payload may appear more than
+    # once in a document; leaving a second copy in the negative would poison the
+    # label and make the pair-integrity assertions fail for the wrong reason.
+    pattern = re.compile(re.escape(attack), re.IGNORECASE)
+    if not pattern.search(text):
         return text, False
-    clean = text[:pos] + " " + text[pos + len(attack):]
+    clean = pattern.sub(" ", text)
     clean = re.sub(r"[ \t]+\n", "\n", clean)
     clean = re.sub(r"\n[ \t]+", "\n", clean)
     clean = re.sub(r"\n{3,}", "\n\n", clean)
