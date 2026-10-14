@@ -1148,3 +1148,24 @@ def test_ppl_not_configured_does_not_block_second_stage_by_accident(monkeypatch)
 
     assert decision["allowed"] is True
     assert decision["reason"] == "allowed"
+
+
+def test_perplexity_returns_none_for_empty_malformed_choices(monkeypatch):
+    import httpx
+
+    gateway = SecurityGateway(base_url="http://vllm.test", model="qwen-test")
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"choices": []}
+
+    monkeypatch.setattr(
+        httpx,
+        "post",
+        lambda *args, **kwargs: FakeResponse(),
+    )
+
+    assert gateway.perplexity("candidate passage") is None
