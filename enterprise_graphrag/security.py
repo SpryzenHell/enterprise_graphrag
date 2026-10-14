@@ -360,8 +360,20 @@ class SecurityGateway:
                 and self.ppl_min_classifier_score <= classifier_score < self.classifier_threshold
             )
             ppl_eligible = marker_count >= 1 or borderline_semantic
+            ppl_configured = bool(self.base_url and self.model)
             perplexity = self.perplexity(normalized[index]) if ppl_eligible else None
-            if perplexity is not None and perplexity >= self.threshold and ppl_eligible:
+            if ppl_eligible and ppl_configured and perplexity is None:
+                # Do not silently accept content that was routed to the second-stage
+                # security check when the configured scorer timed out, returned a
+                # malformed response, or produced no usable token likelihoods.
+                decisions[index] = self._decision(
+                    False,
+                    "perplexity evaluation unavailable (blocked closed)",
+                    marker_count,
+                    None,
+                    classifier_score,
+                )
+            elif perplexity is not None and perplexity >= self.threshold and ppl_eligible:
                 reason = (
                     "high perplexity plus injection marker"
                     if marker_count >= 1
