@@ -80,9 +80,10 @@ class Neo4jTenantStore:
         self.add_many(tenant, [doc])
 
     def add_many(self, tenant: str, documents: list[dict]) -> None:
-        """Bulk-upsert documents and tenant-scoped entity relationships in one query."""
+        """Bulk upsert tenant documents, then build tenant-scoped entity edges."""
         if not documents:
             return
+
         rows = [
             {
                 "doc_id": doc["doc_id"],
@@ -91,11 +92,12 @@ class Neo4jTenantStore:
                 "entities": [
                     {
                         "name": name,
+                        "key": name.lower(),
                         "search_terms": sorted(
-                            set(
+                            {
                                 token.lower()
                                 for token in re.findall(r"[A-Za-z0-9]{3,}", name)
-                            )
+                            }
                         ),
                     }
                     for name in extract_entities(doc["title"] + " " + doc["text"])
@@ -103,28 +105,40 @@ class Neo4jTenantStore:
             }
             for doc in documents
         ]
-        query = """
+
+        upsert_documents = """
         UNWIND $documents AS item
         MERGE (d:Document {tenant_id:$tenant, doc_id:item.doc_id})
-        SET d.title=item.title,
-            d.text=item.text
-        WITH d, item
-        OPTIONAL MATCH (d)-[r:MENTIONS]->(:Entity {tenant_id:$tenant})
+        SET d.title = item.title,
+            d.text = item.text
+        WITH d
+        OPTIONAL MATCH (d)-[r:MENTIONS]->(e:Entity {tenant_id:$tenant})
         DELETE r
-        WITH DISTINCT d, item
-        FOREACH (entity IN item.entities |
-            MERGE (e:Entity {tenant_id:$tenant, key:toLower(entity.name)})
-            SET e.name=entity.name,
-                e.search_terms=entity.search_terms
-            MERGE (d)-[:MENTIONS]->(e)
-        )
         """
+
+        upsert_mentions = """
+        UNWIND $documents AS item
+        MATCH (d:Document {tenant_id:$tenant, doc_id:item.doc_id})
+        WITH d, item
+        UNWIND item.entities AS entity
+        MERGE (e:Entity {tenant_id:$tenant, key:entity.key})
+        SET e.name = entity.name,
+            e.search_terms = entity.search_terms
+        MERGE (d)-[:MENTIONS]->(e)
+        """
+
         with self.driver.session(database=self.database) as session:
             session.run(
-                query,
+                upsert_documents,
                 tenant=tenant,
                 documents=rows,
             ).consume()
+            session.run(
+                upsert_mentions,
+                tenant=tenant,
+                documents=rows,
+            ).consume()
+
 
     def search(
         self,
