@@ -64,11 +64,17 @@ class Neo4jTenantStore:
                 "CREATE INDEX entity_tenant IF NOT EXISTS "
                 "FOR (e:Entity) ON (e.tenant_id)"
             ),
+            (
+                "CREATE FULLTEXT INDEX document_text_fulltext IF NOT EXISTS "
+                "FOR (d:Document) ON EACH [d.title, d.text]"
+            ),
         ]
 
         with self.driver.session(database=self.database) as session:
             for query in queries:
                 session.run(query).consume()
+            # Searches must not race the asynchronous full-text index build.
+            session.run("CALL db.awaitIndexes(60)").consume()
 
     def add(self, tenant: str, doc: dict) -> None:
         self.add_many(tenant, [doc])
@@ -82,16 +88,18 @@ class Neo4jTenantStore:
                 "doc_id": doc["doc_id"],
                 "title": doc["title"],
                 "text": doc["text"],
-                "entities": extract_entities(doc["text"]),
-                "search_terms": sorted(
-                    set(
-                        token.lower()
-                        for token in re.findall(
-                            r"[A-Za-z0-9]{3,}",
-                            doc["title"] + " " + doc["text"],
-                        )
-                    )
-                )[:2048],
+                "entities": [
+                    {
+                        "name": name,
+                        "search_terms": sorted(
+                            set(
+                                token.lower()
+                                for token in re.findall(r"[A-Za-z0-9]{3,}", name)
+                            )
+                        ),
+                    }
+                    for name in extract_entities(doc["title"] + " " + doc["text"])
+                ],
             }
             for doc in documents
         ]
@@ -99,15 +107,15 @@ class Neo4jTenantStore:
         UNWIND $documents AS item
         MERGE (d:Document {tenant_id:$tenant, doc_id:item.doc_id})
         SET d.title=item.title,
-            d.text=item.text,
-            d.search_terms=item.search_terms
+            d.text=item.text
         WITH d, item
         OPTIONAL MATCH (d)-[r:MENTIONS]->(:Entity {tenant_id:$tenant})
         DELETE r
         WITH DISTINCT d, item
-        FOREACH (name IN item.entities |
-            MERGE (e:Entity {tenant_id:$tenant, key:toLower(name)})
-            SET e.name=name
+        FOREACH (entity IN item.entities |
+            MERGE (e:Entity {tenant_id:$tenant, key:toLower(entity.name)})
+            SET e.name=entity.name,
+                e.search_terms=entity.search_terms
             MERGE (d)-[:MENTIONS]->(e)
         )
         """
@@ -124,59 +132,59 @@ class Neo4jTenantStore:
         query_text: str,
         limit: int,
     ) -> list[Hit]:
-        """Return lexical/entity matches plus tenant-safe two-hop graph neighbors.
+        """Use indexed full-text retrieval and tenant-filtered two-hop graph traversal.
 
-        The direct path preserves the previous ranking behavior. The traversal path
-        follows query-matched entity -> anchor document -> shared entity ->
-        candidate document, which can retrieve evidence that does not repeat the
-        query's exact terms. Every node match is constrained by the authenticated
-        tenant so a shared entity name cannot bridge two tenants.
+        Full-text scores give graph-only retrieval a useful lexical ranking rather than
+        assigning nearly identical scores to documents that happen to contain common
+        query tokens. Tenant filtering remains inside each Cypher query, before rows
+        are returned to the application. The second path adds linked evidence that
+        need not repeat the original query terms.
         """
         terms = [
             token.lower()
-            for token in re.findall(
-                r"[A-Za-z0-9]{3,}",
-                query_text,
-            )
+            for token in re.findall(r"[A-Za-z0-9]{3,}", query_text)
         ][:12]
         if not terms or limit < 1:
             return []
 
+        # Every term is generated from an ASCII alphanumeric regex, then quoted for
+        # Lucene. OR recall is important for questions where relevant evidence shares
+        # only one or two content words with the user query.
+        fulltext_query = " OR ".join(f'"{term}"' for term in terms)
+
         direct_query = """
-        MATCH (d:Document {tenant_id:$tenant})
-        // Filter documents before expanding entity relationships; scanning every
-        // document's relationships made each Neo4j query take seconds on SciFact.
-        WHERE any(term IN $terms WHERE term IN coalesce(d.search_terms, []))
+        CALL db.index.fulltext.queryNodes(
+            "document_text_fulltext",
+            $fulltext_query
+        )
+        YIELD node AS d, score AS lexical_score
+        WHERE d.tenant_id = $tenant
         OPTIONAL MATCH (d)-[:MENTIONS]->(e:Entity {tenant_id:$tenant})
-        WITH d, collect(DISTINCT e.name) AS entity_names
+        WITH d, lexical_score, collect(DISTINCT e.name) AS entity_names
         WITH d,
-             size([
+             lexical_score
+             + 0.15 * size([
                  term IN $terms
                  WHERE any(name IN entity_names WHERE toLower(name) CONTAINS term)
-             ]) AS entity_hits,
-             size([
+             ])
+             + 0.05 * size([
                  term IN $terms
                  WHERE toLower(d.title) CONTAINS term
-             ]) AS title_hits,
-             size([
-                 term IN $terms
-                 WHERE term IN coalesce(d.search_terms, [])
-             ]) AS text_hits
-        WHERE entity_hits + title_hits + text_hits > 0
+             ]) AS score
         RETURN d.doc_id AS doc_id,
                d.title AS title,
                d.text AS text,
-               (2.0 * entity_hits + 0.5 * title_hits + 0.1 * text_hits) AS score
+               score AS score
         ORDER BY score DESC, doc_id
         LIMIT $limit
         """
 
-        # Bounded two-hop traversal over the tenant's bipartite document/entity
-        # graph. It only seeds entities that match query terms and then discovers
-        # documents attached through a different entity on the anchor document.
+        # Bounded two-hop traversal:
+        # query-matched entity -> anchor document -> shared entity -> candidate doc.
+        # Indexed entity tokens avoid scanning every entity name with CONTAINS.
         traversal_query = """
         MATCH (seed:Entity {tenant_id:$tenant})
-        WHERE any(term IN $terms WHERE toLower(seed.name) CONTAINS term)
+        WHERE any(term IN $terms WHERE term IN coalesce(seed.search_terms, []))
         MATCH (seed)<-[:MENTIONS]-(anchor:Document {tenant_id:$tenant})
         MATCH (anchor)-[:MENTIONS]->(bridge:Entity {tenant_id:$tenant})
         WHERE bridge.key <> seed.key
@@ -199,31 +207,32 @@ class Neo4jTenantStore:
         """
 
         def collect_rows(result) -> list:
-            # Neo4j Driver Result is iterable; a data() method is also supported
-            # by some driver cursors and simple result doubles in contract tests.
             data_method = getattr(result, "data", None)
             if callable(data_method):
                 return list(data_method())
             try:
                 return list(result)
             except TypeError:
-                # Schema/write-only test doubles return a result with only
-                # consume(); those should behave as an empty result set.
                 return []
 
         with self.driver.session(database=self.database) as session:
-            direct_rows = collect_rows(session.run(
-                direct_query,
-                tenant=tenant,
-                terms=terms,
-                limit=limit,
-            ))
-            traversal_rows = collect_rows(session.run(
-                traversal_query,
-                tenant=tenant,
-                terms=terms,
-                limit=limit,
-            ))
+            direct_rows = collect_rows(
+                session.run(
+                    direct_query,
+                    tenant=tenant,
+                    terms=terms,
+                    fulltext_query=fulltext_query,
+                    limit=limit,
+                )
+            )
+            traversal_rows = collect_rows(
+                session.run(
+                    traversal_query,
+                    tenant=tenant,
+                    terms=terms,
+                    limit=limit,
+                )
+            )
 
         hits_by_id: dict[str, Hit] = {}
         for row in direct_rows:
@@ -241,6 +250,7 @@ class Neo4jTenantStore:
                     "text": row["text"],
                     "traversal_hops": 0,
                     "traversal_score": 0.0,
+                    "retrieval_path": "fulltext",
                 },
             )
 
@@ -249,9 +259,6 @@ class Neo4jTenantStore:
             traversal_score = float(row["score"])
             if doc_id in hits_by_id:
                 hit = hits_by_id[doc_id]
-                # Hit is a frozen dataclass. Rebuild it with the combined score
-                # instead of assigning to hit.score; keep direct and traversal
-                # evidence together so the benchmark works for overlap candidates.
                 hits_by_id[doc_id] = Hit(
                     doc_id=hit.doc_id,
                     title=hit.title,
@@ -265,6 +272,7 @@ class Neo4jTenantStore:
                         "traversal_hops": 2,
                         "anchor_docs": row["anchor_docs"],
                         "bridge_entities": row["bridge_keys"],
+                        "retrieval_path": "fulltext+two_hop",
                     },
                 )
             else:
@@ -283,6 +291,7 @@ class Neo4jTenantStore:
                         "traversal_score": traversal_score,
                         "anchor_docs": row["anchor_docs"],
                         "bridge_entities": row["bridge_keys"],
+                        "retrieval_path": "two_hop",
                     },
                 )
 
