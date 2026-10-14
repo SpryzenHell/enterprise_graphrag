@@ -1028,3 +1028,46 @@ def test_ppl_min_classifier_score_must_be_in_probability_range():
         assert "ppl_min_classifier_score" in str(exc)
     else:
         raise AssertionError("invalid PPL semantic floor was accepted")
+
+
+def test_perplexity_falls_back_to_openai_echo_token_logprobs(monkeypatch):
+    import httpx
+    import math
+
+    gateway = SecurityGateway(
+        base_url="http://vllm.test",
+        model="qwen-test",
+        threshold=80,
+    )
+    captured = {}
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            # Older compatible servers may omit the vLLM-specific
+            # prompt_token_ids field. The echoed OpenAI logprobs sequence
+            # still contains the observed prompt token likelihoods.
+            return {
+                "choices": [
+                    {
+                        "logprobs": {
+                            "token_logprobs": [None, -1.0, -2.0],
+                        }
+                    }
+                ]
+            }
+
+    def fake_post(url, headers, json, timeout):
+        captured.update({"url": url, "headers": headers, "json": json, "timeout": timeout})
+        return FakeResponse()
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    score = gateway.perplexity("policy text")
+
+    assert captured["json"]["echo"] is True
+    assert captured["json"]["max_tokens"] == 0
+    assert captured["json"]["logprobs"] == 1
+    assert score is not None
+    assert abs(score - math.exp(1.5)) < 1e-8
