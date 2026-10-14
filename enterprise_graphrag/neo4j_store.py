@@ -83,13 +83,24 @@ class Neo4jTenantStore:
                 "title": doc["title"],
                 "text": doc["text"],
                 "entities": extract_entities(doc["text"]),
+                "search_terms": sorted(
+                    set(
+                        token.lower()
+                        for token in re.findall(
+                            r"[A-Za-z0-9]{3,}",
+                            doc["title"] + " " + doc["text"],
+                        )
+                    )
+                )[:2048],
             }
             for doc in documents
         ]
         query = """
         UNWIND $documents AS item
         MERGE (d:Document {tenant_id:$tenant, doc_id:item.doc_id})
-        SET d.title=item.title, d.text=item.text
+        SET d.title=item.title,
+            d.text=item.text,
+            d.search_terms=item.search_terms
         WITH d, item
         OPTIONAL MATCH (d)-[r:MENTIONS]->(:Entity {tenant_id:$tenant})
         DELETE r
@@ -133,6 +144,9 @@ class Neo4jTenantStore:
 
         direct_query = """
         MATCH (d:Document {tenant_id:$tenant})
+        // Filter documents before expanding entity relationships; scanning every
+        // document's relationships made each Neo4j query take seconds on SciFact.
+        WHERE any(term IN $terms WHERE term IN coalesce(d.search_terms, []))
         OPTIONAL MATCH (d)-[:MENTIONS]->(e:Entity {tenant_id:$tenant})
         WITH d, collect(DISTINCT e.name) AS entity_names
         WITH d,
@@ -146,7 +160,7 @@ class Neo4jTenantStore:
              ]) AS title_hits,
              size([
                  term IN $terms
-                 WHERE toLower(d.text) CONTAINS term
+                 WHERE term IN coalesce(d.search_terms, [])
              ]) AS text_hits
         WHERE entity_hits + title_hits + text_hits > 0
         RETURN d.doc_id AS doc_id,
@@ -161,9 +175,8 @@ class Neo4jTenantStore:
         # graph. It only seeds entities that match query terms and then discovers
         # documents attached through a different entity on the anchor document.
         traversal_query = """
-        UNWIND $terms AS term
         MATCH (seed:Entity {tenant_id:$tenant})
-        WHERE toLower(seed.name) CONTAINS term
+        WHERE any(term IN $terms WHERE toLower(seed.name) CONTAINS term)
         MATCH (seed)<-[:MENTIONS]-(anchor:Document {tenant_id:$tenant})
         MATCH (anchor)-[:MENTIONS]->(bridge:Entity {tenant_id:$tenant})
         WHERE bridge.key <> seed.key
