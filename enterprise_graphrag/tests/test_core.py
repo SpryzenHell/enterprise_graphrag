@@ -1070,4 +1070,6 @@ def test_perplexity_uses_echo_prompt_only_token_logprobs(monkeypatch):
     assert captured["json"]["max_tokens"] == 0
     assert captured["json"]["prompt_logprobs"] == 1
     assert captured["json"]["return_token_ids"] is True
-    assert score == pytest.approx((2.718281828459045 * 7.38905609893065) ** 0.5)
+    import math
+
+    assert abs(score - math.exp(1.5)) < 1e-8
