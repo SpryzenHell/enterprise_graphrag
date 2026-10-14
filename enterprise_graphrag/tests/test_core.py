@@ -1033,6 +1033,7 @@ def test_ppl_min_classifier_score_must_be_in_probability_range():
 
 def test_perplexity_uses_echo_prompt_only_token_logprobs(monkeypatch):
     import httpx
+    import pytest
 
     gateway = SecurityGateway(
         base_url="http://vllm.test",
