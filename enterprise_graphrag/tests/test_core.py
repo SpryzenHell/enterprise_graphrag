@@ -1169,3 +1169,12 @@ def test_perplexity_returns_none_for_empty_malformed_choices(monkeypatch):
     )
 
     assert gateway.perplexity("candidate passage") is None
+
+
+def test_ppl_policy_helper_matches_fail_closed_configuration_contract():
+    block = SecurityGateway._ppl_policy_blocks
+    assert block(eligible=True, configured=True, perplexity=None, threshold=80) is True
+    assert block(eligible=True, configured=False, perplexity=None, threshold=80) is False
+    assert block(eligible=True, configured=True, perplexity=79.99, threshold=80) is False
+    assert block(eligible=True, configured=True, perplexity=80.0, threshold=80) is True
+    assert block(eligible=False, configured=True, perplexity=None, threshold=80) is False
