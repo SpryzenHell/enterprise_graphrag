@@ -15,6 +15,7 @@ import torch
 from datasets import Dataset, load_dataset
 from sklearn.metrics import roc_auc_score
 from transformers import AutoModelForSequenceClassification, AutoTokenizer, DataCollatorWithPadding, Trainer, TrainingArguments
+from enterprise_graphrag.training_pairs import build_clean_poison_pair
 
 BIPIA_DATASET = "geodesic-research/bipia"
 EVAL_DATASET = "Horizon-Labs/prompt-injection-eval-suite"
@@ -30,36 +31,6 @@ DATASET_LICENSES = {
     "orbench_hard": "CC-BY-4.0",
 }
 
-
-def remove_attack(text: str, attack: str) -> tuple[str, bool]:
-    if not attack:
-        return text, False
-    # Remove every occurrence case-insensitively. A payload may appear more than
-    # once in a document; leaving a second copy in the negative would poison the
-    # label and make the pair-integrity assertions fail for the wrong reason.
-    pattern = re.compile(re.escape(attack), re.IGNORECASE)
-    if not pattern.search(text):
-        return text, False
-    clean = pattern.sub(" ", text)
-    clean = re.sub(r"[ \t]+\n", "\n", clean)
-    clean = re.sub(r"\n[ \t]+", "\n", clean)
-    clean = re.sub(r"\n{3,}", "\n\n", clean)
-    return clean.strip(), True
-
-
-def insert_attack(text: str, attack: str, position: str) -> str:
-    position = (position or "end").lower()
-    if position == "start":
-        return attack + "\n" + text
-    if position == "middle":
-        index = len(text) // 2
-        right = text.find(" ", index)
-        left = text.rfind(" ", 0, index)
-        choices = [i for i in (left, right) if i >= 0]
-        if choices:
-            index = min(choices, key=lambda i: abs(i - index))
-        return text[:index] + "\n" + attack + "\n" + text[index:]
-    return text + "\n" + attack
 
 
 def digest_context(text: str) -> str:
@@ -149,14 +120,14 @@ def load_bipia_pairs(cache_dir: str, max_rows: int, seed: int):
     for row in rows:
         context = str(row["context"]).strip()
         attack = str(row["attack_str"]).strip()
-        clean, found = remove_attack(context, attack)
+        clean, poisoned, found = build_clean_poison_pair(
+            context,
+            attack,
+            str(row.get("position") or "end"),
+        )
         if found:
-            poisoned = context
             matched += 1
         else:
-            # Supports source rows that store the clean base context separately.
-            clean = context
-            poisoned = insert_attack(context, attack, str(row.get("position") or "end"))
             reconstructed += 1
         if len(clean) < 8:
             continue
