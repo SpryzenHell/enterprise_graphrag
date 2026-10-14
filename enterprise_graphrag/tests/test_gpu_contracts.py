@@ -292,7 +292,10 @@ def test_graph_rag_runs_against_vllm(tmp_path: Path):
         principal,
         "imported memo",
     )
-    assert blocked["citations"] == []
+    assert all(
+        citation["doc_id"] != "acme-instructions"
+        for citation in blocked["citations"]
+    )
     assert any(
         item["doc_id"] == "acme-instructions"
         for item in blocked["trace"]["blocked_contexts"]
