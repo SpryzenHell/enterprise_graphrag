@@ -480,6 +480,19 @@ def main():
     tokenizer.save_pretrained(str(model_dir))
     external = external_evaluation(model_dir, cache_dir, args.eval_max_per_class, args.seed)
 
+    base_bipia = baseline_eval["configs"]["bipia"]["calibrated_threshold_metrics"] or {}
+    base_piarena = baseline_eval["configs"]["piarena"]["calibrated_threshold_metrics"] or {}
+    tuned_bipia = external["configs"]["bipia"]["calibrated_threshold_metrics"] or {}
+    tuned_piarena = external["configs"]["piarena"]["calibrated_threshold_metrics"] or {}
+    tuned_notinject = external["configs"]["notinject"]["calibrated_threshold_metrics"] or {}
+    tuned_orbench = external["configs"]["orbench_hard"]["calibrated_threshold_metrics"] or {}
+    benign_fprs = [m.get("fpr") for m in (tuned_notinject, tuned_orbench) if m.get("fpr") is not None]
+    benign_fpr_ok = len(benign_fprs) == 2 and all(value <= 0.05 for value in benign_fprs)
+    bipia_improved = tuned_bipia.get("recall_tpr", 0.0) >= base_bipia.get("recall_tpr", 0.0) + 0.05
+    piarena_preserved = tuned_piarena.get("recall_tpr", 0.0) >= base_piarena.get("recall_tpr", 0.0) - 0.02
+    selected_finetuned = bool(benign_fpr_ok and bipia_improved and piarena_preserved)
+    recommended_default = str(model_dir) if selected_finetuned else args.base_model
+
     result = {
         "schema_version": 1,
         "started_utc": started_utc,
@@ -496,6 +509,7 @@ def main():
             "epochs": args.epochs,
             "train_batch_size": args.train_batch_size,
             "gradient_accumulation_steps": args.gradient_accumulation_steps,
+            "learning_rate": args.learning_rate,
             "max_sequence_length": MAX_LENGTH,
             "window_overlap": WINDOW_OVERLAP,
         },
@@ -503,6 +517,21 @@ def main():
         "validation_metrics": validation,
         "baseline_eval": baseline_eval,
         "external_eval": external,
+        "candidate_selection": {
+            "selected_finetuned_checkpoint": selected_finetuned,
+            "recommended_default_model": recommended_default,
+            "benign_fpr_ok": benign_fpr_ok,
+            "bipia_improved_by_5_points": bipia_improved,
+            "piarena_preserved_within_2_points": piarena_preserved,
+            "rule": "Only select fine-tuned candidate if calibrated held-out FPR <=5% on both NotInject and OR-Bench-hard, BIPIA TPR improves >=5 points, and PIArena TPR degrades by no more than 2 points.",
+            "baseline_calibrated": {"bipia": base_bipia, "piarena": base_piarena},
+            "finetuned_calibrated": {
+                "bipia": tuned_bipia,
+                "piarena": tuned_piarena,
+                "notinject": tuned_notinject,
+                "orbench_hard": tuned_orbench,
+            },
+        },
         "note": (
             "BIPIA source contexts and attack strings may overlap conceptually with the BIPIA benchmark family. "
             "Treat BIPIA results as in-family diagnostics; prioritize PIArena and benign hard-negative results for generalization. "
