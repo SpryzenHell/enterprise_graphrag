@@ -264,7 +264,12 @@ def test_mcp_query_cannot_cross_tenant(tmp_path):
                 "method": "tools/call",
                 "params": {
                     "name": "hybrid_search",
-                    "arguments": {"query": "Globex Policy", "top_k": 5},
+                    "arguments": {
+                        "query": "Globex Policy",
+                        "top_k": 5,
+                        # An untrusted tool argument must not override JWT tenant.
+                        "tenant_id": "globex",
+                    },
                 },
             },
         )
