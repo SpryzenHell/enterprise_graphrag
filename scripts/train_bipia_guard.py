@@ -548,7 +548,7 @@ def main():
         f"- Started UTC: {result['started_utc']}",
         f"- Completed UTC: {result['completed_utc']}",
         f"- Runtime: {result['elapsed_seconds']} seconds",
-        f"- Base model: {args.base_model} (MIT)",
+        f"- Base model: {args.base_model} ({MODEL_LICENSE})",
         f"- Training source: {BIPIA_DATASET}/bipia (CC-BY-SA-4.0)",
         f"- Selected source rows: {train_info['selected_source_rows']} / {train_info['dataset_rows_available']}",
         f"- Unique contexts: {train_info['unique_clean_contexts']}; training pairs: {train_info['train_examples']}; validation pairs: {train_info['validation_examples']}",
@@ -569,6 +569,18 @@ def main():
             f"{mc['recall_tpr'] if mc else 'n/a'} | {mc['fpr'] if mc else 'n/a'} | "
             f"{mc['f1'] if mc else 'n/a'} |"
         )
+    selection = result["candidate_selection"]
+    lines += [
+        "",
+        "## Pretrained baseline vs fine-tuned candidate",
+        "",
+        f"- Fine-tuned checkpoint selected: {selection['selected_finetuned_checkpoint']}",
+        f"- Recommended default model: {selection['recommended_default_model']}",
+        f"- Held-out benign FPR gate passed: {selection['benign_fpr_ok']}",
+        f"- BIPIA TPR improved by 5 points: {selection['bipia_improved_by_5_points']}",
+        f"- PIArena TPR preserved within 2 points: {selection['piarena_preserved_within_2_points']}",
+        "- Candidate is not selected unless all three conditions pass.",
+    ]
     lines += ["", "## Score distributions", ""]
     for config, value in eval_configs.items():
         lines.append(f"- {config} benign score quantiles: {value['score_quantiles']['benign']}")
@@ -577,7 +589,7 @@ def main():
         "",
         "## License and interpretation notes",
         "",
-        "- Base checkpoint microsoft/deberta-v3-base: MIT.",
+        "- Base and candidate model licenses are recorded in the JSON report.",
         "- BIPIA training source geodesic-research/bipia: CC-BY-SA-4.0; preserve attribution/share-alike terms for redistributed derived material.",
         "- Evaluation config licenses: synthetic_v2_test Apache-2.0, BIPIA CC-BY-SA-4.0, PIArena MIT, NotInject MIT, OR-Bench-hard CC-BY-4.0.",
         "- BIPIA results are in-family diagnostics; use PIArena and benign hard-negative results as the main generalization checks.",
