@@ -1071,3 +1071,29 @@ def test_perplexity_falls_back_to_openai_echo_token_logprobs(monkeypatch):
     assert captured["json"]["logprobs"] == 1
     assert score is not None
     assert abs(score - math.exp(1.5)) < 1e-8
+
+
+def test_configured_ppl_failure_blocks_eligible_passage(monkeypatch):
+    gateway = SecurityGateway(
+        base_url="http://vllm.test",
+        model="qwen-test",
+        classifier_score_fn=lambda _text: 0.2,
+        classifier_threshold=0.5,
+        ppl_min_classifier_score=0.1,
+    )
+    monkeypatch.setattr(gateway, "perplexity", lambda _text: None)
+    decision = gateway.inspect("ordinary contextual passage", direct=False)
+    assert decision["allowed"] is False
+    assert decision["reason"] == "perplexity evaluation unavailable (blocked closed)"
+
+
+def test_ppl_not_configured_does_not_block_second_stage_by_accident(monkeypatch):
+    gateway = SecurityGateway(
+        classifier_score_fn=lambda _text: 0.2,
+        classifier_threshold=0.5,
+        ppl_min_classifier_score=0.1,
+    )
+    monkeypatch.setattr(gateway, "perplexity", lambda _text: None)
+    decision = gateway.inspect("ordinary contextual passage", direct=False)
+    assert decision["allowed"] is True
+    assert decision["reason"] == "allowed"
