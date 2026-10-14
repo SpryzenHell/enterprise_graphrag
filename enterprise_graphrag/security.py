@@ -214,8 +214,9 @@ class SecurityGateway:
                 json={
                     "model": self.model,
                     "prompt": text[:12000],
-                    "max_tokens": 1,
+                    "max_tokens": 0,
                     "temperature": 0.0,
+                    "echo": True,
                     "prompt_logprobs": 1,
                     "return_token_ids": True,
                 },
