@@ -161,7 +161,12 @@ def load_bipia_pairs(cache_dir: str, max_rows: int, seed: int):
             continue
         # Build the injected text at tokenization time from the same base context
         # used by the matched benign placeholder; both labels have equal span size.
-        groups[digest_context(clean)].append((clean, attack, str(row.get("position") or "end"), str(row.get("id", ""))))
+        # Retain the actual injected document for the positive class. Using
+        # the cleaned context for both labels creates contradictory examples and
+        # lets window-length differences act as a spurious label.
+        groups[digest_context(clean)].append(
+            (clean, poisoned, attack, str(row.get("position") or "end"), str(row.get("id", "")))
+        )
 
     group_ids = list(groups)
     random.Random(seed + 19).shuffle(group_ids)
@@ -171,9 +176,13 @@ def load_bipia_pairs(cache_dir: str, max_rows: int, seed: int):
     train_examples, val_examples = [], []
     for group_id, variants in groups.items():
         target = val_examples if group_id in val_groups else train_examples
-        for clean, attack, position, row_id in variants:
+        for clean, poisoned, attack, position, row_id in variants:
+            if attack.lower() not in poisoned.lower():
+                raise RuntimeError(f"Positive BIPIA example {row_id!r} lost its injected text")
+            if attack.lower() in clean.lower():
+                raise RuntimeError(f"Negative BIPIA example {row_id!r} still contains its injected text")
             target.append({"text": clean, "labels": 0, "attack": attack, "position": position, "group": group_id, "row_id": row_id})
-            target.append({"text": clean, "labels": 1, "attack": attack, "position": position, "group": group_id, "row_id": row_id})
+            target.append({"text": poisoned, "labels": 1, "attack": attack, "position": position, "group": group_id, "row_id": row_id})
     info = {
         "dataset": f"{BIPIA_DATASET}/bipia",
         "license": "CC-BY-SA-4.0",
@@ -185,6 +194,8 @@ def load_bipia_pairs(cache_dir: str, max_rows: int, seed: int):
         "source_context_already_contains_attack": matched,
         "attack_reconstructed_from_metadata": reconstructed,
         "matched_attack_ratio": round(matched / max(len(rows), 1), 6),
+        "positive_examples_contain_attack": True,
+        "negative_examples_exclude_attack": True,
         "grouped_split_seed": seed + 19,
     }
     return train_examples, val_examples, info
