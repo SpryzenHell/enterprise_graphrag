@@ -41,11 +41,14 @@ class SecurityGateway:
         classifier_device: str = "auto",
         classifier_window_overlap: int = 512,
         classifier_score_fn: Callable[[str], float] | None = None,
+        ppl_min_classifier_score: float = 0.10,
     ) -> None:
         if marker_threshold < 1:
             raise ValueError("marker_threshold must be at least 1")
         if not 0.0 <= classifier_threshold <= 1.0:
             raise ValueError("classifier_threshold must be between 0 and 1")
+        if not 0.0 <= ppl_min_classifier_score <= 1.0:
+            raise ValueError("ppl_min_classifier_score must be between 0 and 1")
         if classifier_max_length < 8 or classifier_max_length > 8192:
             raise ValueError("classifier_max_length must be between 8 and 8192")
         if classifier_window_overlap < 0 or classifier_window_overlap >= classifier_max_length - 2:
@@ -56,6 +59,7 @@ class SecurityGateway:
         self.model = model
         self.threshold = threshold
         self.marker_threshold = marker_threshold
+        self.ppl_min_classifier_score = float(ppl_min_classifier_score)
         self.classifier_model = classifier_model.strip()
         self.classifier_threshold = float(classifier_threshold)
         self.classifier_max_length = int(classifier_max_length)
@@ -328,22 +332,28 @@ class SecurityGateway:
             else:
                 after_classifier.append(index)
 
-        # PPL is only requested where it can change this gateway's decision.
-        # Markerless text can be blocked by the semantic classifier; the current PPL
-        # policy requires at least one marker, so calling vLLM for markerless text
-        # wastes latency without changing the outcome.
+        # PPL is a second-stage discriminator, not a standalone policy: the
+        # A100 sweep showed high perplexity alone flags too many benign documents.
+        # Call it for marker-positive text or semantically borderline text, where
+        # it can add evidence while avoiding a costly request for every clean passage.
         for index in after_classifier:
             marker_count = marker_counts[index]
             classifier_score = classifier_scores.get(index)
-            perplexity = self.perplexity(normalized[index]) if marker_count >= 1 else None
-            if (
-                perplexity is not None
-                and perplexity >= self.threshold
-                and marker_count >= 1
-            ):
+            borderline_semantic = (
+                classifier_score is not None
+                and self.ppl_min_classifier_score <= classifier_score < self.classifier_threshold
+            )
+            ppl_eligible = marker_count >= 1 or borderline_semantic
+            perplexity = self.perplexity(normalized[index]) if ppl_eligible else None
+            if perplexity is not None and perplexity >= self.threshold and ppl_eligible:
+                reason = (
+                    "high perplexity plus injection marker"
+                    if marker_count >= 1
+                    else "high perplexity in borderline semantic region"
+                )
                 decisions[index] = self._decision(
                     False,
-                    "high perplexity plus injection marker",
+                    reason,
                     marker_count,
                     perplexity,
                     classifier_score,
