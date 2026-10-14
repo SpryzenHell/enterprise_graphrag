@@ -135,8 +135,9 @@ def test_vllm_prompt_logprobs_contract():
         json={
             "model": model,
             "prompt": "Enterprise GraphRAG provider probe.",
-            "max_tokens": 1,
+            "max_tokens": 0,
             "temperature": 0.0,
+            "echo": True,
             "prompt_logprobs": 1,
             "return_token_ids": True,
         },
