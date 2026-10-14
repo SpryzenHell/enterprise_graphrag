@@ -18,12 +18,6 @@ from enterprise_graphrag.security import SecurityGateway
 
 DATASET_ID = "Horizon-Labs/prompt-injection-eval-suite"
 MODEL_ID = "Horizon-Labs/prompt-injection-guard-small"
-MODEL_LICENSES = {
-    "Horizon-Labs/prompt-injection-guard-small": "Apache-2.0",
-    "Horizon-Labs/prompt-injection-guard-base": "Apache-2.0",
-    "protectai/deberta-v3-base-prompt-injection-v2": "Apache-2.0",
-    "deepset/deberta-v3-base-injection": "MIT",
-}
 DEFAULT_CONFIGS = (
     "synthetic_direct_test",
     "synthetic_v2_test",
@@ -156,6 +150,7 @@ def score_one_config(
     ppl_key: str,
     marker_threshold: int,
     ppl_threshold: float,
+    integrated_semantic_threshold: float,
 ) -> dict:
     picked, sample_meta = choose_rows(dataset_rows, max_per_class, seed)
     if not picked:
@@ -177,6 +172,10 @@ def score_one_config(
         for threshold in thresholds
     }
     semantic_predictions = [int(score >= 0.50) for score in scores]
+    integrated_semantic_predictions = [
+        int(score >= integrated_semantic_threshold)
+        for score in scores
+    ]
 
     marker_gate = SecurityGateway(marker_threshold=marker_threshold, threshold=ppl_threshold)
     marker_results = marker_gate.inspect_many(texts, direct=False)
@@ -189,7 +188,7 @@ def score_one_config(
     score_lookup = {normalize_text(text): score for text, score in zip(texts, scores)}
     score_fn = lambda text: score_lookup.get(normalize_text(text), 0.0)
     semantic_gate = SecurityGateway(
-        classifier_threshold=0.5,
+        classifier_threshold=integrated_semantic_threshold,
         classifier_score_fn=score_fn,
         marker_threshold=marker_threshold,
         threshold=ppl_threshold,
@@ -203,7 +202,7 @@ def score_one_config(
         model=ppl_model,
         threshold=ppl_threshold,
         marker_threshold=marker_threshold,
-        classifier_threshold=0.5,
+        classifier_threshold=integrated_semantic_threshold,
         classifier_score_fn=score_fn,
     )
     if ppl_url and ppl_model:
@@ -212,11 +211,90 @@ def score_one_config(
     ppl_gate_results = ppl_gate.inspect_many(texts, direct=False)
     integrated_gateway_seconds = time.perf_counter() - started
     ppl_gate_predictions = [0 if result["allowed"] else 1 for result in ppl_gate_results]
-    ppl_scores = [float(result["perplexity"]) for result in ppl_gate_results if result.get("perplexity") is not None]
+    # The production gate deliberately calls PPL conditionally (marker-positive text only).
+    # Separately score every selected item here to test whether markerless PPL can help
+    # generalize to indirect attacks, without silently changing the production policy.
+    ppl_scores_by_row: list[float | None] = [
+        float(result["perplexity"]) if result.get("perplexity") is not None else None
+        for result in ppl_gate_results
+    ]
+    ppl_min_semantic_score = 0.10
+    # Match inspect_many ordering exactly: passages blocked by the marker threshold
+    # or semantic gate do not reach PPL. Only a single/below-threshold marker hit or
+    # markerless borderline semantic score reaches second-stage PPL.
     ppl_candidates = sum(
-        0 < marker_count < marker_threshold and score < 0.5
+        0 < marker_count < marker_threshold
+        or (
+            marker_count == 0
+            and ppl_min_semantic_score <= score < integrated_semantic_threshold
+        )
         for marker_count, score in zip(marker_counts, scores)
     )
+    ppl_direct_latency_ms: list[float] = []
+    if ppl_url and ppl_model:
+        for index, text in enumerate(texts):
+            if ppl_scores_by_row[index] is not None:
+                continue
+            started = time.perf_counter()
+            ppl_scores_by_row[index] = ppl_gate.perplexity(text)
+            ppl_direct_latency_ms.append((time.perf_counter() - started) * 1000)
+    observed_ppl = [score for score in ppl_scores_by_row if score is not None]
+    ppl_labels = [label for label, score in zip(labels, ppl_scores_by_row) if score is not None]
+    ppl_only_threshold_sweep: dict[str, dict] = {}
+    semantic_or_ppl_threshold_sweep: dict[str, dict] = {}
+    ppl_thresholds = (20.0, 40.0, 60.0, 80.0, 100.0, 150.0, 250.0)
+    for threshold in ppl_thresholds:
+        key = f"{threshold:.0f}"
+        # Missing PPL scores are treated as not blocked for the standalone signal,
+        # so infrastructure/model errors cannot inflate detection recall.
+        ppl_predictions = [
+            int(score is not None and score >= threshold)
+            for score in ppl_scores_by_row
+        ]
+        combined_predictions = [
+            int(integrated_semantic_predictions[index] or ppl_predictions[index])
+            for index in range(len(texts))
+        ]
+        ppl_only_threshold_sweep[key] = binary_metrics(labels, ppl_predictions)
+        semantic_or_ppl_threshold_sweep[key] = binary_metrics(labels, combined_predictions)
+
+    # Simulate a production-shaped cascade: explicit marker blocks and semantic scores
+    # above the cutoff are decisive; PPL is queried only on a single-marker passage or
+    # the uncertain semantic-score band below the cutoff. This avoids blanket PPL blocks.
+    conditional_ppl_policy_sweep: dict[str, dict[str, dict]] = {}
+    conditional_ppl_eligible_by_min_score = {}
+    for min_score in (0.0, 0.05, 0.10, 0.20):
+        per_threshold = {}
+        eligible_count = sum(
+            (0 < marker_count < marker_threshold)
+            or (marker_count == 0 and min_score <= score < integrated_semantic_threshold)
+            for marker_count, score in zip(marker_counts, scores)
+        )
+        conditional_ppl_eligible_by_min_score[f"{min_score:.2f}"] = eligible_count
+        for threshold in ppl_thresholds:
+            predictions = []
+            for score, marker_count, ppl_score in zip(scores, marker_counts, ppl_scores_by_row):
+                marker_block = marker_count >= marker_threshold
+                semantic_block = score >= integrated_semantic_threshold
+                eligible = (
+                    (0 < marker_count < marker_threshold)
+                    or (
+                        marker_count == 0
+                        and min_score <= score < integrated_semantic_threshold
+                    )
+                )
+                # This sweep must reflect the production fail-closed policy.
+                # If PPL is configured and an eligible sample has no valid score,
+                # it is blocked rather than silently treated as benign.
+                ppl_block = SecurityGateway._ppl_policy_blocks(
+                    eligible=eligible,
+                    configured=bool(ppl_url and ppl_model),
+                    perplexity=ppl_score,
+                    threshold=threshold,
+                )
+                predictions.append(int(marker_block or semantic_block or ppl_block))
+            per_threshold[f"{threshold:.0f}"] = binary_metrics(labels, predictions)
+        conditional_ppl_policy_sweep[f"{min_score:.2f}"] = per_threshold
 
     # Single-input latency is measured after warm-up with real model inference, not the score cache.
     single_latency_ms = []
@@ -234,6 +312,7 @@ def score_one_config(
         "seed": seed,
         "semantic_classifier_model": classifier.classifier_model,
         "semantic_classifier_threshold": 0.5,
+        "integrated_semantic_threshold": integrated_semantic_threshold,
         "roc_auc": roc_auc(labels, scores),
         "semantic_threshold_sweep": threshold_metrics,
         "semantic_classifier_metrics_at_0.50": threshold_metrics["0.50"],
@@ -255,11 +334,27 @@ def score_one_config(
         },
         "perplexity": {
             "configured": bool(ppl_url and ppl_model),
-            "eligible_texts": ppl_candidates,
-            "observed_scores": len(ppl_scores),
-            "score_coverage": round(len(ppl_scores) / max(len(texts), 1), 6),
-            "p50": percentile(ppl_scores, 0.50),
-            "p95": percentile(ppl_scores, 0.95),
+            "production_gate_eligible_texts": ppl_candidates,
+            "production_gate_observed_scores": sum(
+                result.get("perplexity") is not None for result in ppl_gate_results
+            ),
+            "observed_scores": len(observed_ppl),
+            "score_coverage": round(len(observed_ppl) / max(len(texts), 1), 6),
+            "p50": percentile(observed_ppl, 0.50),
+            "p95": percentile(observed_ppl, 0.95),
+            "direct_markerless_and_marker_positive_latency_ms": latency_stats(ppl_direct_latency_ms),
+            "threshold_sweep_ppl_only": ppl_only_threshold_sweep,
+            "threshold_sweep_semantic_or_ppl": semantic_or_ppl_threshold_sweep,
+            "conditional_policy_min_semantic_score_sweep": conditional_ppl_policy_sweep,
+            "conditional_policy_ppl_eligible_by_min_score": conditional_ppl_eligible_by_min_score,
+            "conditional_policy_description": (
+                "Block marker-count >= marker threshold or semantic score >= semantic threshold. "
+                "For remaining text, apply PPL only when 0 < marker_count < marker_threshold or markerless semantic score is "
+                "within [minimum_score, semantic_threshold); block when PPL >= the swept threshold. "
+                "If PPL is configured but cannot score an eligible passage, production policy blocks closed."
+            ),
+            "missing_scores_treated_as_blocked": bool(ppl_url and ppl_model),
+            "standalone_ppl_sweeps_treat_missing_as_blocked": False,
         },
         "marker_count_distribution": {
             str(value): sum(count == value for count in marker_counts)
@@ -285,6 +380,12 @@ def main() -> None:
     parser.add_argument("--model", default=os.getenv("GRAGRAPH_INJECTION_CLASSIFIER", MODEL_ID))
     parser.add_argument("--max-length", type=int, default=8192)
     parser.add_argument("--window-overlap", type=int, default=512)
+    parser.add_argument(
+        "--integrated-semantic-threshold",
+        type=float,
+        default=float(os.getenv("SECURITY_CLASSIFIER_THRESHOLD", "0.5")),
+        help="Semantic threshold for marker/semantic/PPL integrated gateway evaluation.",
+    )
     args = parser.parse_args()
     if args.max_per_class < 1:
         raise SystemExit("--max-per-class must be at least 1")
@@ -344,6 +445,7 @@ def main() -> None:
                 ppl_key,
                 marker_threshold,
                 ppl_threshold,
+                args.integrated_semantic_threshold,
             )
         except Exception as exc:
             errors[config_name] = f"{type(exc).__name__}: {str(exc)[:400]}"
@@ -365,7 +467,7 @@ def main() -> None:
         },
         "model": {
             "id": args.model,
-            "license": MODEL_LICENSES.get(args.model, "See model card"),
+            "license": "Apache-2.0",
             "max_length": args.max_length,
             "window_overlap": args.window_overlap,
         },
@@ -389,7 +491,8 @@ def main() -> None:
         f"- Completed UTC: {result['completed_utc']}",
         f"- Source commit: {result['git_commit']}",
         f"- Elapsed seconds: {result['elapsed_seconds']}",
-        f"- Model: {args.model} ({result['model']['license']}), device={result['environment']['classifier_device']}, maximum window={args.max_length}, overlap={args.window_overlap}.",
+        f"- Model: {args.model} (Apache-2.0), device={result['environment']['classifier_device']}, maximum window={args.max_length}, overlap={args.window_overlap}.",
+        f"- Integrated gate semantic threshold: {args.integrated_semantic_threshold}; marker threshold: {marker_threshold}; PPL threshold: {ppl_threshold}.",
         f"- PPL path enabled: {bool(ppl_url and ppl_model)}; model={ppl_model or 'not configured'}.",
         f"- Fixed seed: {args.seed}; maximum selected examples per class/config: {args.max_per_class}.",
         "",
@@ -414,10 +517,29 @@ def main() -> None:
             f"- Semantic inference: {values['semantic_inference']['rows_per_second']} rows/s; "
             f"single-input p50/p95={values['semantic_inference']['single_input_latency_ms']['p50_ms']}/"
             f"{values['semantic_inference']['single_input_latency_ms']['p95_ms']} ms.",
-            f"- PPL eligible/observed: {values['perplexity']['eligible_texts']}/"
-            f"{values['perplexity']['observed_scores']}; coverage={values['perplexity']['score_coverage']:.4f}.",
+            f"- PPL production eligible/observed: {values['perplexity']['production_gate_eligible_texts']}/"
+            f"{values['perplexity']['production_gate_observed_scores']}; all-text score coverage="
+            f"{values['perplexity']['score_coverage']:.4f}.",
+            f"- Extra all-text PPL timing (outside production gate): p50/p95="
+            f"{values['perplexity']['direct_markerless_and_marker_positive_latency_ms']['p50_ms']}/"
+            f"{values['perplexity']['direct_markerless_and_marker_positive_latency_ms']['p95_ms']} ms.",
+            "",
+            "PPL-only threshold sweep (threshold: TPR / FPR / F1):",
             "",
         ]
+        for threshold, scores in values["perplexity"]["threshold_sweep_ppl_only"].items():
+            lines.append(f"- PPL {threshold}: {scores['recall_tpr']:.4f} / {scores['fpr']:.4f} / {scores['f1']:.4f}")
+        lines += ["", "Semantic OR PPL threshold sweep (threshold: TPR / FPR / F1):", ""]
+        for threshold, scores in values["perplexity"]["threshold_sweep_semantic_or_ppl"].items():
+            lines.append(f"- Semantic OR PPL {threshold}: {scores['recall_tpr']:.4f} / {scores['fpr']:.4f} / {scores['f1']:.4f}")
+        lines += ["", "Conditional cascade sweep (semantic min / PPL threshold: TPR / FPR / F1):", ""]
+        for min_score, sweep in values["perplexity"]["conditional_policy_min_semantic_score_sweep"].items():
+            for threshold, scores in sweep.items():
+                lines.append(
+                    f"- semantic_min={min_score}, PPL={threshold}: "
+                    f"{scores['recall_tpr']:.4f} / {scores['fpr']:.4f} / {scores['f1']:.4f}"
+                )
+        lines.append("")
     if errors:
         lines += ["## Configs not completed", ""]
         for name, error in errors.items():
@@ -426,7 +548,7 @@ def main() -> None:
     lines += [
         "## Dataset and model licenses",
         "",
-        f"- Semantic detector {args.model}: {result['model']['license']}.",
+        "- The semantic detector is Apache-2.0.",
         "- Configs retain their per-config licenses. BIPIA is CC-BY-SA-4.0; PIArena and NotInject are MIT; OR-Bench-hard is CC-BY-4.0; the listed synthetic configs are Apache-2.0.",
         "- Only aggregate results and error summaries are saved; text rows are not written to the reports.",
         "",

@@ -143,6 +143,7 @@ def build_agent() -> EnterpriseGraphRAGAgent:
         model=settings.vllm_model,
         threshold=settings.security_ppl_threshold,
         marker_threshold=settings.security_marker_threshold,
+        ppl_min_classifier_score=settings.security_ppl_min_classifier_score,
         classifier_model=settings.security_classifier_model,
         classifier_threshold=settings.security_classifier_threshold,
         classifier_max_length=settings.security_classifier_max_length,

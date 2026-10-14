@@ -969,3 +969,140 @@ def test_request_body_cannot_override_jwt_tenant(tmp_path):
     assert all(item["tenant_id"] == "acme" for item in body["citations"])
     assert all(item["doc_id"] != "g1" for item in body["citations"])
     assert body["trace"]["tenant_id"] == "acme"
+
+
+
+def test_perplexity_blocks_markerless_borderline_semantic_injection(monkeypatch):
+    gateway = SecurityGateway(
+        threshold=80,
+        marker_threshold=2,
+        classifier_threshold=0.5,
+        classifier_score_fn=lambda _text: 0.2,
+        ppl_min_classifier_score=0.1,
+    )
+    calls = []
+    monkeypatch.setattr(
+        gateway,
+        "perplexity",
+        lambda text: calls.append(text) or 100.0,
+    )
+    decision = gateway.inspect(
+        "This note requests an unusual transfer but contains no configured marker.",
+        direct=False,
+    )
+    assert decision["marker_count"] == 0
+    assert decision["allowed"] is False
+    assert decision["reason"] == "high perplexity in borderline semantic region"
+    assert decision["classifier_score"] == 0.2
+    assert decision["perplexity"] == 100.0
+    assert len(calls) == 1
+
+
+def test_perplexity_is_skipped_for_low_risk_markerless_semantic_text(monkeypatch):
+    gateway = SecurityGateway(
+        threshold=80,
+        marker_threshold=2,
+        classifier_threshold=0.5,
+        classifier_score_fn=lambda _text: 0.02,
+        ppl_min_classifier_score=0.1,
+    )
+    calls = []
+    monkeypatch.setattr(
+        gateway,
+        "perplexity",
+        lambda text: calls.append(text) or 100.0,
+    )
+    decision = gateway.inspect(
+        "Routine office schedule and retention-policy details.",
+        direct=False,
+    )
+    assert decision["allowed"] is True
+    assert decision["perplexity"] is None
+    assert calls == []
+
+
+def test_ppl_min_classifier_score_must_be_in_probability_range():
+    try:
+        SecurityGateway(ppl_min_classifier_score=1.1)
+    except ValueError as exc:
+        assert "ppl_min_classifier_score" in str(exc)
+    else:
+        raise AssertionError("invalid PPL semantic floor was accepted")
+
+
+def test_perplexity_falls_back_to_openai_echo_token_logprobs(monkeypatch):
+    import httpx
+    import math
+
+    gateway = SecurityGateway(
+        base_url="http://vllm.test",
+        model="qwen-test",
+        threshold=80,
+    )
+    captured = {}
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            # Older compatible servers may omit the vLLM-specific
+            # prompt_token_ids field. The echoed OpenAI logprobs sequence
+            # still contains the observed prompt token likelihoods.
+            return {
+                "choices": [
+                    {
+                        "logprobs": {
+                            "token_logprobs": [None, -1.0, -2.0],
+                        }
+                    }
+                ]
+            }
+
+    def fake_post(url, headers, json, timeout):
+        captured.update({"url": url, "headers": headers, "json": json, "timeout": timeout})
+        return FakeResponse()
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    score = gateway.perplexity("policy text")
+
+    assert captured["json"]["echo"] is True
+    assert captured["json"]["max_tokens"] == 0
+    assert captured["json"]["logprobs"] == 1
+    assert score is not None
+    assert abs(score - math.exp(1.5)) < 1e-8
+
+
+def test_configured_ppl_failure_blocks_eligible_passage(monkeypatch):
+    gateway = SecurityGateway(
+        base_url="http://vllm.test",
+        model="qwen-test",
+        classifier_score_fn=lambda _text: 0.2,
+        classifier_threshold=0.5,
+        ppl_min_classifier_score=0.1,
+    )
+    monkeypatch.setattr(gateway, "perplexity", lambda _text: None)
+    decision = gateway.inspect("ordinary contextual passage", direct=False)
+    assert decision["allowed"] is False
+    assert decision["reason"] == "perplexity evaluation unavailable (blocked closed)"
+
+
+def test_ppl_not_configured_does_not_block_second_stage_by_accident(monkeypatch):
+    gateway = SecurityGateway(
+        classifier_score_fn=lambda _text: 0.2,
+        classifier_threshold=0.5,
+        ppl_min_classifier_score=0.1,
+    )
+    monkeypatch.setattr(gateway, "perplexity", lambda _text: None)
+    decision = gateway.inspect("ordinary contextual passage", direct=False)
+    assert decision["allowed"] is True
+    assert decision["reason"] == "allowed"
+
+
+def test_ppl_policy_helper_matches_fail_closed_configuration_contract():
+    block = SecurityGateway._ppl_policy_blocks
+    assert block(eligible=True, configured=True, perplexity=None, threshold=80) is True
+    assert block(eligible=True, configured=False, perplexity=None, threshold=80) is False
+    assert block(eligible=True, configured=True, perplexity=79.99, threshold=80) is False
+    assert block(eligible=True, configured=True, perplexity=80.0, threshold=80) is True
+    assert block(eligible=False, configured=True, perplexity=None, threshold=80) is False

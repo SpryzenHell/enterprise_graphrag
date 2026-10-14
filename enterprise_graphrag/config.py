@@ -160,6 +160,12 @@ class Settings:
             "80",
         )
     )
+    security_ppl_min_classifier_score: float = float(
+        os.getenv(
+            "SECURITY_PPL_MIN_CLASSIFIER_SCORE",
+            "0.10",
+        )
+    )
     security_marker_threshold: int = int(
         os.getenv(
             "SECURITY_MARKER_THRESHOLD",
@@ -327,6 +333,10 @@ class Settings:
         if self.security_ppl_threshold <= 0:
             problems.append(
                 "SECURITY_PPL_THRESHOLD must be greater than zero"
+            )
+        if not 0.0 <= self.security_ppl_min_classifier_score <= 1.0:
+            problems.append(
+                "SECURITY_PPL_MIN_CLASSIFIER_SCORE must be between 0 and 1"
             )
         if self.security_marker_threshold <= 0:
             problems.append(

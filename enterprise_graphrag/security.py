@@ -41,11 +41,14 @@ class SecurityGateway:
         classifier_device: str = "auto",
         classifier_window_overlap: int = 512,
         classifier_score_fn: Callable[[str], float] | None = None,
+        ppl_min_classifier_score: float = 0.10,
     ) -> None:
         if marker_threshold < 1:
             raise ValueError("marker_threshold must be at least 1")
         if not 0.0 <= classifier_threshold <= 1.0:
             raise ValueError("classifier_threshold must be between 0 and 1")
+        if not 0.0 <= ppl_min_classifier_score <= 1.0:
+            raise ValueError("ppl_min_classifier_score must be between 0 and 1")
         if classifier_max_length < 8 or classifier_max_length > 8192:
             raise ValueError("classifier_max_length must be between 8 and 8192")
         if classifier_window_overlap < 0 or classifier_window_overlap >= classifier_max_length - 2:
@@ -56,6 +59,7 @@ class SecurityGateway:
         self.model = model
         self.threshold = threshold
         self.marker_threshold = marker_threshold
+        self.ppl_min_classifier_score = float(ppl_min_classifier_score)
         self.classifier_model = classifier_model.strip()
         self.classifier_threshold = float(classifier_threshold)
         self.classifier_max_length = int(classifier_max_length)
@@ -210,8 +214,10 @@ class SecurityGateway:
                 json={
                     "model": self.model,
                     "prompt": text[:12000],
-                    "max_tokens": 1,
+                    "max_tokens": 0,
                     "temperature": 0.0,
+                    "echo": True,
+                    "logprobs": 1,
                     "prompt_logprobs": 1,
                     "return_token_ids": True,
                 },
@@ -221,27 +227,38 @@ class SecurityGateway:
             choice = response.json()["choices"][0]
             entries = choice.get("prompt_logprobs") or []
             token_ids = choice.get("prompt_token_ids") or []
-            if len(entries) != len(token_ids):
-                return None
-
             observed = []
-            for position, entry in enumerate(entries):
-                if position == 0 or entry is None:
-                    continue
-                token_id = token_ids[position]
-                token_data = entry.get(str(token_id))
-                if token_data is None:
-                    token_data = entry.get(token_id)
-                if not isinstance(token_data, dict):
-                    continue
-                logprob = token_data.get("logprob")
-                if isinstance(logprob, (int, float)):
-                    observed.append(float(logprob))
+            if isinstance(entries, list) and isinstance(token_ids, list) and len(entries) == len(token_ids):
+                for position, entry in enumerate(entries):
+                    if position == 0 or entry is None or not isinstance(entry, dict):
+                        continue
+                    token_id = token_ids[position]
+                    token_data = entry.get(str(token_id))
+                    if token_data is None:
+                        token_data = entry.get(token_id)
+                    if not isinstance(token_data, dict):
+                        continue
+                    logprob = token_data.get("logprob")
+                    if isinstance(logprob, (int, float)) and math.isfinite(float(logprob)):
+                        observed.append(float(logprob))
+
+            # Older vLLM builds can omit prompt_token_ids despite echoing the prompt.
+            # In that case use the OpenAI-compatible echo/logprobs token sequence.
+            if not observed:
+                logprob_payload = choice.get("logprobs") or {}
+                token_logprobs = logprob_payload.get("token_logprobs") or []
+                if isinstance(token_logprobs, list):
+                    observed = [
+                        float(value)
+                        for value in token_logprobs
+                        if isinstance(value, (int, float)) and math.isfinite(float(value))
+                    ]
 
             if not observed:
                 return None
             try:
-                return float(math.exp(-(sum(observed) / len(observed))))
+                score = float(math.exp(-(sum(observed) / len(observed))))
+                return score if math.isfinite(score) else None
             except OverflowError:
                 return None
         except (
@@ -260,6 +277,18 @@ class SecurityGateway:
             char
             for char in normalized
             if char not in "\u200b\u200c\u200d\ufeff"
+        )
+
+    @staticmethod
+    def _ppl_policy_blocks(
+        eligible: bool,
+        configured: bool,
+        perplexity: float | None,
+        threshold: float,
+    ) -> bool:
+        """Return whether the deployed PPL policy must block this eligible item."""
+        return eligible and configured and (
+            perplexity is None or perplexity >= threshold
         )
 
     @staticmethod
@@ -328,22 +357,38 @@ class SecurityGateway:
             else:
                 after_classifier.append(index)
 
-        # PPL is only requested where it can change this gateway's decision.
-        # Markerless text can be blocked by the semantic classifier; the current PPL
-        # policy requires at least one marker, so calling vLLM for markerless text
-        # wastes latency without changing the outcome.
+        # PPL is a second-stage discriminator, not a standalone policy: the
+        # A100 sweep showed high perplexity alone flags too many benign documents.
+        # Call it for marker-positive text or semantically borderline text, where
+        # it can add evidence while avoiding a costly request for every clean passage.
         for index in after_classifier:
             marker_count = marker_counts[index]
             classifier_score = classifier_scores.get(index)
-            perplexity = self.perplexity(normalized[index]) if marker_count >= 1 else None
-            if (
-                perplexity is not None
-                and perplexity >= self.threshold
-                and marker_count >= 1
+            borderline_semantic = (
+                classifier_score is not None
+                and self.ppl_min_classifier_score <= classifier_score < self.classifier_threshold
+            )
+            ppl_eligible = marker_count >= 1 or borderline_semantic
+            ppl_configured = bool(self.base_url and self.model)
+            perplexity = self.perplexity(normalized[index]) if ppl_eligible else None
+            if self._ppl_policy_blocks(
+                ppl_eligible,
+                ppl_configured,
+                perplexity,
+                self.threshold,
             ):
+                reason = (
+                    "perplexity evaluation unavailable (blocked closed)"
+                    if perplexity is None
+                    else (
+                        "high perplexity plus injection marker"
+                        if marker_count >= 1
+                        else "high perplexity in borderline semantic region"
+                    )
+                )
                 decisions[index] = self._decision(
                     False,
-                    "high perplexity plus injection marker",
+                    reason,
                     marker_count,
                     perplexity,
                     classifier_score,
