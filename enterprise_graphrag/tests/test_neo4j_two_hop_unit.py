@@ -66,3 +66,14 @@ def test_neo4j_search_merges_direct_and_two_hop_scores_for_frozen_hit():
     assert hit.metadata["traversal_score"] == 2.0
     assert hit.metadata["anchor_docs"] == ["anchor-doc"]
     assert hit.metadata["bridge_entities"] == ["helios"]
+
+
+
+def test_extract_entities_preserves_overlapping_bridge_phrase():
+    from enterprise_graphrag.neo4j_store import extract_entities
+
+    entities = extract_entities(
+        "Telemetry Operations Helios Analytics provides orbital telemetry."
+    )
+    assert "Helios Analytics" in entities
+    assert "Telemetry Operations" in entities
