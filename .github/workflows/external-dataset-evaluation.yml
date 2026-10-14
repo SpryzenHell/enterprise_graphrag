@@ -5,8 +5,10 @@ on:
     branches:
       - eval/real-dataset-benchmarks-2026-10-11
       - security/semantic-injection-gate-2026-10-11
+      - security/bipia-transfer-2026-10-14
     paths:
       - "scripts/run_real_benchmarks.py"
+      - "scripts/evaluate_injection_ood.py"
       - ".github/workflows/external-dataset-evaluation.yml"
       - "enterprise_graphrag/**"
   workflow_dispatch:
@@ -47,7 +49,7 @@ jobs:
       TOKENIZERS_PARALLELISM: "false"
       GRAGRAPH_MAX_BEIR_QUERIES: "150"
       GRAGRAPH_MAX_SECURITY_SAMPLES: "400"
-      GRAGRAPH_EMBEDDING_MODEL: "BAAI/bge-base-en-v1.5"
+      GRAGRAPH_EMBEDDING_MODEL: "sentence-transformers/all-MiniLM-L6-v2"
       GRAGRAPH_EMBED_BATCH_SIZE: "128"
     steps:
       - uses: actions/checkout@v4
