@@ -219,9 +219,15 @@ def score_one_config(
         for result in ppl_gate_results
     ]
     ppl_min_semantic_score = 0.10
+    # Match inspect_many ordering exactly: passages blocked by the marker threshold
+    # or semantic gate do not reach PPL. Only a single/below-threshold marker hit or
+    # markerless borderline semantic score reaches second-stage PPL.
     ppl_candidates = sum(
-        marker_count >= 1
-        or (ppl_min_semantic_score <= score < integrated_semantic_threshold)
+        0 < marker_count < marker_threshold
+        or (
+            marker_count == 0
+            and ppl_min_semantic_score <= score < integrated_semantic_threshold
+        )
         for marker_count, score in zip(marker_counts, scores)
     )
     ppl_direct_latency_ms: list[float] = []
@@ -260,7 +266,8 @@ def score_one_config(
     for min_score in (0.0, 0.05, 0.10, 0.20):
         per_threshold = {}
         eligible_count = sum(
-            marker_count >= 1 or (min_score <= score < integrated_semantic_threshold)
+            (0 < marker_count < marker_threshold)
+            or (marker_count == 0 and min_score <= score < integrated_semantic_threshold)
             for marker_count, score in zip(marker_counts, scores)
         )
         conditional_ppl_eligible_by_min_score[f"{min_score:.2f}"] = eligible_count
@@ -270,8 +277,11 @@ def score_one_config(
                 marker_block = marker_count >= marker_threshold
                 semantic_block = score >= integrated_semantic_threshold
                 eligible = (
-                    marker_count >= 1
-                    or (min_score <= score < integrated_semantic_threshold)
+                    (0 < marker_count < marker_threshold)
+                    or (
+                        marker_count == 0
+                        and min_score <= score < integrated_semantic_threshold
+                    )
                 )
                 ppl_block = eligible and ppl_score is not None and ppl_score >= threshold
                 predictions.append(int(marker_block or semantic_block or ppl_block))
@@ -331,7 +341,7 @@ def score_one_config(
             "conditional_policy_ppl_eligible_by_min_score": conditional_ppl_eligible_by_min_score,
             "conditional_policy_description": (
                 "Block marker-count >= marker threshold or semantic score >= semantic threshold. "
-                "For remaining text, apply PPL only when marker_count >= 1 or the semantic score is "
+                "For remaining text, apply PPL only when 0 < marker_count < marker_threshold or markerless semantic score is "
                 "within [minimum_score, semantic_threshold); block when PPL >= the swept threshold."
             ),
             "missing_scores_treated_as_blocked": False,
