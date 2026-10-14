@@ -246,36 +246,76 @@ def external_evaluation(model_dir: Path, cache_dir: str, max_per_class: int, see
         classifier_window_overlap=WINDOW_OVERLAP,
         marker_threshold=1_000_000,
     )
-    results = {}
-    for config in ("synthetic_v2_test", "bipia", "piarena", "notinject", "orbench_hard"):
-        ds = load_dataset(EVAL_DATASET, config, split="test", cache_dir=cache_dir)
-        sample = sample_config(
-            [dict(row) for row in ds],
-            max_per_class,
-            seed,
-            benign_only_ok=config in ("notinject", "orbench_hard"),
-        )
-        labels = [row["label"] for row in sample]
-        texts = [row["text"] for row in sample]
+
+    def score_texts(texts: list[str]) -> tuple[list[float], float]:
+        if not texts:
+            return [], 0.0
         gateway._semantic_scores(["Routine office policy and records management guidance."])
         started = time.perf_counter()
-        scores = []
+        values = []
         for offset in range(0, len(texts), 16):
-            scores.extend(gateway._semantic_scores(texts[offset:offset + 16]))
-        duration = time.perf_counter() - started
-        threshold_sweep = {
-            f"{threshold:.2f}": metrics(labels, scores, threshold)
-            for threshold in (0.10, 0.20, 0.35, 0.50, 0.65, 0.80, 0.90)
+            values.extend(gateway._semantic_scores(texts[offset:offset + 16]))
+        return values, time.perf_counter() - started
+
+    def score_quantiles(scores: list[float]) -> dict:
+        if not scores:
+            return {}
+        return {
+            "min": round(float(np.min(scores)), 8),
+            "p50": round(float(np.percentile(scores, 50)), 8),
+            "p90": round(float(np.percentile(scores, 90)), 8),
+            "p95": round(float(np.percentile(scores, 95)), 8),
+            "p99": round(float(np.percentile(scores, 99)), 8),
+            "max": round(float(np.max(scores)), 8),
         }
+
+    evaluation_rows = {}
+    calibration_scores = []
+    calibration_meta = {}
+    for config in ("synthetic_v2_test", "bipia", "piarena", "notinject", "orbench_hard"):
+        ds = load_dataset(EVAL_DATASET, config, split="test", cache_dir=cache_dir)
+        benign_only = config in ("notinject", "orbench_hard")
+        sample_count = max_per_class * 2 if benign_only else max_per_class
+        picked = sample_config(
+            [dict(row) for row in ds],
+            sample_count,
+            seed + len(evaluation_rows) * 11,
+            benign_only_ok=benign_only,
+        )
+        if benign_only:
+            calibration_rows = picked[:max_per_class]
+            test_rows = picked[max_per_class:]
+            calibration_texts = [str(row["text"]) for row in calibration_rows]
+            calibration_scores_for_config, calibration_seconds = score_texts(calibration_texts)
+            calibration_scores.extend(calibration_scores_for_config)
+            calibration_meta[config] = {
+                "license": DATASET_LICENSES[config],
+                "rows": len(calibration_rows),
+                "score_quantiles": score_quantiles(calibration_scores_for_config),
+                "runtime_seconds": round(calibration_seconds, 4),
+            }
+        else:
+            test_rows = picked
+
+        texts = [str(row["text"]) for row in test_rows]
+        labels = [int(row["label"]) for row in test_rows]
+        scores, duration = score_texts(texts)
         latency = []
         for text in texts[:min(50, len(texts))]:
-            tick = time.perf_counter()
+            started = time.perf_counter()
             gateway._semantic_scores([text])
-            latency.append((time.perf_counter() - tick) * 1000)
-        results[config] = {
+            latency.append((time.perf_counter() - started) * 1000)
+        evaluation_rows[config] = {
+            "dataset_rows": len(ds),
             "license": DATASET_LICENSES[config],
-            "sample": {"benign": sum(y == 0 for y in labels), "injected": sum(y == 1 for y in labels), "seed": seed},
-            "threshold_sweep": threshold_sweep,
+            "labels": labels,
+            "scores": scores,
+            "sample": {
+                "benign": sum(label == 0 for label in labels),
+                "injected": sum(label == 1 for label in labels),
+                "seed": seed + len(evaluation_rows) * 11,
+                "holdout_of_benign_threshold_calibration": benign_only,
+            },
             "inference": {
                 "device": "cuda" if torch.cuda.is_available() else "cpu",
                 "elapsed_seconds": round(duration, 4),
@@ -284,7 +324,65 @@ def external_evaluation(model_dir: Path, cache_dir: str, max_per_class: int, see
                 "latency_p95_ms": round(float(np.percentile(latency, 95)), 4) if latency else None,
             },
         }
-    return results
+
+    # Select the lowest threshold whose FPR is <=5% on the calibration halves of
+    # NotInject and OR-Bench-hard. Their remaining halves are withheld for testing.
+    target_fpr = 0.05
+    calibrated_threshold = None
+    calibration_fpr = None
+    if calibration_scores:
+        feasible = [
+            threshold for threshold in sorted(set(float(x) for x in calibration_scores))
+            if sum(score >= threshold for score in calibration_scores) / len(calibration_scores) <= target_fpr
+        ]
+        if feasible:
+            calibrated_threshold = min(feasible)
+            calibration_fpr = sum(score >= calibrated_threshold for score in calibration_scores) / len(calibration_scores)
+
+    thresholds = (
+        0.10, 0.20, 0.35, 0.50, 0.65, 0.80, 0.90,
+        0.95, 0.97, 0.98, 0.99, 0.995, 0.999, 0.9995, 0.9999, 0.99999,
+    )
+    results = {}
+    for config, row in evaluation_rows.items():
+        labels, scores = row["labels"], row["scores"]
+        threshold_sweep = {
+            f"{threshold:.5f}": metrics(labels, scores, threshold)
+            for threshold in thresholds
+        }
+        calibrated_metrics = (
+            metrics(labels, scores, calibrated_threshold)
+            if calibrated_threshold is not None
+            else None
+        )
+        results[config] = {
+            "dataset_rows": row["dataset_rows"],
+            "license": row["license"],
+            "sample": row["sample"],
+            "threshold_sweep": threshold_sweep,
+            "score_quantiles": {
+                "benign": score_quantiles([score for label, score in zip(labels, scores) if label == 0]),
+                "injected": score_quantiles([score for label, score in zip(labels, scores) if label == 1]),
+            },
+            "calibrated_threshold_metrics": calibrated_metrics,
+            "inference": row["inference"],
+        }
+
+    for config, meta in calibration_meta.items():
+        meta["calibrated_threshold"] = calibrated_threshold
+        meta["observed_calibration_fpr"] = calibration_fpr
+    return {
+        "calibration": {
+            "method": "lowest observed score threshold with <=5% FPR on the calibration halves of NotInject + OR-Bench-hard",
+            "target_fpr": target_fpr,
+            "examples": len(calibration_scores),
+            "threshold": calibrated_threshold,
+            "observed_calibration_fpr": calibration_fpr,
+            "datasets": calibration_meta,
+            "warning": "Threshold selection uses only calibration halves of benign-only datasets. Use the other halves and injected datasets as evaluation; calibration FPR is not an independent test result.",
+        },
+        "configs": results,
+    }
 
 
 def main():
@@ -406,6 +504,8 @@ def main():
     }
     (output_dir / "training_and_evaluation.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
 
+    cal = external["calibration"]
+    eval_configs = external["configs"]
     lines = [
         "# BIPIA-finetuned injection classifier",
         "",
@@ -418,17 +518,25 @@ def main():
         f"- Unique contexts: {train_info['unique_clean_contexts']}; training pairs: {train_info['train_examples']}; validation pairs: {train_info['validation_examples']}",
         f"- Context attack-match ratio: {train_info['matched_attack_ratio']:.4f}; reconstructed rows: {train_info['attack_reconstructed_from_metadata']}",
         f"- Epochs: {args.epochs}; sequence length: {MAX_LENGTH}; device: {'CUDA' if on_gpu else 'CPU'}",
+        f"- Calibrated threshold: {cal['threshold']}; target benign FPR={cal['target_fpr']}; observed calibration FPR={cal['observed_calibration_fpr']}",
+        "- Calibration data: one half each of NotInject + OR-Bench-hard; reported metrics use the remaining halves for those two datasets.",
         "",
-        "| Config | License | N | ROC-AUC | TPR @ .50 | FPR @ .50 | F1 @ .50 | TPR @ .20 | FPR @ .20 |",
+        "| Config | License | N | ROC-AUC | TPR @ .50 | FPR @ .50 | TPR @ calibrated | FPR @ calibrated | F1 @ calibrated |",
         "|---|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
-    for config, value in external.items():
-        m50, m20 = value["threshold_sweep"]["0.50"], value["threshold_sweep"]["0.20"]
+    for config, value in eval_configs.items():
+        m50 = value["threshold_sweep"]["0.50000"]
+        mc = value["calibrated_threshold_metrics"]
         lines.append(
             f"| {config} | {value['license']} | {m50['n']} | {m50['roc_auc']} | "
             f"{m50['recall_tpr']:.4f} | {m50['fpr'] if m50['fpr'] is not None else 'n/a'} | "
-            f"{m50['f1']:.4f} | {m20['recall_tpr']:.4f} | {m20['fpr'] if m20['fpr'] is not None else 'n/a'} |"
+            f"{mc['recall_tpr'] if mc else 'n/a'} | {mc['fpr'] if mc else 'n/a'} | "
+            f"{mc['f1'] if mc else 'n/a'} |"
         )
+    lines += ["", "## Score distributions", ""]
+    for config, value in eval_configs.items():
+        lines.append(f"- {config} benign score quantiles: {value['score_quantiles']['benign']}")
+        lines.append(f"- {config} injected score quantiles: {value['score_quantiles']['injected']}")
     lines += [
         "",
         "## License and interpretation notes",
