@@ -183,23 +183,32 @@ class Neo4jTenantStore:
         # query-matched entity -> anchor document -> shared entity -> candidate doc.
         # Indexed entity tokens avoid scanning every entity name with CONTAINS.
         traversal_query = """
-        MATCH (seed:Entity {tenant_id:$tenant})
-        WHERE any(term IN $terms WHERE term IN coalesce(seed.search_terms, []))
-        MATCH (seed)<-[:MENTIONS]-(anchor:Document {tenant_id:$tenant})
+        // Start from a small, ranked set of text-relevant anchor documents, then
+        // expand their tenant-scoped entity edges. This avoids a tenant-wide scan
+        // over every Entity node and reliably finds related evidence whose own text
+        // does not repeat the user's query terms.
+        CALL db.index.fulltext.queryNodes(
+            "document_text_fulltext",
+            $fulltext_query
+        )
+        YIELD node AS anchor, score AS anchor_score
+        WHERE anchor.tenant_id = $tenant
+        WITH anchor, anchor_score
+        ORDER BY anchor_score DESC
+        LIMIT $anchor_limit
         MATCH (anchor)-[:MENTIONS]->(bridge:Entity {tenant_id:$tenant})
-        WHERE bridge.key <> seed.key
         MATCH (bridge)<-[:MENTIONS]-(candidate:Document {tenant_id:$tenant})
         WHERE candidate.doc_id <> anchor.doc_id
         WITH candidate,
              collect(DISTINCT anchor.doc_id) AS anchor_docs,
              collect(DISTINCT bridge.key) AS bridge_keys,
-             collect(DISTINCT seed.key) AS seed_keys
+             max(anchor_score) AS best_anchor_score
         RETURN candidate.doc_id AS doc_id,
                candidate.title AS title,
                candidate.text AS text,
-               (0.8 * size(anchor_docs)
-                + 0.25 * size(bridge_keys)
-                + 0.1 * size(seed_keys)) AS score,
+               (best_anchor_score
+                + 0.1 * size(anchor_docs)
+                + 0.05 * size(bridge_keys)) AS score,
                anchor_docs AS anchor_docs,
                bridge_keys AS bridge_keys
         ORDER BY score DESC, doc_id
@@ -229,7 +238,8 @@ class Neo4jTenantStore:
                 session.run(
                     traversal_query,
                     tenant=tenant,
-                    terms=terms,
+                    fulltext_query=fulltext_query,
+                    anchor_limit=max(50, limit * 5),
                     limit=limit,
                 )
             )
