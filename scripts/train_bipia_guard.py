@@ -18,8 +18,8 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer, Data
 
 BIPIA_DATASET = "geodesic-research/bipia"
 EVAL_DATASET = "Horizon-Labs/prompt-injection-eval-suite"
-BASE_MODEL = "microsoft/deberta-v3-base"
-MODEL_LICENSE = "MIT"
+BASE_MODEL = "Horizon-Labs/prompt-injection-guard-base"
+MODEL_LICENSE = "Apache-2.0"
 MAX_LENGTH = 512
 WINDOW_OVERLAP = 64
 DATASET_LICENSES = {
@@ -391,8 +391,9 @@ def main():
     parser.add_argument("--output-dir", default="artifacts/bipia-finetuned-guard")
     parser.add_argument("--model-dir", default="artifacts/bipia-finetuned-guard/model")
     parser.add_argument("--base-model", default=BASE_MODEL)
-    parser.add_argument("--max-train-rows", type=int, default=20000)
-    parser.add_argument("--epochs", type=float, default=2.0)
+    parser.add_argument("--max-train-rows", type=int, default=8000)
+    parser.add_argument("--epochs", type=float, default=1.0)
+    parser.add_argument("--learning-rate", type=float, default=1e-6)
     parser.add_argument("--train-batch-size", type=int, default=16)
     parser.add_argument("--gradient-accumulation-steps", type=int, default=2)
     parser.add_argument("--eval-max-per-class", type=int, default=100)
@@ -445,7 +446,7 @@ def main():
     training_args = TrainingArguments(
         output_dir=str(output_dir / "trainer"),
         num_train_epochs=args.epochs,
-        learning_rate=2e-5,
+        learning_rate=args.learning_rate,
         per_device_train_batch_size=args.train_batch_size,
         per_device_eval_batch_size=args.train_batch_size,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
