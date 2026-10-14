@@ -429,6 +429,7 @@ def main() -> None:
     ppl_key = os.getenv("GRAGRAPH_PPL_API_KEY", os.getenv("VLLM_API_KEY", ""))
     marker_threshold = int(os.getenv("SECURITY_MARKER_THRESHOLD", "2"))
     ppl_threshold = float(os.getenv("SECURITY_PPL_THRESHOLD", "80"))
+    configured_ppl_min_score = float(os.getenv("SECURITY_PPL_MIN_CLASSIFIER_SCORE", "0.10"))
 
     started_utc = datetime.now(timezone.utc).isoformat()
     started = time.perf_counter()
