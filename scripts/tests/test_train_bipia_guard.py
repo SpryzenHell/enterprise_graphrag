@@ -11,7 +11,7 @@ def test_bipia_pair_builder_keeps_attack_only_in_positive(monkeypatch, tmp_path)
             f"Document {i} describes an ordinary internal process. "
             f"The department reviews requests and keeps records for {i + 10} days."
         )
-        poisoned = clean + "\n" + attack
+        poisoned = clean + "\n" + attack + "\nQuoted payload: " + attack
         rows.append({
             "context": poisoned,
             "attack_str": attack,
