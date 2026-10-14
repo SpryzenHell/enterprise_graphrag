@@ -283,7 +283,15 @@ def score_one_config(
                         and min_score <= score < integrated_semantic_threshold
                     )
                 )
-                ppl_block = eligible and ppl_score is not None and ppl_score >= threshold
+                # This sweep must reflect the production fail-closed policy.
+                # If PPL is configured and an eligible sample has no valid score,
+                # it is blocked rather than silently treated as benign.
+                ppl_block = SecurityGateway._ppl_policy_blocks(
+                    eligible=eligible,
+                    configured=bool(ppl_url and ppl_model),
+                    perplexity=ppl_score,
+                    threshold=threshold,
+                )
                 predictions.append(int(marker_block or semantic_block or ppl_block))
             per_threshold[f"{threshold:.0f}"] = binary_metrics(labels, predictions)
         conditional_ppl_policy_sweep[f"{min_score:.2f}"] = per_threshold
@@ -342,9 +350,11 @@ def score_one_config(
             "conditional_policy_description": (
                 "Block marker-count >= marker threshold or semantic score >= semantic threshold. "
                 "For remaining text, apply PPL only when 0 < marker_count < marker_threshold or markerless semantic score is "
-                "within [minimum_score, semantic_threshold); block when PPL >= the swept threshold."
+                "within [minimum_score, semantic_threshold); block when PPL >= the swept threshold. "
+                "If PPL is configured but cannot score an eligible passage, production policy blocks closed."
             ),
-            "missing_scores_treated_as_blocked": False,
+            "missing_scores_treated_as_blocked": bool(ppl_url and ppl_model),
+            "standalone_ppl_sweeps_treat_missing_as_blocked": False,
         },
         "marker_count_distribution": {
             str(value): sum(count == value for count in marker_counts)
