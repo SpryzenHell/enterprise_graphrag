@@ -5,21 +5,36 @@ import re
 from .fusion import Hit
 
 
-ENTITY_RE = re.compile(
-    r"\b[A-Z][A-Za-z0-9&.-]{2,}(?:\s+[A-Z][A-Za-z0-9&.-]{2,}){0,2}\b"
+ENTITY_RUN_RE = re.compile(
+    r"\b[A-Z][A-Za-z0-9&.-]{2,}(?:\s+[A-Z][A-Za-z0-9&.-]{2,})*\b"
 )
 
 
 def extract_entities(text: str) -> list[str]:
+    """Extract overlapping proper-name phrases, not only greedy leftmost matches.
+
+    For example, a title like "Telemetry Operations Helios Analytics" must emit
+    "Helios Analytics" as well as longer overlapping phrases. Otherwise a valid
+    bridge entity disappears just because another capitalized phrase precedes it.
+    """
     seen = set()
     entities = []
-    for raw in ENTITY_RE.findall(text):
-        value = raw.strip()
-        key = value.lower()
-        if key not in seen:
-            seen.add(key)
-            entities.append(value)
-    return entities[:24]
+    for run in ENTITY_RUN_RE.findall(text):
+        tokens = run.split()
+        if len(tokens) == 1:
+            candidates = [tokens[0]]
+        else:
+            candidates = []
+            for width in (3, 2):
+                for start in range(max(0, len(tokens) - width + 1)):
+                    candidates.append(" ".join(tokens[start:start + width]))
+        for value in candidates:
+            value = value.strip()
+            key = value.lower()
+            if key not in seen:
+                seen.add(key)
+                entities.append(value)
+    return entities[:48]
 
 
 class Neo4jTenantStore:
