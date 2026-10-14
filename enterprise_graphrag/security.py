@@ -224,7 +224,13 @@ class SecurityGateway:
                 timeout=60,
             )
             response.raise_for_status()
-            choice = response.json()["choices"][0]
+            payload = response.json()
+            if not isinstance(payload, dict):
+                return None
+            choices = payload.get("choices")
+            if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+                return None
+            choice = choices[0]
             entries = choice.get("prompt_logprobs") or []
             token_ids = choice.get("prompt_token_ids") or []
             observed = []
@@ -249,6 +255,8 @@ class SecurityGateway:
             # with the token actually present in the prompt.
             if not observed:
                 logprob_payload = choice.get("logprobs") or {}
+                if not isinstance(logprob_payload, dict):
+                    logprob_payload = {}
                 token_logprobs = logprob_payload.get("token_logprobs") or []
                 if isinstance(token_logprobs, list):
                     observed = [
@@ -270,6 +278,8 @@ class SecurityGateway:
             KeyError,
             TypeError,
             ValueError,
+            IndexError,
+            AttributeError,
         ):
             return None
 
