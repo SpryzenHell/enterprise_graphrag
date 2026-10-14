@@ -205,6 +205,58 @@ def load_mixed_rows(cache_dir: str, max_bipia_rows: int, seed: int):
     }
 
 
+def prepare_training_window(
+    text: str,
+    tokenizer,
+    attack: str,
+    position: str,
+    is_poisoned: bool,
+    max_length: int,
+) -> dict:
+    """Keep the injected span and align the clean paired window for long BIPIA contexts."""
+    special_count = int(tokenizer.num_special_tokens_to_add(pair=False))
+    content_limit = max_length - special_count
+    token_ids = tokenizer.encode(text, add_special_tokens=False, truncation=False)
+    attack_ids = tokenizer.encode(attack, add_special_tokens=False, truncation=False) if attack else []
+    attack_start = -1
+    attack_end = -1
+
+    if is_poisoned and attack_ids and len(attack_ids) <= len(token_ids):
+        for index in range(len(token_ids) - len(attack_ids) + 1):
+            if token_ids[index:index + len(attack_ids)] == attack_ids:
+                attack_start = index
+                attack_end = index + len(attack_ids)
+                break
+
+    normalized_position = (position or "end").casefold()
+    if len(token_ids) > content_limit:
+        if is_poisoned and attack_start >= 0:
+            desired = attack_start - max(0, (content_limit - (attack_end - attack_start)) // 2)
+            start = min(max(0, desired), len(token_ids) - content_limit)
+        elif normalized_position == "start":
+            start = 0
+        elif normalized_position == "middle":
+            start = max(0, min(len(token_ids) - content_limit, len(token_ids) // 2 - content_limit // 2))
+        else:
+            # If the tokenized attack span could not be matched, keep the tail for an
+            # end-position injection instead of silently truncating it away.
+            start = max(0, len(token_ids) - content_limit)
+        token_ids = token_ids[start:start + content_limit]
+
+    encoded = tokenizer.prepare_for_model(
+        token_ids,
+        add_special_tokens=True,
+        truncation=True,
+        max_length=max_length,
+        return_attention_mask=True,
+    )
+    return {
+        key: value
+        for key, value in encoded.items()
+        if key in ("input_ids", "attention_mask", "token_type_ids")
+    }
+
+
 def determine_positive_index(model) -> int:
     label_map = {int(k): str(v) for k, v in (model.config.id2label or {}).items()}
     matches = [
@@ -262,12 +314,23 @@ def main():
     }
 
     def tokenize_batch(batch):
-        tokens = tokenizer(
-            batch["text"],
-            truncation=True,
-            max_length=args.max_length,
-            padding=False,
-        )
+        feature_rows = [
+            prepare_training_window(
+                text,
+                tokenizer,
+                attack,
+                position,
+                int(label) == 1,
+                args.max_length,
+            )
+            for text, attack, position, label in zip(
+                batch["text"], batch["attack"], batch["position"], batch["label"]
+            )
+        ]
+        tokens = {
+            key: [row[key] for row in feature_rows]
+            for key in feature_rows[0]
+        }
         tokens["labels"] = [
             positive_index if int(label) == 1 else negative_index
             for label in batch["label"]
