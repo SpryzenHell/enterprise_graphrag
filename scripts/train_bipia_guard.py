@@ -412,6 +412,11 @@ def main():
 
     started_utc = datetime.now(timezone.utc).isoformat()
     start_time = time.perf_counter()
+
+    # Capture a same-sample baseline before adaptation; do not select a candidate
+    # on training/validation loss alone.
+    baseline_eval = external_evaluation(args.base_model, cache_dir, args.eval_max_per_class, args.seed)
+
     train_rows, val_rows, train_info = load_bipia_pairs(cache_dir, args.max_train_rows, args.seed)
     tokenizer = AutoTokenizer.from_pretrained(args.base_model, use_fast=False)
 
@@ -496,6 +501,7 @@ def main():
         },
         "training_metrics": training.metrics,
         "validation_metrics": validation,
+        "baseline_eval": baseline_eval,
         "external_eval": external,
         "note": (
             "BIPIA source contexts and attack strings may overlap conceptually with the BIPIA benchmark family. "
