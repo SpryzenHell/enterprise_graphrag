@@ -416,7 +416,7 @@ def main():
         f"- Training source: {BIPIA_DATASET}/bipia (CC-BY-SA-4.0)",
         f"- Selected source rows: {train_info['selected_source_rows']} / {train_info['dataset_rows_available']}",
         f"- Unique contexts: {train_info['unique_clean_contexts']}; training pairs: {train_info['train_examples']}; validation pairs: {train_info['validation_examples']}",
-        f"- Context attack-match ratio: {train_info['matched_attack_ratio']:.4f}; reconstructed rows: {train_info['reconstructed_from_metadata']}",
+        f"- Context attack-match ratio: {train_info['matched_attack_ratio']:.4f}; reconstructed rows: {train_info['attack_reconstructed_from_metadata']}",
         f"- Epochs: {args.epochs}; sequence length: {MAX_LENGTH}; device: {'CUDA' if on_gpu else 'CPU'}",
         "",
         "| Config | License | N | ROC-AUC | TPR @ .50 | FPR @ .50 | F1 @ .50 | TPR @ .20 | FPR @ .20 |",
