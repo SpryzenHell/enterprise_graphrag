@@ -218,8 +218,10 @@ def score_one_config(
         float(result["perplexity"]) if result.get("perplexity") is not None else None
         for result in ppl_gate_results
     ]
+    ppl_min_semantic_score = 0.10
     ppl_candidates = sum(
-        0 < marker_count < marker_threshold and score < integrated_semantic_threshold
+        marker_count >= 1
+        or (ppl_min_semantic_score <= score < integrated_semantic_threshold)
         for marker_count, score in zip(marker_counts, scores)
     )
     ppl_direct_latency_ms: list[float] = []
@@ -249,6 +251,32 @@ def score_one_config(
         ]
         ppl_only_threshold_sweep[key] = binary_metrics(labels, ppl_predictions)
         semantic_or_ppl_threshold_sweep[key] = binary_metrics(labels, combined_predictions)
+
+    # Simulate a production-shaped cascade: explicit marker blocks and semantic scores
+    # above the cutoff are decisive; PPL is queried only on a single-marker passage or
+    # the uncertain semantic-score band below the cutoff. This avoids blanket PPL blocks.
+    conditional_ppl_policy_sweep: dict[str, dict[str, dict]] = {}
+    conditional_ppl_eligible_by_min_score = {}
+    for min_score in (0.0, 0.05, 0.10, 0.20):
+        per_threshold = {}
+        eligible_count = sum(
+            marker_count >= 1 or (min_score <= score < integrated_semantic_threshold)
+            for marker_count, score in zip(marker_counts, scores)
+        )
+        conditional_ppl_eligible_by_min_score[f"{min_score:.2f}"] = eligible_count
+        for threshold in ppl_thresholds:
+            predictions = []
+            for score, marker_count, ppl_score in zip(scores, marker_counts, ppl_scores_by_row):
+                marker_block = marker_count >= marker_threshold
+                semantic_block = score >= integrated_semantic_threshold
+                eligible = (
+                    marker_count >= 1
+                    or (min_score <= score < integrated_semantic_threshold)
+                )
+                ppl_block = eligible and ppl_score is not None and ppl_score >= threshold
+                predictions.append(int(marker_block or semantic_block or ppl_block))
+            per_threshold[f"{threshold:.0f}"] = binary_metrics(labels, predictions)
+        conditional_ppl_policy_sweep[f"{min_score:.2f}"] = per_threshold
 
     # Single-input latency is measured after warm-up with real model inference, not the score cache.
     single_latency_ms = []
@@ -299,6 +327,13 @@ def score_one_config(
             "direct_markerless_and_marker_positive_latency_ms": latency_stats(ppl_direct_latency_ms),
             "threshold_sweep_ppl_only": ppl_only_threshold_sweep,
             "threshold_sweep_semantic_or_ppl": semantic_or_ppl_threshold_sweep,
+            "conditional_policy_min_semantic_score_sweep": conditional_ppl_policy_sweep,
+            "conditional_policy_ppl_eligible_by_min_score": conditional_ppl_eligible_by_min_score,
+            "conditional_policy_description": (
+                "Block marker-count >= marker threshold or semantic score >= semantic threshold. "
+                "For remaining text, apply PPL only when marker_count >= 1 or the semantic score is "
+                "within [minimum_score, semantic_threshold); block when PPL >= the swept threshold."
+            ),
             "missing_scores_treated_as_blocked": False,
         },
         "marker_count_distribution": {
