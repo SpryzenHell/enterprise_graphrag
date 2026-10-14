@@ -280,6 +280,18 @@ class SecurityGateway:
         )
 
     @staticmethod
+    def _ppl_policy_blocks(
+        eligible: bool,
+        configured: bool,
+        perplexity: float | None,
+        threshold: float,
+    ) -> bool:
+        """Return whether the deployed PPL policy must block this eligible item."""
+        return eligible and configured and (
+            perplexity is None or perplexity >= threshold
+        )
+
+    @staticmethod
     def _decision(
         allowed: bool,
         reason: str,
@@ -359,19 +371,20 @@ class SecurityGateway:
             ppl_eligible = marker_count >= 1 or borderline_semantic
             ppl_configured = bool(self.base_url and self.model)
             perplexity = self.perplexity(normalized[index]) if ppl_eligible else None
-            if ppl_eligible and ppl_configured and perplexity is None:
-                decisions[index] = self._decision(
-                    False,
-                    "perplexity evaluation unavailable (blocked closed)",
-                    marker_count,
-                    None,
-                    classifier_score,
-                )
-            elif perplexity is not None and perplexity >= self.threshold and ppl_eligible:
+            if self._ppl_policy_blocks(
+                ppl_eligible,
+                ppl_configured,
+                perplexity,
+                self.threshold,
+            ):
                 reason = (
-                    "high perplexity plus injection marker"
-                    if marker_count >= 1
-                    else "high perplexity in borderline semantic region"
+                    "perplexity evaluation unavailable (blocked closed)"
+                    if perplexity is None
+                    else (
+                        "high perplexity plus injection marker"
+                        if marker_count >= 1
+                        else "high perplexity in borderline semantic region"
+                    )
                 )
                 decisions[index] = self._decision(
                     False,
