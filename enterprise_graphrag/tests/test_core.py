@@ -736,7 +736,12 @@ def test_inspect_many_preserves_order_and_blocks_markerless_injections():
 
 
 def test_perplexity_is_not_called_for_markerless_text(monkeypatch):
-    gateway = SecurityGateway(threshold=80, marker_threshold=2)
+    gateway = SecurityGateway(
+        base_url="http://vllm.test",
+        model="fixture-model",
+        threshold=80,
+        marker_threshold=2,
+    )
     calls = []
     monkeypatch.setattr(
         gateway,
@@ -974,6 +979,8 @@ def test_request_body_cannot_override_jwt_tenant(tmp_path):
 
 def test_perplexity_blocks_markerless_borderline_semantic_injection(monkeypatch):
     gateway = SecurityGateway(
+        base_url="http://vllm.test",
+        model="fixture-model",
         threshold=80,
         marker_threshold=2,
         classifier_threshold=0.5,
