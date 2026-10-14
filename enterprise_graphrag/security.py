@@ -217,6 +217,7 @@ class SecurityGateway:
                     "max_tokens": 0,
                     "temperature": 0.0,
                     "echo": True,
+                    "logprobs": 1,
                     "prompt_logprobs": 1,
                     "return_token_ids": True,
                 },
@@ -226,27 +227,41 @@ class SecurityGateway:
             choice = response.json()["choices"][0]
             entries = choice.get("prompt_logprobs") or []
             token_ids = choice.get("prompt_token_ids") or []
-            if len(entries) != len(token_ids):
-                return None
-
             observed = []
-            for position, entry in enumerate(entries):
-                if position == 0 or entry is None:
-                    continue
-                token_id = token_ids[position]
-                token_data = entry.get(str(token_id))
-                if token_data is None:
-                    token_data = entry.get(token_id)
-                if not isinstance(token_data, dict):
-                    continue
-                logprob = token_data.get("logprob")
-                if isinstance(logprob, (int, float)):
-                    observed.append(float(logprob))
+            if isinstance(entries, list) and isinstance(token_ids, list) and len(entries) == len(token_ids):
+                for position, entry in enumerate(entries):
+                    if position == 0 or entry is None or not isinstance(entry, dict):
+                        continue
+                    token_id = token_ids[position]
+                    token_data = entry.get(str(token_id))
+                    if token_data is None:
+                        token_data = entry.get(token_id)
+                    if not isinstance(token_data, dict):
+                        continue
+                    logprob = token_data.get("logprob")
+                    if isinstance(logprob, (int, float)) and math.isfinite(float(logprob)):
+                        observed.append(float(logprob))
+
+            # Older vLLM builds may accept prompt_logprobs but omit the optional
+            # prompt_token_ids response field. With echo=True and logprobs=1,
+            # OpenAI-compatible completions return the observed token's own
+            # logprob sequence; prefer that over confusing top-k alternatives
+            # with the token actually present in the prompt.
+            if not observed:
+                logprob_payload = choice.get("logprobs") or {}
+                token_logprobs = logprob_payload.get("token_logprobs") or []
+                if isinstance(token_logprobs, list):
+                    observed = [
+                        float(value)
+                        for value in token_logprobs
+                        if isinstance(value, (int, float)) and math.isfinite(float(value))
+                    ]
 
             if not observed:
                 return None
             try:
-                return float(math.exp(-(sum(observed) / len(observed))))
+                score = float(math.exp(-(sum(observed) / len(observed))))
+                return score if math.isfinite(score) else None
             except OverflowError:
                 return None
         except (
