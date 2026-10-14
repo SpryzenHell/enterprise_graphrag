@@ -755,7 +755,12 @@ def test_perplexity_is_not_called_for_markerless_text(monkeypatch):
 
 
 def test_perplexity_blocks_single_marker_when_score_is_high(monkeypatch):
-    gateway = SecurityGateway(threshold=80, marker_threshold=2)
+    gateway = SecurityGateway(
+        base_url="http://vllm.test",
+        model="fixture-model",
+        threshold=80,
+        marker_threshold=2,
+    )
     calls = []
     monkeypatch.setattr(
         gateway,
