@@ -1,4 +1,24 @@
 services:
+  mock-vllm:
+    image: enterprise-graphrag:ci
+    build:
+      context: .
+      dockerfile: Dockerfile.enterprise
+    command: ["python", "scripts/mock_openai_server.py", "--host", "0.0.0.0", "--port", "8001"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/v1/models', timeout=2)"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+      start_period: 2s
   app:
     extra_hosts:
       - "graphrag.example.invalid:127.0.0.1"
+    environment:
+      VLLM_BASE_URL: http://mock-vllm:8001
+      VLLM_MODEL: ci-mock
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      mock-vllm:
+        condition: service_healthy
