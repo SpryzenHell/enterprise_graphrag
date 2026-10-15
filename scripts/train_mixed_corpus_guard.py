@@ -108,7 +108,7 @@ def split_notinject_rows(rows, seed: int, train_fraction: float, validation_frac
     holdout_items = items[validation_end:]
     manifest = {
         "dataset": "Horizon-Labs/prompt-injection-eval-suite/notinject",
-        "upstream_dataset": "leolee99/NotInject",
+        "original_dataset": "leolee99/NotInject",
         "license": "MIT",
         "seed": seed,
         "source_rows": len(rows),
