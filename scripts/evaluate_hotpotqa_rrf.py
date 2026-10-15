@@ -151,6 +151,7 @@ def ranking_metrics(query_rows: list[dict], rankings: dict[str, list[str]]) -> d
     per_query_ndcg = []
     per_query_precision = []
     per_query_answer_text = []
+    answer_text_eval_count = 0
     for row in query_rows:
         query_id = row["query_id"]
         gold_titles = set(row["supporting_titles"])
@@ -175,10 +176,13 @@ def ranking_metrics(query_rows: list[dict], rankings: dict[str, list[str]]) -> d
         per_query_precision.append(len(found) / 10.0)
 
         answer = normalize_title(row.get("answer", ""))
-        if len(answer) < 2 or answer in {"yes", "no"}:
-            per_query_answer_text.append(float(answer in {"yes", "no"} and any(answer in normalize_title(title) for title in ranked_titles)))
-        else:
-            per_query_answer_text.append(float(any(answer in normalize_title(text) for text in rankings.get(query_id + "::answer_text", []))))
+        # Exact answer-string coverage is meaningful for non-binary answers only;
+        # "yes"/"no" would otherwise create a spurious substring hit.
+        if len(answer) >= 2 and answer not in {"yes", "no"}:
+            answer_text_eval_count += 1
+            per_query_answer_text.append(
+                float(any(answer in normalize_title(text) for text in rankings.get(query_id + "::answer_text", [])))
+            )
     n = len(per_query_recall)
     if not n:
         return {"n_queries": 0}
@@ -190,7 +194,8 @@ def ranking_metrics(query_rows: list[dict], rankings: dict[str, list[str]]) -> d
         "mrr@10": round(statistics.mean(per_query_rr), 6),
         "ndcg@10": round(statistics.mean(per_query_ndcg), 6),
         "supporting_title_precision@10": round(statistics.mean(per_query_precision), 6),
-        "answer_text_present_in_top10": round(statistics.mean(per_query_answer_text), 6),
+        "answer_text_present_in_top10": round(statistics.mean(per_query_answer_text), 6) if per_query_answer_text else None,
+        "answer_text_evaluated_queries": answer_text_eval_count,
     }
 
 
