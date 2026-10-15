@@ -661,3 +661,36 @@ def test_vllm_factory_uses_configured_context_limits():
     assert isinstance(model, VllmAnswerModel)
     assert model.max_context_chars == 1234
     assert model.max_document_chars == 321
+
+
+def test_production_settings_require_vllm_perplexity_gateway():
+    from enterprise_graphrag.config import Settings
+
+    common = {
+        "environment": "production",
+        "jwt_secret": "production-only-secret-with-more-than-32-characters",
+        "jwt_issuer": "https://identity.example.com",
+        "jwt_audience": "enterprise-graphrag-api",
+        "neo4j_uri": "bolt://neo4j.internal:7687",
+        "neo4j_password": "not-a-real-password",
+        "mcp_resource_url": "https://api.example.com/mcp/",
+        "mcp_issuer_url": "https://api.example.com",
+        "mcp_allowed_hosts": ("api.example.com",),
+        "mcp_allowed_origins": ("https://app.example.com",),
+        "allowed_origins": ("https://app.example.com",),
+    }
+
+    unconfigured = Settings(**common)
+    try:
+        unconfigured.validate()
+    except ValueError as exc:
+        assert "VLLM_BASE_URL and VLLM_MODEL are required in production" in str(exc)
+    else:
+        raise AssertionError("Production settings accepted a missing PPL backend")
+
+    configured = Settings(
+        **common,
+        vllm_base_url="http://vllm.internal:8000",
+        vllm_model="Qwen/Qwen2.5-0.5B-Instruct",
+    )
+    configured.validate()
