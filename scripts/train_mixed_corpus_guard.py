@@ -76,12 +76,75 @@ def insert_attack(text: str, attack: str, position: str) -> str:
     return text + "\n" + attack
 
 
-def load_mixed_rows(cache_dir: str, max_bipia_rows: int, max_orbench_rows: int, seed: int):
+def split_notinject_rows(rows, seed: int, train_fraction: float, validation_fraction: float):
+    """Partition benign NotInject examples into train, threshold-calibration and untouched holdout."""
+    if not 0.0 < train_fraction < 1.0 or not 0.0 < validation_fraction < 1.0:
+        raise ValueError("NotInject train/validation fractions must be between 0 and 1")
+    if train_fraction + validation_fraction >= 1.0:
+        raise ValueError("NotInject train + validation fractions must leave a non-empty holdout")
+
+    unique = {}
+    for row in rows:
+        text = str(row.get("text") or "").strip()
+        label = parse_label(row.get("label", 0))
+        if len(text) < 8 or label != 0:
+            continue
+        unique.setdefault(normalized_hash(text), {
+            "text": text,
+            "label": 0,
+            "attack": "",
+            "position": "end",
+            "source": "leolee99/NotInject",
+        })
+    items = list(unique.items())
+    random.Random(seed).shuffle(items)
+    if len(items) < 50:
+        raise RuntimeError(f"Only {len(items)} unique benign NotInject rows; expected at least 50")
+    train_end = max(1, int(len(items) * train_fraction))
+    validation_end = max(train_end + 1, int(len(items) * (train_fraction + validation_fraction)))
+    validation_end = min(validation_end, len(items) - 1)
+    train_items = items[:train_end]
+    validation_items = items[train_end:validation_end]
+    holdout_items = items[validation_end:]
+    manifest = {
+        "dataset": "Horizon-Labs/prompt-injection-eval-suite/notinject",
+        "upstream_dataset": "leolee99/NotInject",
+        "license": "MIT",
+        "seed": seed,
+        "source_rows": len(rows),
+        "unique_rows": len(items),
+        "train_rows": len(train_items),
+        "validation_rows": len(validation_items),
+        "holdout_rows": len(holdout_items),
+        "training_hashes": sorted(key for key, _ in train_items),
+        "validation_hashes": sorted(key for key, _ in validation_items),
+        "holdout_hashes": sorted(key for key, _ in holdout_items),
+        "excluded_hashes": sorted(key for key, _ in train_items + validation_items),
+        "split_policy": "exact normalized text-hash split; only the untouched holdout partition is scored as NotInject",
+    }
+    return (
+        [row for _, row in train_items],
+        [row for _, row in validation_items],
+        [row for _, row in holdout_items],
+        manifest,
+    )
+
+
+def load_mixed_rows(
+    cache_dir: str,
+    max_bipia_rows: int,
+    max_orbench_rows: int,
+    seed: int,
+    notinject_train_fraction: float,
+    notinject_validation_fraction: float,
+    notinject_oversample_factor: int,
+):
     rng = random.Random(seed)
     grouped: dict[str, list[dict]] = defaultdict(list)
     raw_counts = {
         "mixed_dataset_rows": 0,
         "mixed_dataset_usable": 0,
+        "mixed_rows_excluded_notinject_overlap": 0,
         "bipia_dataset_rows": 0,
         "bipia_selected_rows": 0,
         "bipia_pairs": 0,
@@ -91,15 +154,43 @@ def load_mixed_rows(cache_dir: str, max_bipia_rows: int, max_orbench_rows: int, 
         "orbench_rows_added": 0,
         "orbench_rows_excluded_heldout_overlap": 0,
         "orbench_rows_excluded_duplicate": 0,
+        "notinject_rows_added_to_training": 0,
+        "notinject_rows_added_to_validation": 0,
+        "notinject_rows_excluded_duplicate": 0,
     }
+    if notinject_oversample_factor < 1:
+        raise ValueError("notinject_oversample_factor must be at least 1")
 
-    # Keep augmented variants together: this dataset supplies group_id metadata.
+    # Build a fixed group-aware split for the 339-row benign-only NotInject pool.
+    # Its training/calibration hashes are excluded from the later final evaluation.
+    notinject_source = load_dataset(
+        OOD_EVAL_DATASET,
+        "notinject",
+        split="test",
+        cache_dir=cache_dir,
+    )
+    notinject_train, notinject_validation, notinject_holdout, notinject_manifest = split_notinject_rows(
+        [dict(row) for row in notinject_source],
+        seed=seed + 73,
+        train_fraction=notinject_train_fraction,
+        validation_fraction=notinject_validation_fraction,
+    )
+    notinject_all_hashes = (
+        set(notinject_manifest["training_hashes"])
+        | set(notinject_manifest["validation_hashes"])
+        | set(notinject_manifest["holdout_hashes"])
+    )
+
+    # Preserve group_id so augmented variants cannot leak across training/validation.
     mixed = load_dataset(MIXED_DATASET, "full", split="train", cache_dir=cache_dir)
     raw_counts["mixed_dataset_rows"] = len(mixed)
     for row in mixed:
         text = str(row.get("text") or row.get("prompt") or "").strip()
         label = parse_label(row.get("label"))
         if len(text) < 8 or label is None:
+            continue
+        if normalized_hash(text) in notinject_all_hashes:
+            raw_counts["mixed_rows_excluded_notinject_overlap"] += 1
             continue
         raw_group_id = row.get("group_id")
         group_id = str(raw_group_id).strip() if raw_group_id is not None else ""
@@ -159,24 +250,21 @@ def load_mixed_rows(cache_dir: str, max_bipia_rows: int, max_orbench_rows: int, 
         })
         raw_counts["bipia_pairs"] += 1
 
-    # Add benign prompts that superficially look unsafe. This is a distinct
-    # OR-Bench-80K TRAIN split; we never train from the orbench_hard evaluation
-    # config. Exact text overlaps with the frozen NotInject/OR-Bench-hard test
-    # samples are excluded before sampling to guard against benchmark leakage.
-    heldout_eval_hashes = set()
-    heldout_eval_rows = 0
-    for config_name in ("notinject", "orbench_hard"):
-        heldout = load_dataset(
-            OOD_EVAL_DATASET,
-            config_name,
-            split="test",
-            cache_dir=cache_dir,
-        )
-        for heldout_row in heldout:
-            heldout_text = str(heldout_row.get("text") or "").strip()
-            if len(heldout_text) >= 8:
-                heldout_eval_hashes.add(normalized_hash(heldout_text))
-                heldout_eval_rows += 1
+    # Decontaminate OR-Bench training against the entire NotInject split and the
+    # official OR-Bench-hard holdout. No held-out string enters the train pool.
+    heldout_eval_hashes = set(notinject_all_hashes)
+    heldout_eval_rows = len(notinject_all_hashes)
+    orbench_hard = load_dataset(
+        OOD_EVAL_DATASET,
+        "orbench_hard",
+        split="test",
+        cache_dir=cache_dir,
+    )
+    for heldout_row in orbench_hard:
+        heldout_text = str(heldout_row.get("text") or "").strip()
+        if len(heldout_text) >= 8:
+            heldout_eval_hashes.add(normalized_hash(heldout_text))
+            heldout_eval_rows += 1
 
     orbench = load_dataset(
         OR_BENCH_DATASET,
@@ -231,8 +319,6 @@ def load_mixed_rows(cache_dir: str, max_bipia_rows: int, max_orbench_rows: int, 
         destination = validation_rows if group_id in validation_groups else train_rows
         destination.extend(examples)
 
-    # Do not allow the exact same normalized document across the two partitions,
-    # even if it appeared under two source datasets with different group IDs.
     train_text_hashes = {normalized_hash(row["text"]) for row in train_rows}
     before_val = len(validation_rows)
     validation_rows = [
@@ -242,6 +328,45 @@ def load_mixed_rows(cache_dir: str, max_bipia_rows: int, max_orbench_rows: int, 
     removed_cross_source_overlap = before_val - len(validation_rows)
     if not train_rows or not validation_rows:
         raise RuntimeError("Leak-resistant grouped split produced an empty partition")
+
+    # Add only the disjoint NotInject training slice and validation slice after the
+    # multi-source split. A fixed oversampling factor counteracts its smaller size.
+    grouped_corpus_hashes = {
+        normalized_hash(row["text"])
+        for examples in grouped.values()
+        for row in examples
+    }
+    usable_notinject_train = [
+        row for row in notinject_train
+        if normalized_hash(row["text"]) not in grouped_corpus_hashes
+    ]
+    usable_notinject_validation = [
+        row for row in notinject_validation
+        if normalized_hash(row["text"]) not in grouped_corpus_hashes
+    ]
+    raw_counts["notinject_rows_excluded_duplicate"] = (
+        len(notinject_train) - len(usable_notinject_train)
+        + len(notinject_validation) - len(usable_notinject_validation)
+    )
+    notinject_train_examples = [
+        {
+            **row,
+            "group_id": "notinject-train:" + normalized_hash(row["text"]),
+            "source": "leolee99/NotInject:train",
+        }
+        for row in usable_notinject_train
+    ]
+    train_rows.extend(notinject_train_examples * notinject_oversample_factor)
+    validation_rows.extend(
+        {
+            **row,
+            "group_id": "notinject-validation:" + normalized_hash(row["text"]),
+            "source": "leolee99/NotInject:validation",
+        }
+        for row in usable_notinject_validation
+    )
+    raw_counts["notinject_rows_added_to_training"] = len(usable_notinject_train) * notinject_oversample_factor
+    raw_counts["notinject_rows_added_to_validation"] = len(usable_notinject_validation)
 
     train_counts = {
         "benign": sum(row["label"] == 0 for row in train_rows),
@@ -256,6 +381,11 @@ def load_mixed_rows(cache_dir: str, max_bipia_rows: int, max_orbench_rows: int, 
             f"Training and validation must both contain both classes: train={train_counts}, val={validation_counts}"
         )
 
+    notinject_manifest["train_rows_added_to_model"] = len(usable_notinject_train)
+    notinject_manifest["validation_rows_added_to_calibration"] = len(usable_notinject_validation)
+    notinject_manifest["oversample_factor"] = notinject_oversample_factor
+    notinject_manifest["excluded_by_exact_overlap"] = raw_counts["notinject_rows_excluded_duplicate"]
+
     return train_rows, validation_rows, {
         **raw_counts,
         "distinct_groups": len(grouped),
@@ -265,15 +395,22 @@ def load_mixed_rows(cache_dir: str, max_bipia_rows: int, max_orbench_rows: int, 
         "validation_class_counts": validation_counts,
         "context_grouped_split_seed": seed,
         "removed_exact_text_overlaps_from_validation": removed_cross_source_overlap,
+        "notinject_split": {
+            "train_rows": len(usable_notinject_train),
+            "oversampled_training_examples": len(usable_notinject_train) * notinject_oversample_factor,
+            "validation_rows": len(usable_notinject_validation),
+            "holdout_rows": len(notinject_holdout),
+            "holdout_policy": "only the untouched holdout partition is evaluated as NotInject",
+        },
         "license_notes": {
             "neuralchemy/Prompt-injection-dataset:full": "Apache-2.0 dataset card; group_id preserved for augmented variants",
             "geodesic-research/bipia/bipia": "CC-BY-SA-4.0; retain attribution and share-alike notice for redistributed derivative weights",
             "bench-llm/or-bench:or-bench-80k train": "CC-BY-4.0; use only the train split and exclude exact evaluation text overlap",
-            "held-out benchmark decontamination": f"Hashed {heldout_eval_rows} rows from NotInject/OR-Bench-hard test configs; used only to exclude exact textual overlaps, not as training examples",
+            "Horizon-Labs/prompt-injection-eval-suite/notinject": "MIT; partitioned by normalized text hash into train, calibration validation, and untouched test holdout",
+            "held-out benchmark decontamination": f"Hashed {heldout_eval_rows} NotInject/OR-Bench-hard rows; exact overlaps excluded from OR-Bench training",
             "base_model": "Horizon-Labs/prompt-injection-guard-base (Apache-2.0 per model card)",
         },
-    }
-
+    }, notinject_manifest
 
 def prepare_training_window(
     text: str,
@@ -349,6 +486,9 @@ def main():
     parser.add_argument("--base-model", default=BASE_MODEL)
     parser.add_argument("--max-bipia-rows", type=int, default=8000)
     parser.add_argument("--max-orbench-rows", type=int, default=8000)
+    parser.add_argument("--notinject-train-fraction", type=float, default=0.50)
+    parser.add_argument("--notinject-validation-fraction", type=float, default=0.25)
+    parser.add_argument("--notinject-oversample-factor", type=int, default=4)
     parser.add_argument("--epochs", type=float, default=1.0)
     parser.add_argument("--train-batch-size", type=int, default=16)
     parser.add_argument("--gradient-accumulation-steps", type=int, default=2)
@@ -367,8 +507,18 @@ def main():
 
     start_utc = datetime.now(timezone.utc).isoformat()
     started = time.perf_counter()
-    train_rows, validation_rows, data_info = load_mixed_rows(
-        cache_dir, args.max_bipia_rows, args.max_orbench_rows, args.seed
+    train_rows, validation_rows, data_info, notinject_manifest = load_mixed_rows(
+        cache_dir,
+        args.max_bipia_rows,
+        args.max_orbench_rows,
+        args.seed,
+        args.notinject_train_fraction,
+        args.notinject_validation_fraction,
+        args.notinject_oversample_factor,
+    )
+    (output_dir / "notinject_partition_manifest.json").write_text(
+        json.dumps(notinject_manifest, indent=2),
+        encoding="utf-8",
     )
 
     tokenizer = AutoTokenizer.from_pretrained(args.base_model)
@@ -601,6 +751,9 @@ def main():
             "max_length": args.max_length,
             "max_bipia_rows": args.max_bipia_rows,
             "max_orbench_rows": args.max_orbench_rows,
+            "notinject_train_fraction": args.notinject_train_fraction,
+            "notinject_validation_fraction": args.notinject_validation_fraction,
+            "notinject_oversample_factor": args.notinject_oversample_factor,
             "positive_class_index": positive_index,
         },
         "train_metrics": train_result.metrics,
