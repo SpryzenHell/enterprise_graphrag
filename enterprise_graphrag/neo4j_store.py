@@ -98,7 +98,12 @@ class Neo4jTenantStore:
                             )
                         ),
                     }
-                    for name in extract_entities(doc["title"] + " " + doc["text"])
+                    # Extract title and body independently so the final capitalized
+                    # token in a title cannot merge with the first entity in the
+                    # body (e.g. "Schedule Project Atlas") and hide shared graph keys.
+                    for name in dict.fromkeys(
+                        extract_entities(doc["title"]) + extract_entities(doc["text"])
+                    )
                 ],
             }
             for doc in documents
