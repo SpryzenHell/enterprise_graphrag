@@ -131,6 +131,88 @@ class Neo4jTenantStore:
                 documents=rows,
             ).consume()
 
+    def expand_from_anchors(
+        self,
+        tenant: str,
+        anchor_doc_ids: list[str],
+        limit: int,
+    ) -> list[Hit]:
+        """Expand tenant-scoped graph neighbors from semantically ranked FAISS hits.
+
+        Instead of asking graph full-text retrieval to independently rediscover
+        query anchors, this method starts from the caller's vector-ranked documents
+        and traverses Document -> Entity -> Document. It can surface supporting
+        passages that share an entity with a strong vector hit but do not repeat
+        the natural-language query terms themselves.
+        """
+        if limit < 1 or not anchor_doc_ids:
+            return []
+        unique_anchor_ids = list(dict.fromkeys(str(value) for value in anchor_doc_ids if value))[:1000]
+        if not unique_anchor_ids:
+            return []
+        anchors = [
+            {"doc_id": doc_id, "rank": rank}
+            for rank, doc_id in enumerate(unique_anchor_ids, start=1)
+        ]
+        query = """
+        UNWIND $anchors AS seed
+        MATCH (anchor:Document {tenant_id:$tenant, doc_id:seed.doc_id})
+        MATCH (anchor)-[:MENTIONS]->(bridge:Entity {tenant_id:$tenant})
+        MATCH (bridge)<-[:MENTIONS]-(candidate:Document {tenant_id:$tenant})
+        WHERE candidate.doc_id <> anchor.doc_id
+          AND NOT candidate.doc_id IN $anchor_doc_ids
+        WITH candidate,
+             collect(DISTINCT anchor.doc_id) AS anchor_docs,
+             collect(DISTINCT bridge.key) AS bridge_keys,
+             min(seed.rank) AS best_anchor_rank
+        WITH candidate, anchor_docs, bridge_keys, best_anchor_rank,
+             (1.0 / (10.0 + best_anchor_rank)
+              + 0.10 * size(anchor_docs)
+              + 0.05 * size(bridge_keys)) AS expansion_score
+        RETURN candidate.doc_id AS doc_id,
+               candidate.title AS title,
+               candidate.text AS text,
+               expansion_score AS score,
+               anchor_docs AS anchor_docs,
+               bridge_keys AS bridge_keys,
+               best_anchor_rank AS best_anchor_rank
+        ORDER BY score DESC, doc_id
+        LIMIT $limit
+        """
+        with self.driver.session(database=self.database) as session:
+            result = session.run(
+                query,
+                tenant=tenant,
+                anchors=anchors,
+                anchor_doc_ids=unique_anchor_ids,
+                limit=limit,
+            )
+            data_method = getattr(result, "data", None)
+            rows = list(data_method()) if callable(data_method) else list(result)
+
+        return [
+            Hit(
+                doc_id=row["doc_id"],
+                title=row["title"],
+                tenant_id=tenant,
+                text=row["text"],
+                score=float(row["score"]),
+                source="graph",
+                metadata={
+                    "doc_id": row["doc_id"],
+                    "title": row["title"],
+                    "text": row["text"],
+                    "traversal_hops": 2,
+                    "traversal_score": float(row["score"]),
+                    "anchor_docs": list(row["anchor_docs"] or []),
+                    "bridge_entities": list(row["bridge_keys"] or []),
+                    "best_anchor_rank": int(row["best_anchor_rank"]),
+                    "retrieval_path": "vector_seeded_two_hop",
+                },
+            )
+            for row in rows
+        ]
+
     def search(
         self,
         tenant: str,
