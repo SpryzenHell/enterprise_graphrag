@@ -301,6 +301,9 @@ def load_mixed_rows(
             raw_counts["bipia_reconstructed_attacks"] += 1
         if len(clean) < 8 or len(poisoned) < 8:
             continue
+        if normalized_hash(clean) in ood_eval_hashes or normalized_hash(poisoned) in ood_eval_hashes:
+            raw_counts["bipia_pairs_excluded_ood_overlap"] = raw_counts.get("bipia_pairs_excluded_ood_overlap", 0) + 1
+            continue
         group_id = "bipia:" + normalized_hash(clean)
         grouped[group_id].append({
             "text": clean,
@@ -763,6 +766,10 @@ def main():
         i for i, row in enumerate(val_rows)
         if str(row.get("source", "")).startswith("leolee99/NotInject:validation")
     ]
+    piarena_validation_indices = [
+        i for i, row in enumerate(val_rows)
+        if str(row.get("source", "")).startswith("Horizon-Labs/PIArena:validation")
+    ]
     benign_indices = [i for i, row in enumerate(val_rows) if int(row["label"]) == 0]
     bipia_positive_indices = [
         i for i, row in enumerate(val_rows)
@@ -775,10 +782,13 @@ def main():
         hard_scores = [val_probabilities[i] for i in orbench_indices]
         notinject_rows = [val_rows[i] for i in notinject_validation_indices]
         notinject_scores = [val_probabilities[i] for i in notinject_validation_indices]
+        piarena_rows = [val_rows[i] for i in piarena_validation_indices]
+        piarena_scores = [val_probabilities[i] for i in piarena_validation_indices]
         bipia_rows = [val_rows[i] for i in bipia_positive_indices]
         bipia_scores = [val_probabilities[i] for i in bipia_positive_indices]
         hard_stats = threshold_stats(hard_rows, hard_scores, threshold)
         notinject_stats = threshold_stats(notinject_rows, notinject_scores, threshold)
+        piarena_stats = threshold_stats(piarena_rows, piarena_scores, threshold)
         bipia_stats = threshold_stats(bipia_rows, bipia_scores, threshold)
         threshold_records.append({
             "threshold": threshold,
@@ -790,6 +800,7 @@ def main():
             )["fpr"],
             "orbench_80k_validation": hard_stats,
             "notinject_validation": notinject_stats,
+            "piarena_validation": piarena_stats,
             "bipia_injected_validation": bipia_stats,
         })
 
@@ -803,6 +814,9 @@ def main():
         and record["notinject_validation"]["n"] >= 50
         and record["notinject_validation"]["fpr"] is not None
         and record["notinject_validation"]["fpr"] <= 0.05
+        and record["piarena_validation"]["n"] >= 100
+        and record["piarena_validation"]["fpr"] is not None
+        and record["piarena_validation"]["fpr"] <= 0.02
     ]
     if eligible_thresholds:
         selected_threshold = max(
@@ -814,7 +828,7 @@ def main():
             ),
         )
         calibration_feasible = True
-        selection_reason = "Maximize BIPIA validation TPR subject to <=5% OR-Bench-80K, NotInject, and overall benign validation FPR."
+        selection_reason = "Maximize BIPIA validation TPR subject to <=5% OR-Bench-80K/NotInject/overall-benign FPR and <=2% PIArena validation FPR."
     else:
         selected_threshold = min(
             threshold_records,
@@ -830,7 +844,7 @@ def main():
             ),
         )
         calibration_feasible = False
-        selection_reason = "No validation threshold satisfied OR-Bench, NotInject, and overall-benign 5% false-positive constraints; selected a diagnostic threshold. This model must not be promoted."
+        selection_reason = "No threshold satisfied OR-Bench/NotInject/overall-benign <=5% and PIArena <=2% validation FPR constraints; diagnostic threshold only; do not promote."
 
     calibration = {
         "calibration_split": "grouped training validation rows only; external test configs were not used to select the threshold",
@@ -887,7 +901,7 @@ def main():
             f"- BIPIA selected source rows: {data_info['bipia_selected_rows']}; paired documents: {data_info['bipia_pairs']}",
             f"- OR-Bench-80K benign hard negatives added: {data_info['orbench_rows_added']} (CC-BY-4.0 train split); exact overlap with held-out NotInject/OR-Bench-hard rows excluded: {data_info['orbench_rows_excluded_heldout_overlap']}",
             f"- Group split: train={data_info['train_examples']}, validation={data_info['validation_examples']}; exact cross-split duplicates removed={data_info['removed_exact_text_overlaps_from_validation']}",
-            f"- Threshold calibration: {calibration['selected_threshold']:.2f}; feasible={calibration['feasible']}; OR-Bench FPR={calibration['selected_record']['orbench_80k_validation']['fpr']}; NotInject validation FPR={calibration['selected_record']['notinject_validation']['fpr']}; BIPIA TPR={calibration['selected_record']['bipia_injected_validation']['tpr']}",
+            f"- Threshold calibration: {calibration['selected_threshold']:.2f}; feasible={calibration['feasible']}; OR-Bench FPR={calibration['selected_record']['orbench_80k_validation']['fpr']}; NotInject FPR={calibration['selected_record']['notinject_validation']['fpr']}; PIArena FPR={calibration['selected_record']['piarena_validation']['fpr']}; BIPIA TPR={calibration['selected_record']['bipia_injected_validation']['tpr']}",
             f"- Class counts train={data_info['train_class_counts']}; validation={data_info['validation_class_counts']}",
             f"- Epochs={args.epochs}, learning rate={args.learning_rate}, sequence length={args.max_length}; CUDA={on_cuda}",
             "",
