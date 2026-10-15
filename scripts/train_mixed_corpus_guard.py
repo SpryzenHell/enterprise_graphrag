@@ -299,7 +299,23 @@ def main():
     train_rows, validation_rows, data_info = load_mixed_rows(cache_dir, args.max_bipia_rows, args.seed)
 
     tokenizer = AutoTokenizer.from_pretrained(args.base_model)
-    model = AutoModelForSequenceClassification.from_pretrained(args.base_model)
+
+    # ModernBERT checkpoints can enable reference torch.compile on their MLP
+    # when Triton is present. Trainer / gradient backprop then encounters the
+    # compiled callable while FX-tracing the training graph and fails with:
+    # "using FX to symbolically trace a dynamo-optimized function". Fine-tuning
+    # does not need this inference-only optimization, so disable it before model
+    # construction rather than trying to unwrap a compiled layer after the fact.
+    from transformers import AutoConfig
+    model_config = AutoConfig.from_pretrained(args.base_model)
+    if hasattr(model_config, "reference_compile"):
+        model_config.reference_compile = False
+    model = AutoModelForSequenceClassification.from_pretrained(
+        args.base_model,
+        config=model_config,
+    )
+    if hasattr(model.config, "reference_compile"):
+        model.config.reference_compile = False
     if int(model.config.num_labels) != 2:
         raise RuntimeError(f"Expected binary classifier model, got {model.config.num_labels} labels")
     positive_index = determine_positive_index(model)
