@@ -312,6 +312,10 @@ class Settings:
             problems.append(
                 "VLLM_BASE_URL and VLLM_MODEL must be set together"
             )
+        if env == "production" and not (self.vllm_base_url and self.vllm_model):
+            problems.append(
+                "VLLM_BASE_URL and VLLM_MODEL are required in production to enforce the perplexity security gateway"
+            )
         if self.vllm_max_context_chars <= 0:
             problems.append(
                 "VLLM_MAX_CONTEXT_CHARS must be greater than zero"
