@@ -204,6 +204,9 @@ def load_mixed_rows(
         "notinject_rows_added_to_training": 0,
         "notinject_rows_added_to_validation": 0,
         "notinject_rows_excluded_duplicate": 0,
+        "mixed_rows_excluded_ood_calibration_overlap": 0,
+        "piarena_rows_added_to_calibration": 0,
+        "piarena_rows_excluded_duplicate": 0,
     }
     if notinject_oversample_factor < 1:
         raise ValueError("notinject_oversample_factor must be at least 1")
@@ -228,6 +231,26 @@ def load_mixed_rows(
         | set(notinject_manifest["holdout_hashes"])
     )
 
+    # Reserve a calibration-only PIArena slice. Remaining PIArena rows are untouched
+    # holdout rows; no PIArena example is used as a gradient-training example.
+    piarena_source = load_dataset(
+        OOD_EVAL_DATASET,
+        "piarena",
+        split="test",
+        cache_dir=cache_dir,
+    )
+    piarena_validation, piarena_holdout, piarena_manifest = split_labeled_validation_rows(
+        [dict(row) for row in piarena_source],
+        seed=seed + 79,
+        validation_fraction=0.20,
+    )
+    piarena_all_hashes = {
+        normalized_hash(str(row.get("text") or ""))
+        for row in piarena_source
+        if len(str(row.get("text") or "").strip()) >= 8
+    }
+    ood_eval_hashes = notinject_all_hashes | piarena_all_hashes
+
     # Preserve group_id so augmented variants cannot leak across training/validation.
     mixed = load_dataset(MIXED_DATASET, "full", split="train", cache_dir=cache_dir)
     raw_counts["mixed_dataset_rows"] = len(mixed)
@@ -236,8 +259,8 @@ def load_mixed_rows(
         label = parse_label(row.get("label"))
         if len(text) < 8 or label is None:
             continue
-        if normalized_hash(text) in notinject_all_hashes:
-            raw_counts["mixed_rows_excluded_notinject_overlap"] += 1
+        if normalized_hash(text) in ood_eval_hashes:
+            raw_counts["mixed_rows_excluded_ood_calibration_overlap"] += 1
             continue
         raw_group_id = row.get("group_id")
         group_id = str(raw_group_id).strip() if raw_group_id is not None else ""
@@ -299,8 +322,8 @@ def load_mixed_rows(
 
     # Decontaminate OR-Bench training against the entire NotInject split and the
     # official OR-Bench-hard holdout. No held-out string enters the train pool.
-    heldout_eval_hashes = set(notinject_all_hashes)
-    heldout_eval_rows = len(notinject_all_hashes)
+    heldout_eval_hashes = set(ood_eval_hashes)
+    heldout_eval_rows = len(ood_eval_hashes)
     orbench_hard = load_dataset(
         OOD_EVAL_DATASET,
         "orbench_hard",
@@ -383,6 +406,24 @@ def load_mixed_rows(
         for examples in grouped.values()
         for row in examples
     }
+    usable_piarena_validation = [
+        row for row in piarena_validation
+        if normalized_hash(row["text"]) not in grouped_corpus_hashes
+        and normalized_hash(row["text"]) not in notinject_all_hashes
+    ]
+    raw_counts["piarena_rows_excluded_duplicate"] = (
+        len(piarena_validation) - len(usable_piarena_validation)
+    )
+    validation_rows.extend(
+        {
+            **row,
+            "group_id": "piarena-validation:" + normalized_hash(row["text"]),
+            "source": "Horizon-Labs/PIArena:validation",
+        }
+        for row in usable_piarena_validation
+    )
+    raw_counts["piarena_rows_added_to_calibration"] = len(usable_piarena_validation)
+
     usable_notinject_train = [
         row for row in notinject_train
         if normalized_hash(row["text"]) not in grouped_corpus_hashes
@@ -432,6 +473,17 @@ def load_mixed_rows(
     notinject_manifest["validation_rows_added_to_calibration"] = len(usable_notinject_validation)
     notinject_manifest["oversample_factor"] = notinject_oversample_factor
     notinject_manifest["excluded_by_exact_overlap"] = raw_counts["notinject_rows_excluded_duplicate"]
+    notinject_manifest["excluded_hashes_by_config"] = {
+        "notinject": list(notinject_manifest["excluded_hashes"]),
+        "piarena": list(piarena_manifest["excluded_hashes"]),
+    }
+    notinject_manifest["config_partitions"] = {
+        "notinject": notinject_manifest,
+        "piarena": piarena_manifest,
+    }
+    notinject_manifest["holdout_policy"] = (
+        "NotInject scores untouched 25% holdout; PIArena scores rows outside the calibration-only 20% stratified slice."
+    )
 
     return train_rows, validation_rows, {
         **raw_counts,
@@ -447,13 +499,16 @@ def load_mixed_rows(
             "oversampled_training_examples": len(usable_notinject_train) * notinject_oversample_factor,
             "validation_rows": len(usable_notinject_validation),
             "holdout_rows": len(notinject_holdout),
-            "holdout_policy": "only the untouched holdout partition is evaluated as NotInject",
+            "piarena_calibration_rows": len(usable_piarena_validation),
+            "piarena_holdout_rows": len(piarena_holdout),
+            "holdout_policy": "only untouched NotInject holdout and PIArena rows excluding the calibration slice are evaluated",
         },
         "license_notes": {
             "neuralchemy/Prompt-injection-dataset:full": "Apache-2.0 dataset card; group_id preserved for augmented variants",
             "geodesic-research/bipia/bipia": "CC-BY-SA-4.0; retain attribution and share-alike notice for redistributed derivative weights",
             "bench-llm/or-bench:or-bench-80k train": "CC-BY-4.0; use only the train split and exclude exact evaluation text overlap",
             "Horizon-Labs/prompt-injection-eval-suite/notinject": "MIT; partitioned by normalized text hash into train, calibration validation, and untouched test holdout",
+            "Horizon-Labs/prompt-injection-eval-suite/piarena": "MIT; stratified 20% calibration split, remaining rows reserved for untouched evaluation",
             "held-out benchmark decontamination": f"Hashed {heldout_eval_rows} NotInject/OR-Bench-hard rows; exact overlaps excluded from OR-Bench training",
             "base_model": "Horizon-Labs/prompt-injection-guard-base (Apache-2.0 per model card)",
         },
