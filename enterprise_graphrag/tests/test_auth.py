@@ -156,6 +156,8 @@ def test_production_accepts_explicit_external_urls():
         environment="production",
         jwt_secret="ci-only-secret-change-me-please-32-bytes",
         jwt_issuer="https://issuer.example",
+        vllm_base_url="https://vllm.example",
+        vllm_model="Qwen/Qwen2.5-0.5B-Instruct",
         mcp_resource_url="https://graphrag.example/mcp/",
         mcp_issuer_url="https://issuer.example",
         mcp_allowed_hosts=("graphrag.example:*",),
