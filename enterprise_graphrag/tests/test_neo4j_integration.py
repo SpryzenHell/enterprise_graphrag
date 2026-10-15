@@ -185,3 +185,67 @@ def test_neo4j_bulk_upsert_and_tenant_isolation():
         assert all(node["tenant_id"] == "acme" for node in trace["nodes"])
     finally:
         store.close()
+
+
+
+@pytest.mark.integration
+def test_neo4j_two_hop_retrieval_returns_linked_evidence_and_stays_tenant_scoped():
+    uri = os.getenv("NEO4J_URI")
+    password = os.getenv("NEO4J_PASSWORD")
+    if not uri or not password:
+        pytest.skip("NEO4J_URI/NEO4J_PASSWORD not configured")
+
+    store = Neo4jTenantStore(
+        uri,
+        os.getenv("NEO4J_USER", "neo4j"),
+        password,
+        os.getenv("NEO4J_DATABASE", "neo4j"),
+    )
+    try:
+        for _ in range(30):
+            try:
+                store.verify()
+                break
+            except Exception:
+                time.sleep(1)
+        else:
+            pytest.fail("Neo4j did not become ready")
+
+        store.ensure_schema()
+        store.add_many(
+            "twohop-acme",
+            [
+                {
+                    "doc_id": "twohop-anchor-acme",
+                    "title": "Incident Response Runbook",
+                    "text": "The incident response owner coordinates recovery with Project Atlas.",
+                },
+                {
+                    "doc_id": "twohop-related-acme",
+                    "title": "Project Atlas Backup Schedule",
+                    "text": "Project Atlas backups run nightly and retain recovery snapshots for 90 days.",
+                },
+            ],
+        )
+        store.add_many(
+            "twohop-globex",
+            [
+                {
+                    "doc_id": "twohop-related-globex",
+                    "title": "Project Atlas Backup Schedule",
+                    "text": "Project Atlas backups run hourly and retain Globex snapshots for 30 days.",
+                },
+            ],
+        )
+
+        hits = store.search("twohop-acme", "incident response", 10)
+        related = next((hit for hit in hits if hit.doc_id == "twohop-related-acme"), None)
+        assert related is not None, [hit.doc_id for hit in hits]
+        assert related.tenant_id == "twohop-acme"
+        assert related.metadata.get("traversal_hops") == 2
+        assert related.metadata.get("retrieval_path") in {"two_hop", "fulltext+two_hop"}
+        assert "90 days" in related.text
+        assert all(hit.doc_id != "twohop-related-globex" for hit in hits)
+        assert all(hit.tenant_id == "twohop-acme" for hit in hits)
+    finally:
+        store.close()
