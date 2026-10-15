@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: hotpotqa-multihop-rrf-\${{ github.ref }}
+  group: hotpotqa-multihop-rrf-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -78,6 +78,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: hotpotqa-multihop-rrf-\${{ github.run_id }}
+          name: hotpotqa-multihop-rrf-${{ github.run_id }}
           path: artifacts/hotpotqa-multihop/
           if-no-files-found: warn
