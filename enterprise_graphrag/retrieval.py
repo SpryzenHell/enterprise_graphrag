@@ -353,6 +353,31 @@ class HybridRetriever:
             fetch_limit,
         )
 
+        # Real Neo4j can use the vector hits as graph anchors. This second path is
+        # tenant-scoped inside Cypher and reaches related documents that share
+        # entities with semantically relevant passages, even when the related text
+        # does not independently match the original query's lexical terms.
+        expand_from_anchors = getattr(self.graph, "expand_from_anchors", None)
+        if callable(expand_from_anchors) and vector_hits:
+            anchored_graph_hits = expand_from_anchors(
+                tenant,
+                [hit.doc_id for hit in vector_hits],
+                fetch_limit,
+            )
+            if anchored_graph_hits:
+                graph_hits = weighted_rrf(
+                    {
+                        "graph_fulltext": graph_hits,
+                        "graph_vector_seeded_two_hop": anchored_graph_hits,
+                    },
+                    {
+                        "graph_fulltext": 0.20,
+                        "graph_vector_seeded_two_hop": 0.80,
+                    },
+                    k=self.rrf_k,
+                    limit=fetch_limit,
+                )
+
         fused = weighted_rrf(
             {
                 "vector": vector_hits,
