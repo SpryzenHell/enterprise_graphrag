@@ -30,10 +30,18 @@ def main() -> None:
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--bipia-min-tpr-gain", type=float, default=0.10)
     parser.add_argument("--max-hard-negative-fpr", type=float, default=0.05)
+    parser.add_argument(
+        "--calibration-report",
+        required=True,
+        help="calibration.json emitted by training; an infeasible validation threshold blocks acceptance",
+    )
     args = parser.parse_args()
 
     base = read_report(Path(args.base_report))
     candidate = read_report(Path(args.candidate_report))
+    calibration = json.loads(Path(args.calibration_report).read_text(encoding="utf-8"))
+    calibrated_threshold = float(calibration["selected_threshold"])
+    calibration_feasible = bool(calibration.get("feasible", False))
     out = Path(args.output_dir)
     out.mkdir(parents=True, exist_ok=True)
 
@@ -98,10 +106,18 @@ def main() -> None:
             by_name["orbench_hard"]["candidate_fpr"] <= args.max_hard_negative_fpr
         ),
     }
+    checks["validation_threshold_satisfies_hard_negative_constraints"] = calibration_feasible
     promote_candidate_for_further_staging = all(checks.values())
     result = {
         "schema_version": 1,
-        "threshold_semantics": "Both input reports must use the same frozen sample seed and integrated semantic threshold 0.35.",
+        "threshold_semantics": (
+            f"Both input reports must use the same frozen sample seed and integrated semantic threshold {calibrated_threshold:.2f}; "
+            "threshold is selected from the grouped training validation split, never the external test set."
+        ),
+        "calibration_report": str(args.calibration_report),
+        "calibrated_threshold": calibrated_threshold,
+        "calibration_feasible": calibration_feasible,
+        "calibration_selection_reason": calibration.get("selection_reason"),
         "metric": METRIC_KEY,
         "base_report": str(args.base_report),
         "candidate_report": str(args.candidate_report),
@@ -127,7 +143,9 @@ def main() -> None:
         "",
         f"- Candidate clears all checks: {promote_candidate_for_further_staging}",
         f"- Decision: {result['decision']}",
-        "- Both model reports use the same seed, the same OOD configs and the same fixed integrated threshold.",
+        f"- Frozen integrated threshold: {calibrated_threshold:.2f} (calibration feasible={calibration_feasible})",
+        f"- Calibration selection: {calibration.get('selection_reason', 'not recorded')}",
+        "- Both model reports use the same seed, the same OOD configs and the same calibrated integrated threshold.",
         "",
         "| Config | N | Base TPR | Candidate TPR | Delta TPR | Base FPR | Candidate FPR | Delta FPR |",
         "|---|---:|---:|---:|---:|---:|---:|---:|",
