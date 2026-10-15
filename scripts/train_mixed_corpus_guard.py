@@ -557,8 +557,10 @@ def main():
             threshold_records,
             key=lambda record: (
                 max(
-                    record["orbench_80k_validation"]["fpr"] or 1.0,
-                    record["all_benign_validation_fpr"] or 1.0,
+                    record["orbench_80k_validation"]["fpr"]
+                    if record["orbench_80k_validation"]["fpr"] is not None else 1.0,
+                    record["all_benign_validation_fpr"]
+                    if record["all_benign_validation_fpr"] is not None else 1.0,
                 ),
                 -(record["bipia_injected_validation"]["tpr"] or 0.0),
                 -record["threshold"],
@@ -582,7 +584,7 @@ def main():
     trainer.save_model(str(model_dir))
     tokenizer.save_pretrained(str(model_dir))
     (output_dir / "calibration.json").write_text(json.dumps(calibration, indent=2), encoding="utf-8")
-    (output_dir / "calibrated_threshold.txt").write_text(f"{calibration['selected_threshold']:.2f}\\n", encoding="utf-8")
+    (output_dir / "calibrated_threshold.txt").write_text(f"{calibration['selected_threshold']:.2f}\n", encoding="utf-8")
 
     result = {
         "started_utc": start_utc,
@@ -597,6 +599,8 @@ def main():
             "train_batch_size": args.train_batch_size,
             "gradient_accumulation_steps": args.gradient_accumulation_steps,
             "max_length": args.max_length,
+            "max_bipia_rows": args.max_bipia_rows,
+            "max_orbench_rows": args.max_orbench_rows,
             "positive_class_index": positive_index,
         },
         "train_metrics": train_result.metrics,
@@ -621,7 +625,9 @@ def main():
             f"- Class counts train={data_info['train_class_counts']}; validation={data_info['validation_class_counts']}",
             f"- Epochs={args.epochs}, learning rate={args.learning_rate}, sequence length={args.max_length}; CUDA={on_cuda}",
             "",
-            "Candidate checkpoint only. Promote only if the same frozen-seed BIPIA and PIArena test sets improve while NotInject/OR-Bench-hard benign false positives remain below the predeclared tolerance.",
+            f"- Validation-calibrated threshold: {calibration['selected_threshold']:.2f}; constraints feasible={calibration['feasible']}.",
+            f"- OR-Bench-80K exact overlaps with held-out NotInject/OR-Bench-hard samples excluded: {data_info['orbench_rows_excluded_heldout_overlap']}; duplicates against other training corpora excluded: {data_info['orbench_rows_excluded_duplicate']}.",
+            "Candidate checkpoint only. Promote only if the calibrated threshold satisfies validation constraints and the same frozen-seed BIPIA/PIArena test sets improve while NotInject/OR-Bench-hard benign false positives remain <=5%.",
             "BIPIA-derived weights carry CC-BY-SA-4.0 attribution/share-alike obligations; review before redistribution.",
         ]) + "\n",
         encoding="utf-8",
