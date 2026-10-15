@@ -211,28 +211,8 @@ def load_mixed_rows(
     if notinject_oversample_factor < 1:
         raise ValueError("notinject_oversample_factor must be at least 1")
 
-    # Build a fixed group-aware split for the 339-row benign-only NotInject pool.
-    # Its training/calibration hashes are excluded from the later final evaluation.
-    notinject_source = load_dataset(
-        OOD_EVAL_DATASET,
-        "notinject",
-        split="test",
-        cache_dir=cache_dir,
-    )
-    notinject_train, notinject_validation, notinject_holdout, notinject_manifest = split_notinject_rows(
-        [dict(row) for row in notinject_source],
-        seed=seed + 73,
-        train_fraction=notinject_train_fraction,
-        validation_fraction=notinject_validation_fraction,
-    )
-    notinject_all_hashes = (
-        set(notinject_manifest["training_hashes"])
-        | set(notinject_manifest["validation_hashes"])
-        | set(notinject_manifest["holdout_hashes"])
-    )
-
-    # Reserve a calibration-only PIArena slice. Remaining PIArena rows are untouched
-    # holdout rows; no PIArena example is used as a gradient-training example.
+    # Split PIArena first so exact examples shared by the two public config views
+    # cannot cross from NotInject training/calibration into the PIArena holdout.
     piarena_source = load_dataset(
         OOD_EVAL_DATASET,
         "piarena",
@@ -249,6 +229,37 @@ def load_mixed_rows(
         for row in piarena_source
         if len(str(row.get("text") or "").strip()) >= 8
     }
+
+    # Build disjoint NotInject train/calibration/holdout partitions, first removing
+    # exact text overlaps with PIArena in every partition.
+    notinject_source = load_dataset(
+        OOD_EVAL_DATASET,
+        "notinject",
+        split="test",
+        cache_dir=cache_dir,
+    )
+    notinject_source_rows_all = [dict(row) for row in notinject_source]
+    notinject_overlap_count = sum(
+        normalized_hash(str(row.get("text") or "")) in piarena_all_hashes
+        for row in notinject_source_rows_all
+    )
+    notinject_source_rows = [
+        row for row in notinject_source_rows_all
+        if normalized_hash(str(row.get("text") or "")) not in piarena_all_hashes
+    ]
+    notinject_train, notinject_validation, notinject_holdout, notinject_manifest = split_notinject_rows(
+        notinject_source_rows,
+        seed=seed + 73,
+        train_fraction=notinject_train_fraction,
+        validation_fraction=notinject_validation_fraction,
+    )
+    notinject_manifest["source_rows_before_decontamination"] = len(notinject_source_rows_all)
+    notinject_manifest["piarena_overlap_rows_excluded"] = notinject_overlap_count
+    notinject_all_hashes = (
+        set(notinject_manifest["training_hashes"])
+        | set(notinject_manifest["validation_hashes"])
+        | set(notinject_manifest["holdout_hashes"])
+    )
     ood_eval_hashes = notinject_all_hashes | piarena_all_hashes
 
     # Preserve group_id so augmented variants cannot leak across training/validation.
