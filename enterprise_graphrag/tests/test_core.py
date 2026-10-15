@@ -1254,7 +1254,7 @@ def test_hybrid_retriever_fuses_vector_seeded_graph_expansion():
     assert vector.requested_limits == [3]
     assert graph.requested_limits == [3]
     assert vector_count == 2
-    assert graph_count == 1
+    assert graph_count == 2
     assert blocked == []
     fused_related = next(hit for hit in allowed if hit.doc_id == "related-two-hop")
-    assert "graph_vector_seeded_two_hop" in fused_related.metadata["rrf_sources"]
+    assert fused_related.metadata["retrieval_path"] == "vector_seeded_two_hop"
