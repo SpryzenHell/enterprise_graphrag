@@ -145,6 +145,60 @@ def metric_by_group(rows: list[dict], predictions: list[int], field: str) -> dic
     }
 
 
+def integrated_gate_threshold_sweep(
+    labels: list[int],
+    scores: list[float],
+    marker_counts: list[int],
+    ppl_scores_by_row: list[float | None],
+    marker_threshold: int,
+    configured_ppl_min_score: float,
+    ppl_configured: bool,
+    current_semantic_threshold: float,
+    current_ppl_threshold: float,
+    semantic_thresholds: tuple[float, ...] = (0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.50),
+    ppl_thresholds: tuple[float, ...] = (60.0, 80.0, 100.0),
+) -> dict[str, dict[str, dict]]:
+    """Evaluate a production-shaped marker -> semantic -> conditional-PPL gate grid.
+
+    The caller measures classifier and PPL scores once, then replays cutoffs over
+    the same sample. Missing PPL values on an eligible row use the real gateway's
+    configured fail-closed policy. This avoids choosing a threshold from separate
+    samples and makes false-positive / recall tradeoffs directly comparable.
+    """
+    if not (len(labels) == len(scores) == len(marker_counts) == len(ppl_scores_by_row)):
+        raise ValueError("labels, semantic scores, marker counts and PPL scores must align")
+    gate_thresholds = sorted(set(
+        threshold for threshold in (*semantic_thresholds, current_semantic_threshold)
+        if 0.0 <= threshold <= 1.0
+    ))
+    ppl_cutoffs = sorted(set(float(value) for value in (*ppl_thresholds, current_ppl_threshold) if value > 0))
+    result: dict[str, dict[str, dict]] = {}
+    for semantic_threshold in gate_thresholds:
+        per_ppl_threshold = {}
+        for ppl_threshold in ppl_cutoffs:
+            predictions = []
+            for score, marker_count, ppl_score in zip(scores, marker_counts, ppl_scores_by_row):
+                marker_block = marker_count >= marker_threshold
+                semantic_block = score >= semantic_threshold
+                eligible = (
+                    0 < marker_count < marker_threshold
+                    or (
+                        marker_count == 0
+                        and configured_ppl_min_score <= score < semantic_threshold
+                    )
+                )
+                ppl_block = SecurityGateway._ppl_policy_blocks(
+                    eligible=eligible,
+                    configured=ppl_configured,
+                    perplexity=ppl_score,
+                    threshold=ppl_threshold,
+                )
+                predictions.append(int(marker_block or semantic_block or ppl_block))
+            per_ppl_threshold[f"{ppl_threshold:.0f}"] = binary_metrics(labels, predictions)
+        result[f"{semantic_threshold:.2f}"] = per_ppl_threshold
+    return result
+
+
 def score_one_config(
     config_name: str,
     dataset_rows: list[dict],
@@ -304,6 +358,18 @@ def score_one_config(
             per_threshold[f"{threshold:.0f}"] = binary_metrics(labels, predictions)
         conditional_ppl_policy_sweep[f"{min_score:.2f}"] = per_threshold
 
+    integrated_gate_threshold_grid = integrated_gate_threshold_sweep(
+        labels=labels,
+        scores=scores,
+        marker_counts=marker_counts,
+        ppl_scores_by_row=ppl_scores_by_row,
+        marker_threshold=marker_threshold,
+        configured_ppl_min_score=configured_ppl_min_score,
+        ppl_configured=bool(ppl_url and ppl_model),
+        current_semantic_threshold=integrated_semantic_threshold,
+        current_ppl_threshold=ppl_threshold,
+    )
+
     # Single-input latency is measured after warm-up with real model inference, not the score cache.
     single_latency_ms = []
     for text in texts[:min(50, len(texts))]:
@@ -328,6 +394,7 @@ def score_one_config(
         "marker_only_metrics": binary_metrics(labels, marker_predictions),
         "marker_plus_semantic_gate_metrics": binary_metrics(labels, semantic_gate_predictions),
         "perplexity_plus_semantic_gate_metrics": binary_metrics(labels, ppl_gate_predictions),
+        "integrated_gate_threshold_grid": integrated_gate_threshold_grid,
         "per_kind_semantic_metrics": metric_by_group(picked, semantic_predictions, "kind"),
         "per_language_semantic_metrics": metric_by_group(picked, semantic_predictions, "lang"),
         "semantic_inference": {
@@ -595,6 +662,17 @@ def main() -> None:
         lines += ["", "Semantic OR PPL threshold sweep (threshold: TPR / FPR / F1):", ""]
         for threshold, scores in values["perplexity"]["threshold_sweep_semantic_or_ppl"].items():
             lines.append(f"- Semantic OR PPL {threshold}: {scores['recall_tpr']:.4f} / {scores['fpr']:.4f} / {scores['f1']:.4f}")
+        lines += [
+            "",
+            "Integrated gate threshold grid (semantic cutoff / PPL cutoff: TPR / FPR / F1):",
+            "",
+        ]
+        for semantic_threshold, sweep in values["integrated_gate_threshold_grid"].items():
+            for threshold, scores in sweep.items():
+                lines.append(
+                    f"- semantic={semantic_threshold}, PPL={threshold}: "
+                    f"{scores['recall_tpr']:.4f} / {scores['fpr']:.4f} / {scores['f1']:.4f}"
+                )
         lines += ["", "Conditional cascade sweep (semantic min / PPL threshold: TPR / FPR / F1):", ""]
         for min_score, sweep in values["perplexity"]["conditional_policy_min_semantic_score_sweep"].items():
             for threshold, scores in sweep.items():
