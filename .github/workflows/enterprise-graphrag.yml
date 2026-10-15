@@ -2,7 +2,7 @@ name: enterprise-graphrag
 
 concurrency:
   group: enterprise-graphrag-${{ github.workflow }}-${{ github.head_ref || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 on:
   push:
