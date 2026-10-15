@@ -22,7 +22,10 @@ from transformers import (
 
 BIPIA_DATASET = "geodesic-research/bipia"
 MIXED_DATASET = "neuralchemy/Prompt-injection-dataset"
+OR_BENCH_DATASET = "bench-llm/or-bench"
+OOD_EVAL_DATASET = "Horizon-Labs/prompt-injection-eval-suite"
 BASE_MODEL = "Horizon-Labs/prompt-injection-guard-base"
+OR_BENCH_LICENSE = "CC-BY-4.0"
 
 
 def normalized_hash(text: str) -> str:
@@ -73,7 +76,7 @@ def insert_attack(text: str, attack: str, position: str) -> str:
     return text + "\n" + attack
 
 
-def load_mixed_rows(cache_dir: str, max_bipia_rows: int, seed: int):
+def load_mixed_rows(cache_dir: str, max_bipia_rows: int, max_orbench_rows: int, seed: int):
     rng = random.Random(seed)
     grouped: dict[str, list[dict]] = defaultdict(list)
     raw_counts = {
@@ -84,6 +87,10 @@ def load_mixed_rows(cache_dir: str, max_bipia_rows: int, seed: int):
         "bipia_pairs": 0,
         "bipia_existing_attack_matches": 0,
         "bipia_reconstructed_attacks": 0,
+        "orbench_source_rows": 0,
+        "orbench_rows_added": 0,
+        "orbench_rows_excluded_heldout_overlap": 0,
+        "orbench_rows_excluded_duplicate": 0,
     }
 
     # Keep augmented variants together: this dataset supplies group_id metadata.
@@ -152,6 +159,67 @@ def load_mixed_rows(cache_dir: str, max_bipia_rows: int, seed: int):
         })
         raw_counts["bipia_pairs"] += 1
 
+    # Add benign prompts that superficially look unsafe. This is a distinct
+    # OR-Bench-80K TRAIN split; we never train from the orbench_hard evaluation
+    # config. Exact text overlaps with the frozen NotInject/OR-Bench-hard test
+    # samples are excluded before sampling to guard against benchmark leakage.
+    heldout_eval_hashes = set()
+    heldout_eval_rows = 0
+    for config_name in ("notinject", "orbench_hard"):
+        heldout = load_dataset(
+            OOD_EVAL_DATASET,
+            config_name,
+            split="test",
+            cache_dir=cache_dir,
+        )
+        for heldout_row in heldout:
+            heldout_text = str(heldout_row.get("text") or "").strip()
+            if len(heldout_text) >= 8:
+                heldout_eval_hashes.add(normalized_hash(heldout_text))
+                heldout_eval_rows += 1
+
+    orbench = load_dataset(
+        OR_BENCH_DATASET,
+        "or-bench-80k",
+        split="train",
+        cache_dir=cache_dir,
+    )
+    raw_counts["orbench_source_rows"] = len(orbench)
+    used_hashes = {
+        normalized_hash(example["text"])
+        for examples in grouped.values()
+        for example in examples
+    }
+    hard_negative_rows = []
+    for row in orbench:
+        text = str(row.get("prompt") or row.get("text") or "").strip()
+        if len(text) < 8:
+            continue
+        text_hash = normalized_hash(text)
+        if text_hash in heldout_eval_hashes:
+            raw_counts["orbench_rows_excluded_heldout_overlap"] += 1
+            continue
+        if text_hash in used_hashes:
+            raw_counts["orbench_rows_excluded_duplicate"] += 1
+            continue
+        hard_negative_rows.append((text_hash, text))
+    rng.shuffle(hard_negative_rows)
+    if max_orbench_rows > 0:
+        hard_negative_rows = hard_negative_rows[:max_orbench_rows]
+
+    for text_hash, text in hard_negative_rows:
+        group_id = "orbench80k:" + text_hash
+        grouped[group_id].append({
+            "text": text,
+            "label": 0,
+            "attack": "",
+            "position": "end",
+            "source": "bench-llm/or-bench:or-bench-80k-train",
+            "group_id": group_id,
+        })
+        raw_counts["orbench_rows_added"] += 1
+        used_hashes.add(text_hash)
+
     if len(grouped) < 20:
         raise RuntimeError(f"Insufficient distinct groups for leak-resistant split: {len(grouped)}")
 
@@ -200,6 +268,8 @@ def load_mixed_rows(cache_dir: str, max_bipia_rows: int, seed: int):
         "license_notes": {
             "neuralchemy/Prompt-injection-dataset:full": "Apache-2.0 dataset card; group_id preserved for augmented variants",
             "geodesic-research/bipia/bipia": "CC-BY-SA-4.0; retain attribution and share-alike notice for redistributed derivative weights",
+            "bench-llm/or-bench:or-bench-80k train": "CC-BY-4.0; use only the train split and exclude exact evaluation text overlap",
+            "held-out benchmark decontamination": f"Hashed {heldout_eval_rows} rows from NotInject/OR-Bench-hard test configs; used only to exclude exact textual overlaps, not as training examples",
             "base_model": "Horizon-Labs/prompt-injection-guard-base (Apache-2.0 per model card)",
         },
     }
@@ -278,6 +348,7 @@ def main():
     parser.add_argument("--model-dir", default="artifacts/mixed-corpus-guard/model")
     parser.add_argument("--base-model", default=BASE_MODEL)
     parser.add_argument("--max-bipia-rows", type=int, default=8000)
+    parser.add_argument("--max-orbench-rows", type=int, default=8000)
     parser.add_argument("--epochs", type=float, default=1.0)
     parser.add_argument("--train-batch-size", type=int, default=16)
     parser.add_argument("--gradient-accumulation-steps", type=int, default=2)
@@ -296,7 +367,9 @@ def main():
 
     start_utc = datetime.now(timezone.utc).isoformat()
     started = time.perf_counter()
-    train_rows, validation_rows, data_info = load_mixed_rows(cache_dir, args.max_bipia_rows, args.seed)
+    train_rows, validation_rows, data_info = load_mixed_rows(
+        cache_dir, args.max_bipia_rows, args.max_orbench_rows, args.seed
+    )
 
     tokenizer = AutoTokenizer.from_pretrained(args.base_model)
 
@@ -399,8 +472,117 @@ def main():
     )
     train_result = trainer.train()
     validation_result = trainer.evaluate()
+
+    # Calibrate the operating threshold on the grouped validation partition only.
+    # The external benchmark test rows are decontaminated from training, and the
+    # threshold is frozen before the final held-out OOD reports are generated.
+    val_predictions = trainer.predict(validation_tokenized)
+    val_logits = torch.as_tensor(val_predictions.predictions, dtype=torch.float32)
+    val_probabilities = torch.softmax(val_logits, dim=-1)[:, positive_index].cpu().tolist()
+    val_rows = validation_rows
+    if len(val_rows) != len(val_probabilities):
+        raise RuntimeError(
+            f"Validation alignment mismatch: {len(val_rows)} rows vs {len(val_probabilities)} scores"
+        )
+
+    def threshold_stats(rows, scores, threshold):
+        if not rows:
+            return {"n": 0, "tpr": None, "fpr": None, "tp": 0, "fp": 0, "tn": 0, "fn": 0}
+        labels = [int(row["label"]) for row in rows]
+        predictions = [int(float(score) >= threshold) for score in scores]
+        tp = sum(y == 1 and pred == 1 for y, pred in zip(labels, predictions))
+        fn = sum(y == 1 and pred == 0 for y, pred in zip(labels, predictions))
+        fp = sum(y == 0 and pred == 1 for y, pred in zip(labels, predictions))
+        tn = sum(y == 0 and pred == 0 for y, pred in zip(labels, predictions))
+        positives = sum(y == 1 for y in labels)
+        negatives = sum(y == 0 for y in labels)
+        return {
+            "n": len(rows), "tp": tp, "fp": fp, "tn": tn, "fn": fn,
+            "tpr": tp / positives if positives else None,
+            "fpr": fp / negatives if negatives else None,
+        }
+
+    thresholds = [round(value, 2) for value in [0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95]]
+    orbench_indices = [
+        i for i, row in enumerate(val_rows)
+        if str(row.get("source", "")).startswith("bench-llm/or-bench:or-bench-80k-train")
+    ]
+    benign_indices = [i for i, row in enumerate(val_rows) if int(row["label"]) == 0]
+    bipia_positive_indices = [
+        i for i, row in enumerate(val_rows)
+        if int(row["label"]) == 1 and "bipia-injected-pair" in str(row.get("source", ""))
+    ]
+    threshold_records = []
+    for threshold in thresholds:
+        overall = threshold_stats(val_rows, val_probabilities, threshold)
+        hard_rows = [val_rows[i] for i in orbench_indices]
+        hard_scores = [val_probabilities[i] for i in orbench_indices]
+        bipia_rows = [val_rows[i] for i in bipia_positive_indices]
+        bipia_scores = [val_probabilities[i] for i in bipia_positive_indices]
+        hard_stats = threshold_stats(hard_rows, hard_scores, threshold)
+        bipia_stats = threshold_stats(bipia_rows, bipia_scores, threshold)
+        threshold_records.append({
+            "threshold": threshold,
+            "overall_validation": overall,
+            "all_benign_validation_fpr": threshold_stats(
+                [val_rows[i] for i in benign_indices],
+                [val_probabilities[i] for i in benign_indices],
+                threshold,
+            )["fpr"],
+            "orbench_80k_validation": hard_stats,
+            "bipia_injected_validation": bipia_stats,
+        })
+
+    eligible_thresholds = [
+        record for record in threshold_records
+        if record["orbench_80k_validation"]["n"] >= 100
+        and record["orbench_80k_validation"]["fpr"] is not None
+        and record["orbench_80k_validation"]["fpr"] <= 0.05
+        and record["all_benign_validation_fpr"] is not None
+        and record["all_benign_validation_fpr"] <= 0.05
+    ]
+    if eligible_thresholds:
+        selected_threshold = max(
+            eligible_thresholds,
+            key=lambda record: (
+                record["bipia_injected_validation"]["tpr"] or 0.0,
+                record["overall_validation"]["tpr"] or 0.0,
+                record["threshold"],
+            ),
+        )
+        calibration_feasible = True
+        selection_reason = "Maximize BIPIA validation TPR subject to <=5% OR-Bench-80K validation FPR and <=5% overall benign validation FPR."
+    else:
+        selected_threshold = min(
+            threshold_records,
+            key=lambda record: (
+                max(
+                    record["orbench_80k_validation"]["fpr"] or 1.0,
+                    record["all_benign_validation_fpr"] or 1.0,
+                ),
+                -(record["bipia_injected_validation"]["tpr"] or 0.0),
+                -record["threshold"],
+            ),
+        )
+        calibration_feasible = False
+        selection_reason = "No validation threshold satisfied both 5% false-positive constraints; selected the minimum-worst-FPR diagnostic threshold. This model must not be promoted."
+
+    calibration = {
+        "calibration_split": "grouped training validation rows only; external test configs were not used to select the threshold",
+        "threshold_grid": thresholds,
+        "selected_threshold": selected_threshold["threshold"],
+        "feasible": calibration_feasible,
+        "selection_reason": selection_reason,
+        "selected_record": selected_threshold,
+        "all_thresholds": threshold_records,
+        "orbench_validation_rows": len(orbench_indices),
+        "bipia_injected_validation_rows": len(bipia_positive_indices),
+    }
+
     trainer.save_model(str(model_dir))
     tokenizer.save_pretrained(str(model_dir))
+    (output_dir / "calibration.json").write_text(json.dumps(calibration, indent=2), encoding="utf-8")
+    (output_dir / "calibrated_threshold.txt").write_text(f"{calibration['selected_threshold']:.2f}\\n", encoding="utf-8")
 
     result = {
         "started_utc": start_utc,
@@ -419,7 +601,8 @@ def main():
         },
         "train_metrics": train_result.metrics,
         "validation_metrics": validation_result,
-        "decision": "Candidate checkpoint only; it is not the production default unless held-out OOD tests beat the base guard.",
+        "threshold_calibration": calibration,
+        "decision": "Candidate checkpoint only; it is not the production default unless held-out OOD tests beat the base guard and the calibrated threshold is feasible.",
         "model_dir": str(model_dir),
     }
     (output_dir / "training_summary.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
@@ -429,10 +612,12 @@ def main():
             "",
             f"- Runtime: {result['elapsed_seconds']} seconds",
             f"- Base checkpoint: {args.base_model} (Apache-2.0)",
-            "- Training sources: neuralchemy/Prompt-injection-dataset:full (Apache-2.0) + geodesic-research/bipia/bipia (CC-BY-SA-4.0)",
+            "- Training sources: neuralchemy/Prompt-injection-dataset:full (Apache-2.0) + geodesic-research/bipia/bipia (CC-BY-SA-4.0) + bench-llm/or-bench:or-bench-80k train (CC-BY-4.0).",
             f"- Neuralchemy usable train examples: {data_info['mixed_dataset_usable']}",
             f"- BIPIA selected source rows: {data_info['bipia_selected_rows']}; paired documents: {data_info['bipia_pairs']}",
+            f"- OR-Bench-80K benign hard negatives added: {data_info['orbench_rows_added']} (CC-BY-4.0 train split); exact overlap with held-out NotInject/OR-Bench-hard rows excluded: {data_info['orbench_rows_excluded_heldout_overlap']}",
             f"- Group split: train={data_info['train_examples']}, validation={data_info['validation_examples']}; exact cross-split duplicates removed={data_info['removed_exact_text_overlaps_from_validation']}",
+            f"- Threshold calibration: {calibration['selected_threshold']:.2f}; constraints feasible={calibration['feasible']}; OR-Bench validation FPR={calibration['selected_record']['orbench_80k_validation']['fpr']}; BIPIA validation TPR={calibration['selected_record']['bipia_injected_validation']['tpr']}",
             f"- Class counts train={data_info['train_class_counts']}; validation={data_info['validation_class_counts']}",
             f"- Epochs={args.epochs}, learning rate={args.learning_rate}, sequence length={args.max_length}; CUDA={on_cuda}",
             "",
