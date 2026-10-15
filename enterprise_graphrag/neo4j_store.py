@@ -160,7 +160,6 @@ class Neo4jTenantStore:
         MATCH (anchor)-[:MENTIONS]->(bridge:Entity {tenant_id:$tenant})
         MATCH (bridge)<-[:MENTIONS]-(candidate:Document {tenant_id:$tenant})
         WHERE candidate.doc_id <> anchor.doc_id
-          AND NOT candidate.doc_id IN $anchor_doc_ids
         WITH candidate,
              collect(DISTINCT anchor.doc_id) AS anchor_docs,
              collect(DISTINCT bridge.key) AS bridge_keys,
@@ -184,7 +183,6 @@ class Neo4jTenantStore:
                 query,
                 tenant=tenant,
                 anchors=anchors,
-                anchor_doc_ids=unique_anchor_ids,
                 limit=limit,
             )
             data_method = getattr(result, "data", None)
