@@ -299,9 +299,12 @@ def test_vector_seeded_two_hop_expansion_retrieves_related_tenant_document():
             },
         )
 
+        # Both documents are in the vector candidate pool. A second anchor should
+        # be allowed to return the first as graph-linked evidence; the graph result
+        # is then deduplicated by RRF instead of being suppressed as an "anchor".
         expanded = store.expand_from_anchors(
             "vector-seed-acme",
-            ["vector-seed-anchor"],
+            ["vector-seed-anchor", "vector-seed-related"],
             10,
         )
         by_id = {hit.doc_id: hit for hit in expanded}
