@@ -199,56 +199,88 @@ def ranking_metrics(query_rows: list[dict], rankings: dict[str, list[str]]) -> d
     }
 
 
-def evaluate_rankings(queries: list[dict], candidate_lists: dict[str, dict[str, list]], qid_to_title: dict[str, dict[str, str]]) -> dict:
-    controls = {}
-    for backend in ("vector", "neo4j"):
-        controls[backend] = {}
+def evaluate_rankings(
+    queries: list[dict],
+    candidate_lists: dict[str, dict[str, list]],
+    qid_to_title: dict[str, dict[str, str]] | None = None,
+) -> dict:
+    """Compare direct graph search with vector-seeded graph expansion on held-out questions."""
+    def rankings_for_hits(backend: str) -> dict:
+        rankings = {}
         for qid, hits in candidate_lists[backend].items():
-            controls[backend][qid] = [hit.title for hit in hits[:10]]
-            controls[backend][qid + "::answer_text"] = [hit.text for hit in hits[:10]]
-    results = {
-        backend: ranking_metrics(queries, controls[backend])
-        for backend in ("vector", "neo4j")
+            rankings[qid] = [hit.title for hit in hits[:10]]
+            rankings[qid + "::answer_text"] = [hit.text for hit in hits[:10]]
+        return rankings
+
+    profiles = ["neo4j", "neo4j_vector_seeded"]
+    if "neo4j_vector_seeded" in candidate_lists:
+        enriched = {}
+        for qid in candidate_lists["vector"]:
+            enriched[qid] = weighted_rrf(
+                {
+                    "graph_fulltext": candidate_lists["neo4j"].get(qid, []),
+                    "graph_vector_seeded_two_hop": candidate_lists["neo4j_vector_seeded"].get(qid, []),
+                },
+                {"graph_fulltext": 0.20, "graph_vector_seeded_two_hop": 0.80},
+                k=60,
+                limit=100,
+            )
+        candidate_lists["neo4j_enriched"] = enriched
+        profiles.append("neo4j_enriched")
+
+    controls = {
+        "vector": ranking_metrics(queries, rankings_for_hits("vector")),
+        "neo4j": ranking_metrics(queries, rankings_for_hits("neo4j")),
     }
+    if "neo4j_vector_seeded" in candidate_lists:
+        controls["neo4j_vector_seeded"] = ranking_metrics(
+            queries, rankings_for_hits("neo4j_vector_seeded")
+        )
+        controls["neo4j_enriched"] = ranking_metrics(
+            queries, rankings_for_hits("neo4j_enriched")
+        )
+
     shuffled = list(queries)
     random.Random(20261015).shuffle(shuffled)
     midpoint = max(1, len(shuffled) // 2)
     calibration = shuffled[:midpoint]
     heldout = shuffled[midpoint:] or calibration
-    calibration_qids = {row["query_id"] for row in calibration}
-    heldout_qids = {row["query_id"] for row in heldout}
-    weights = (0.0, 0.10, 0.20, 0.30, 0.45, 0.60, 0.75, 0.90, 1.0)
+    weights = (0.0, 0.10, 0.20, 0.30, 0.45, 0.60, 0.75, 0.90, 0.95, 0.99, 1.0)
     depths = (10, 20, 50, 100)
     sweep = []
-    for depth in depths:
-        for vector_weight in weights:
-            ranked: dict[str, list[str]] = {}
-            answer_texts: dict[str, list[str]] = {}
-            for qid in candidate_lists["vector"]:
-                fused = weighted_rrf(
-                    {
-                        "vector": candidate_lists["vector"][qid][:depth],
-                        "graph": candidate_lists["neo4j"][qid][:depth],
-                    },
-                    {"vector": vector_weight, "graph": 1.0 - vector_weight},
-                    k=60,
-                    limit=10,
-                )
-                ranked[qid] = [hit.title for hit in fused]
-                answer_texts[qid + "::answer_text"] = [hit.text for hit in fused]
-            full_rankings = dict(ranked)
-            full_rankings.update(answer_texts)
-            calibration_metrics = ranking_metrics(calibration, full_rankings)
-            heldout_metrics = ranking_metrics(heldout, full_rankings)
-            sweep.append({
-                "candidate_depth": depth,
-                "vector_weight": vector_weight,
-                "graph_weight": round(1.0 - vector_weight, 2),
-                "vector_only_control": vector_weight == 1.0,
-                "graph_only_control": vector_weight == 0.0,
-                "calibration": calibration_metrics,
-                "heldout": heldout_metrics,
-            })
+
+    for profile in profiles:
+        for depth in depths:
+            for vector_weight in weights:
+                ranked: dict[str, list[str]] = {}
+                answer_texts: dict[str, list[str]] = {}
+                for qid in candidate_lists["vector"]:
+                    fused = weighted_rrf(
+                        {
+                            "vector": candidate_lists["vector"][qid][:depth],
+                            "graph": candidate_lists[profile].get(qid, [])[:depth],
+                        },
+                        {"vector": vector_weight, "graph": 1.0 - vector_weight},
+                        k=60,
+                        limit=10,
+                    )
+                    ranked[qid] = [hit.title for hit in fused]
+                    answer_texts[qid + "::answer_text"] = [hit.text for hit in fused]
+                full_rankings = dict(ranked)
+                full_rankings.update(answer_texts)
+                calibration_metrics = ranking_metrics(calibration, full_rankings)
+                heldout_metrics = ranking_metrics(heldout, full_rankings)
+                sweep.append({
+                    "candidate_profile": profile,
+                    "candidate_depth": depth,
+                    "vector_weight": vector_weight,
+                    "graph_weight": round(1.0 - vector_weight, 2),
+                    "vector_only_control": vector_weight == 1.0,
+                    "graph_only_control": vector_weight == 0.0,
+                    "calibration": calibration_metrics,
+                    "heldout": heldout_metrics,
+                })
+
     hybrid = [row for row in sweep if 0.0 < row["vector_weight"] < 1.0]
     best = max(
         hybrid,
@@ -256,39 +288,81 @@ def evaluate_rankings(queries: list[dict], candidate_lists: dict[str, dict[str, 
             row["calibration"]["supporting_title_recall@10"],
             row["calibration"]["all_supporting_titles@10"],
             row["calibration"]["mrr@10"],
+            row["calibration"]["ndcg@10"],
             row["vector_weight"],
             -row["candidate_depth"],
+            row["candidate_profile"] == "neo4j_enriched",
         ),
     )
-    best_heldout = ranking_metrics(heldout, {
-        **{qid: [hit.title for hit in weighted_rrf(
-            {
-                "vector": candidate_lists["vector"][qid][:best["candidate_depth"]],
-                "graph": candidate_lists["neo4j"][qid][:best["candidate_depth"]],
-            },
-            {"vector": best["vector_weight"], "graph": 1.0 - best["vector_weight"]},
-            k=60, limit=10,
-        )] for qid in candidate_lists["vector"]},
-        **{qid + "::answer_text": [hit.text for hit in weighted_rrf(
-            {
-                "vector": candidate_lists["vector"][qid][:best["candidate_depth"]],
-                "graph": candidate_lists["neo4j"][qid][:best["candidate_depth"]],
-            },
-            {"vector": best["vector_weight"], "graph": 1.0 - best["vector_weight"]},
-            k=60, limit=10,
-        )] for qid in candidate_lists["vector"]},
-    })
+
+    def fuse_config(profile: str, depth: int, vector_weight: float, qids: list[str]) -> dict:
+        ranked: dict[str, list[str]] = {}
+        answer_texts: dict[str, list[str]] = {}
+        for qid in qids:
+            fused = weighted_rrf(
+                {
+                    "vector": candidate_lists["vector"][qid][:depth],
+                    "graph": candidate_lists[profile].get(qid, [])[:depth],
+                },
+                {"vector": vector_weight, "graph": 1.0 - vector_weight},
+                k=60,
+                limit=10,
+            )
+            ranked[qid] = [hit.title for hit in fused]
+            answer_texts[qid + "::answer_text"] = [hit.text for hit in fused]
+        ranked.update(answer_texts)
+        return ranked
+
+    best_heldout = ranking_metrics(
+        heldout,
+        fuse_config(best["candidate_profile"], best["candidate_depth"], best["vector_weight"], list(candidate_lists["vector"])),
+    )
+    vector_heldout = ranking_metrics(
+        heldout,
+        fuse_config("neo4j", 100, 1.0, list(candidate_lists["vector"])),
+    )
+    recall_delta = round(
+        best_heldout["supporting_title_recall@10"] - vector_heldout["supporting_title_recall@10"], 6
+    )
+    mrr_delta = round(best_heldout["mrr@10"] - vector_heldout["mrr@10"], 6)
+    ndcg_delta = round(best_heldout["ndcg@10"] - vector_heldout["ndcg@10"], 6)
+    answer_delta = round(
+        (best_heldout.get("answer_text_present_in_top10") or 0.0)
+        - (vector_heldout.get("answer_text_present_in_top10") or 0.0),
+        6,
+    )
+    acceptance = {
+        "criteria": {
+            "minimum_supporting_title_recall_gain": 0.01,
+            "maximum_mrr_regression": 0.02,
+            "maximum_ndcg_regression": 0.02,
+        },
+        "supporting_title_recall_gain": recall_delta,
+        "mrr_delta": mrr_delta,
+        "ndcg_delta": ndcg_delta,
+        "answer_text_presence_delta": answer_delta,
+        "support_recall_improved": recall_delta >= 0.01,
+        "mrr_not_materially_worse": mrr_delta >= -0.02,
+        "ndcg_not_materially_worse": ndcg_delta >= -0.02,
+    }
+    acceptance["candidate_clears_retrieval_gate"] = all((
+        acceptance["support_recall_improved"],
+        acceptance["mrr_not_materially_worse"],
+        acceptance["ndcg_not_materially_worse"],
+    ))
     selected_sweep = {
-        "selection_rule": "Maximize calibration supporting-title recall@10, then all-supporting-titles@10, then MRR@10; ties prefer more vector weight and the shallower candidate pool.",
+        "selection_rule": "Maximize calibration supporting-title recall@10, then all-supporting-titles@10, MRR@10 and nDCG@10; ties prefer more vector weight, shallower candidate pool, then the graph-enriched profile.",
         "seed": 20261015,
         "calibration_queries": len(calibration),
         "heldout_queries": len(heldout),
         "selected": best,
         "selected_heldout": best_heldout,
+        "vector_only_heldout": vector_heldout,
+        "acceptance": acceptance,
         "all_configurations": sweep,
         "warning": "HotpotQA validation questions are split into calibration and held-out subsets after selecting a deterministic query sample; the held-out subset is not the hidden test set.",
     }
-    return {"controls": results, "rrf_tuning": selected_sweep}
+    return {"controls": controls, "rrf_tuning": selected_sweep}
 
 
 def main():
@@ -347,7 +421,7 @@ def main():
             vector.search("hotpotqa", warm_query, candidate_depth)
             store.search("hotpotqa", warm_query, candidate_depth)
 
-            candidate_lists = {"vector": {}, "neo4j": {}}
+            candidate_lists = {"vector": {}, "neo4j": {}, "neo4j_vector_seeded": {}}
             latencies = {"vector_top100_ms": [], "neo4j_top100_ms": []}
             for row in queries:
                 qid = row["query_id"]
@@ -358,8 +432,16 @@ def main():
                 tick = time.perf_counter()
                 graph_hits = store.search("hotpotqa", query, candidate_depth)
                 latencies["neo4j_top100_ms"].append((time.perf_counter() - tick) * 1000)
+                tick = time.perf_counter()
+                seeded_graph_hits = store.expand_from_anchors(
+                    "hotpotqa",
+                    [hit.doc_id for hit in vector_hits],
+                    candidate_depth,
+                )
+                latencies.setdefault("neo4j_vector_seeded_top100_ms", []).append((time.perf_counter() - tick) * 1000)
                 candidate_lists["vector"][qid] = vector_hits
                 candidate_lists["neo4j"][qid] = graph_hits
+                candidate_lists["neo4j_vector_seeded"][qid] = seeded_graph_hits
 
             controls = {}
             for backend in ("vector", "neo4j"):
@@ -413,6 +495,9 @@ def main():
     heldout = result["rrf_tuning"]["selected_heldout"]
     vector = result["controls"]["vector"]
     graph = result["controls"]["neo4j"]
+    seeded_graph = result["controls"].get("neo4j_vector_seeded", {"supporting_title_recall@10": 0, "hit@10": 0, "all_supporting_titles@10": 0, "mrr@10": 0, "ndcg@10": 0, "answer_text_present_in_top10": 0})
+    enriched_graph = result["controls"].get("neo4j_enriched", {"supporting_title_recall@10": 0, "hit@10": 0, "all_supporting_titles@10": 0, "mrr@10": 0, "ndcg@10": 0, "answer_text_present_in_top10": 0})
+    acceptance = result["rrf_tuning"]["acceptance"]
     lines = [
         "# HotpotQA multi-hop retrieval: vector vs. Neo4j vs. weighted RRF",
         "",
@@ -427,11 +512,15 @@ def main():
         "| Method | Support recall@10 | Hit@10 | All supporting titles@10 | MRR@10 | nDCG@10 | Answer string present@10 |",
         "|---|---:|---:|---:|---:|---:|---:|",
         f"| Vector-only | {vector['supporting_title_recall@10']:.4f} | {vector['hit@10']:.4f} | {vector['all_supporting_titles@10']:.4f} | {vector['mrr@10']:.4f} | {vector['ndcg@10']:.4f} | {vector['answer_text_present_in_top10']:.4f} |",
-        f"| Neo4j graph-only | {graph['supporting_title_recall@10']:.4f} | {graph['hit@10']:.4f} | {graph['all_supporting_titles@10']:.4f} | {graph['mrr@10']:.4f} | {graph['ndcg@10']:.4f} | {graph['answer_text_present_in_top10']:.4f} |",
+        f"| Neo4j direct graph-only | {graph['supporting_title_recall@10']:.4f} | {graph['hit@10']:.4f} | {graph['all_supporting_titles@10']:.4f} | {graph['mrr@10']:.4f} | {graph['ndcg@10']:.4f} | {graph['answer_text_present_in_top10']:.4f} |",
+        f"| Vector-seeded two-hop graph-only | {seeded_graph['supporting_title_recall@10']:.4f} | {seeded_graph['hit@10']:.4f} | {seeded_graph['all_supporting_titles@10']:.4f} | {seeded_graph['mrr@10']:.4f} | {seeded_graph['ndcg@10']:.4f} | {seeded_graph['answer_text_present_in_top10']:.4f} |",
+        f"| Direct + vector-seeded graph-only | {enriched_graph['supporting_title_recall@10']:.4f} | {enriched_graph['hit@10']:.4f} | {enriched_graph['all_supporting_titles@10']:.4f} | {enriched_graph['mrr@10']:.4f} | {enriched_graph['ndcg@10']:.4f} | {enriched_graph['answer_text_present_in_top10']:.4f} |",
         f"| RRF selected on calibration | {heldout['supporting_title_recall@10']:.4f} | {heldout['hit@10']:.4f} | {heldout['all_supporting_titles@10']:.4f} | {heldout['mrr@10']:.4f} | {heldout['ndcg@10']:.4f} | {heldout['answer_text_present_in_top10']:.4f} |",
         "",
-        f"- Selected calibration weight: vector={selected['vector_weight']:.2f}, graph={selected['graph_weight']:.2f}; candidate depth={selected['candidate_depth']}.",
+        f"- Selected graph profile: {selected['candidate_profile']}; calibration weight: vector={selected['vector_weight']:.2f}, graph={selected['graph_weight']:.2f}; candidate depth={selected['candidate_depth']}.",
         f"- Held-out queries: {result['rrf_tuning']['heldout_queries']}; calibration queries: {result['rrf_tuning']['calibration_queries']}.",
+        f"- Holdout delta vs vector-only: support recall {acceptance['supporting_title_recall_gain']:+.4f}; MRR {acceptance['mrr_delta']:+.4f}; nDCG {acceptance['ndcg_delta']:+.4f}; answer-string presence {acceptance['answer_text_presence_delta']:+.4f}.",
+        f"- Clears predeclared retrieval gate: {acceptance['candidate_clears_retrieval_gate']} (support recall +1 pp; MRR/nDCG regressions limited to 0.02).",
         "",
         "## Query latency (after model/index warm-up)",
         "",

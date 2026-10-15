@@ -1190,3 +1190,71 @@ def test_ppl_policy_helper_matches_fail_closed_configuration_contract():
     assert block(eligible=True, configured=True, perplexity=79.99, threshold=80) is False
     assert block(eligible=True, configured=True, perplexity=80.0, threshold=80) is True
     assert block(eligible=False, configured=True, perplexity=None, threshold=80) is False
+
+
+def test_hybrid_retriever_fuses_vector_seeded_graph_expansion():
+    from enterprise_graphrag.fusion import Hit
+
+    class FakeVector:
+        def __init__(self):
+            self.requested_limits = []
+
+        def search(self, tenant, query, limit):
+            self.requested_limits.append(limit)
+            return [
+                Hit("anchor-1", "Anchor one", tenant, "Safe anchor one.", 0.9, "vector", {}),
+                Hit("anchor-2", "Anchor two", tenant, "Safe anchor two.", 0.8, "vector", {}),
+            ][:limit]
+
+    class FakeGraph:
+        def __init__(self):
+            self.requested_limits = []
+            self.received_anchor_ids = []
+
+        def search(self, tenant, query, limit):
+            self.requested_limits.append(limit)
+            return [
+                Hit("direct-graph", "Direct graph result", tenant, "Direct graph text.", 0.5, "graph", {}),
+            ][:limit]
+
+        def expand_from_anchors(self, tenant, anchor_doc_ids, limit):
+            self.received_anchor_ids = list(anchor_doc_ids)
+            return [
+                Hit(
+                    "related-two-hop",
+                    "Related two-hop support",
+                    tenant,
+                    "Related evidence does not repeat the query terms.",
+                    0.4,
+                    "graph",
+                    {"retrieval_path": "vector_seeded_two_hop", "traversal_hops": 2},
+                ),
+            ][:limit]
+
+    vector = FakeVector()
+    graph = FakeGraph()
+    retriever = HybridRetriever(
+        vector=vector,
+        graph=graph,
+        security=SecurityGateway(marker_threshold=10),
+        vector_weight=0.60,
+        graph_weight=0.40,
+        rrf_k=60,
+    )
+    allowed, blocked, vector_count, graph_count = retriever.search(
+        "acme",
+        "incident retention",
+        limit=3,
+        candidate_limit=3,
+    )
+
+    ids = [hit.doc_id for hit in allowed]
+    assert "related-two-hop" in ids, ids
+    assert graph.received_anchor_ids == ["anchor-1", "anchor-2"]
+    assert vector.requested_limits == [3]
+    assert graph.requested_limits == [3]
+    assert vector_count == 2
+    assert graph_count == 2
+    assert blocked == []
+    fused_related = next(hit for hit in allowed if hit.doc_id == "related-two-hop")
+    assert fused_related.metadata["retrieval_path"] == "vector_seeded_two_hop"

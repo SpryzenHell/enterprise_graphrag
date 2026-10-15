@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - eval/hotpotqa-multihop-2026-10-15
+      - eval/vector-seeded-neo4j-rrf-2026-10-15
     paths:
       - ".github/workflows/hotpotqa-rrf-evaluation.yml"
       - "scripts/evaluate_hotpotqa_rrf.py"
@@ -15,7 +16,7 @@ permissions:
 
 concurrency:
   group: hotpotqa-multihop-rrf-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   multihop-evaluation:
