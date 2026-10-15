@@ -657,6 +657,10 @@ def main():
         i for i, row in enumerate(val_rows)
         if str(row.get("source", "")).startswith("bench-llm/or-bench:or-bench-80k-train")
     ]
+    notinject_validation_indices = [
+        i for i, row in enumerate(val_rows)
+        if str(row.get("source", "")).startswith("leolee99/NotInject:validation")
+    ]
     benign_indices = [i for i, row in enumerate(val_rows) if int(row["label"]) == 0]
     bipia_positive_indices = [
         i for i, row in enumerate(val_rows)
@@ -667,9 +671,12 @@ def main():
         overall = threshold_stats(val_rows, val_probabilities, threshold)
         hard_rows = [val_rows[i] for i in orbench_indices]
         hard_scores = [val_probabilities[i] for i in orbench_indices]
+        notinject_rows = [val_rows[i] for i in notinject_validation_indices]
+        notinject_scores = [val_probabilities[i] for i in notinject_validation_indices]
         bipia_rows = [val_rows[i] for i in bipia_positive_indices]
         bipia_scores = [val_probabilities[i] for i in bipia_positive_indices]
         hard_stats = threshold_stats(hard_rows, hard_scores, threshold)
+        notinject_stats = threshold_stats(notinject_rows, notinject_scores, threshold)
         bipia_stats = threshold_stats(bipia_rows, bipia_scores, threshold)
         threshold_records.append({
             "threshold": threshold,
@@ -680,6 +687,7 @@ def main():
                 threshold,
             )["fpr"],
             "orbench_80k_validation": hard_stats,
+            "notinject_validation": notinject_stats,
             "bipia_injected_validation": bipia_stats,
         })
 
@@ -690,6 +698,9 @@ def main():
         and record["orbench_80k_validation"]["fpr"] <= 0.05
         and record["all_benign_validation_fpr"] is not None
         and record["all_benign_validation_fpr"] <= 0.05
+        and record["notinject_validation"]["n"] >= 50
+        and record["notinject_validation"]["fpr"] is not None
+        and record["notinject_validation"]["fpr"] <= 0.05
     ]
     if eligible_thresholds:
         selected_threshold = max(
@@ -701,7 +712,7 @@ def main():
             ),
         )
         calibration_feasible = True
-        selection_reason = "Maximize BIPIA validation TPR subject to <=5% OR-Bench-80K validation FPR and <=5% overall benign validation FPR."
+        selection_reason = "Maximize BIPIA validation TPR subject to <=5% OR-Bench-80K, NotInject, and overall benign validation FPR."
     else:
         selected_threshold = min(
             threshold_records,
@@ -717,7 +728,7 @@ def main():
             ),
         )
         calibration_feasible = False
-        selection_reason = "No validation threshold satisfied both 5% false-positive constraints; selected the minimum-worst-FPR diagnostic threshold. This model must not be promoted."
+        selection_reason = "No validation threshold satisfied OR-Bench, NotInject, and overall-benign 5% false-positive constraints; selected a diagnostic threshold. This model must not be promoted."
 
     calibration = {
         "calibration_split": "grouped training validation rows only; external test configs were not used to select the threshold",
@@ -774,7 +785,7 @@ def main():
             f"- BIPIA selected source rows: {data_info['bipia_selected_rows']}; paired documents: {data_info['bipia_pairs']}",
             f"- OR-Bench-80K benign hard negatives added: {data_info['orbench_rows_added']} (CC-BY-4.0 train split); exact overlap with held-out NotInject/OR-Bench-hard rows excluded: {data_info['orbench_rows_excluded_heldout_overlap']}",
             f"- Group split: train={data_info['train_examples']}, validation={data_info['validation_examples']}; exact cross-split duplicates removed={data_info['removed_exact_text_overlaps_from_validation']}",
-            f"- Threshold calibration: {calibration['selected_threshold']:.2f}; constraints feasible={calibration['feasible']}; OR-Bench validation FPR={calibration['selected_record']['orbench_80k_validation']['fpr']}; BIPIA validation TPR={calibration['selected_record']['bipia_injected_validation']['tpr']}",
+            f"- Threshold calibration: {calibration['selected_threshold']:.2f}; feasible={calibration['feasible']}; OR-Bench FPR={calibration['selected_record']['orbench_80k_validation']['fpr']}; NotInject validation FPR={calibration['selected_record']['notinject_validation']['fpr']}; BIPIA TPR={calibration['selected_record']['bipia_injected_validation']['tpr']}",
             f"- Class counts train={data_info['train_class_counts']}; validation={data_info['validation_class_counts']}",
             f"- Epochs={args.epochs}, learning rate={args.learning_rate}, sequence length={args.max_length}; CUDA={on_cuda}",
             "",
