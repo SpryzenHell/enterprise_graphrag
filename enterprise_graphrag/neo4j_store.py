@@ -11,15 +11,33 @@ ENTITY_RE = re.compile(
 
 
 def extract_entities(text: str) -> list[str]:
+    """Extract exact capitalized phrases plus contiguous two-word aliases.
+
+    The title "Project Atlas Backup Schedule" and body mention "Project Atlas"
+    must share an entity key. Storing only the longest matched phrase breaks that
+    edge. Keep the original phrase first, then its bigrams, preserving deterministic
+    ordering and a strict per-document cap to avoid uncontrolled graph fan-out.
+    """
     seen = set()
     entities = []
+
+    def add(value: str) -> None:
+        value = value.strip()
+        key = value.casefold()
+        if len(value) < 3 or key in seen:
+            return
+        seen.add(key)
+        entities.append(value)
+
     for raw in ENTITY_RE.findall(text):
-        value = raw.strip()
-        key = value.lower()
-        if key not in seen:
-            seen.add(key)
-            entities.append(value)
-    return entities[:24]
+        words = raw.split()
+        add(raw)
+        if len(words) >= 3:
+            for index in range(len(words) - 1):
+                add(" ".join(words[index:index + 2]))
+        if len(entities) >= 48:
+            break
+    return entities[:48]
 
 
 class Neo4jTenantStore:
