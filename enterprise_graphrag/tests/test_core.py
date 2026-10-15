@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from enterprise_graphrag.agent import EnterpriseGraphRAGAgent
 from enterprise_graphrag.api import create_app
+from enterprise_graphrag.config import settings
 from enterprise_graphrag.auth import (
     issue_demo_token,
     principal_from_token,
@@ -97,9 +98,17 @@ def test_auth_and_health(tmp_path):
     assert client.get(
         "/ready"
     ).status_code == 200
-    assert client.get(
-        "/health"
-    ).json()["mcp_enabled"] is True
+    health_data = client.get("/health").json()
+    assert health_data["mcp_enabled"] is True
+    assert health_data["security_gateway"]["ppl_enabled"] is bool(
+        settings.vllm_base_url and settings.vllm_model
+    )
+    assert health_data["security_gateway"]["ppl_required"] is (
+        settings.environment.strip().lower() == "production"
+    )
+    assert health_data["security_gateway"]["semantic_classifier_enabled"] is bool(
+        settings.security_classifier_model
+    )
     assert client.post(
         "/v1/query",
         json={"query": "policy"},
