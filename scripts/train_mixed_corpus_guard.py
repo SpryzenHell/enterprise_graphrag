@@ -480,9 +480,22 @@ def load_mixed_rows(
         "notinject": list(notinject_manifest["excluded_hashes"]),
         "piarena": list(piarena_manifest["excluded_hashes"]),
     }
+    # Store metadata summaries here; never self-reference the manifest, because
+    # json.dumps must serialize it as an ordinary tree.
     notinject_manifest["config_partitions"] = {
-        "notinject": notinject_manifest,
-        "piarena": piarena_manifest,
+        "notinject": {
+            "license": notinject_manifest["license"],
+            "train_rows": notinject_manifest["train_rows"],
+            "validation_rows": notinject_manifest["validation_rows"],
+            "holdout_rows": notinject_manifest["holdout_rows"],
+            "split_policy": notinject_manifest["split_policy"],
+        },
+        "piarena": {
+            "license": piarena_manifest["license"],
+            "validation_rows": piarena_manifest["validation_rows"],
+            "holdout_rows": piarena_manifest["holdout_rows"],
+            "split_policy": piarena_manifest["split_policy"],
+        },
     }
     notinject_manifest["holdout_policy"] = (
         "NotInject scores untouched 25% holdout; PIArena scores rows outside the calibration-only 20% stratified slice."
@@ -621,7 +634,7 @@ def main():
         args.notinject_validation_fraction,
         args.notinject_oversample_factor,
     )
-    (output_dir / "notinject_partition_manifest.json").write_text(
+    (output_dir / "ood_partition_manifest.json").write_text(
         json.dumps(notinject_manifest, indent=2),
         encoding="utf-8",
     )
