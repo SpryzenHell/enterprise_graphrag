@@ -130,6 +130,53 @@ def split_notinject_rows(rows, seed: int, train_fraction: float, validation_frac
     )
 
 
+def split_labeled_validation_rows(rows, seed: int, validation_fraction: float = 0.20):
+    """Reserve a stratified calibration slice from the PIArena config without training on it."""
+    if not 0.0 < validation_fraction < 0.5:
+        raise ValueError("PIArena validation fraction must be between 0 and 0.5")
+    pools = {0: {}, 1: {}}
+    for row in rows:
+        text = str(row.get("text") or "").strip()
+        label = parse_label(row.get("label"))
+        if len(text) >= 8 and label in (0, 1):
+            pools[label].setdefault(normalized_hash(text), {
+                "text": text,
+                "label": label,
+                "attack": "",
+                "position": "end",
+                "source": "Horizon-Labs/PIArena",
+            })
+    if not pools[0] or not pools[1]:
+        raise RuntimeError("PIArena partition requires both benign and injected rows")
+    rng = random.Random(seed)
+    validation_rows = []
+    holdout_rows = []
+    validation_hashes = []
+    holdout_hashes = []
+    for label in (0, 1):
+        items = list(pools[label].items())
+        rng.shuffle(items)
+        val_count = max(1, int(len(items) * validation_fraction))
+        validation_items, holdout_items = items[:val_count], items[val_count:]
+        validation_rows.extend(row for _, row in validation_items)
+        holdout_rows.extend(row for _, row in holdout_items)
+        validation_hashes.extend(key for key, _ in validation_items)
+        holdout_hashes.extend(key for key, _ in holdout_items)
+    manifest = {
+        "dataset": "Horizon-Labs/prompt-injection-eval-suite/piarena",
+        "license": "MIT",
+        "seed": seed,
+        "validation_fraction_per_class": validation_fraction,
+        "validation_rows": len(validation_rows),
+        "holdout_rows": len(holdout_rows),
+        "validation_hashes": sorted(validation_hashes),
+        "holdout_hashes": sorted(holdout_hashes),
+        "excluded_hashes": sorted(validation_hashes),
+        "split_policy": "stratified normalized-text-hash calibration slice; remaining examples are the untouched PIArena holdout",
+    }
+    return validation_rows, holdout_rows, manifest
+
+
 def load_mixed_rows(
     cache_dir: str,
     max_bipia_rows: int,
