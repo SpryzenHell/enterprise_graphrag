@@ -38,6 +38,12 @@ CONFIG_LICENSES = {
 }
 
 
+def normalized_hash(text: str) -> str:
+    normalized = " ".join(str(text).split()).casefold()
+    import hashlib
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
 def percentile(values: list[float], p: float) -> float | None:
     if not values:
         return None
@@ -384,6 +390,11 @@ def main() -> None:
     parser.add_argument("--max-length", type=int, default=8192)
     parser.add_argument("--window-overlap", type=int, default=512)
     parser.add_argument(
+        "--notinject-partition-manifest",
+        default=None,
+        help="Optional train-time manifest; exclude NotInject train/calibration hashes and score only its untouched holdout partition.",
+    )
+    parser.add_argument(
         "--integrated-semantic-threshold",
         type=float,
         default=float(os.getenv("SECURITY_CLASSIFIER_THRESHOLD", "0.5")),
@@ -420,6 +431,32 @@ def main() -> None:
             loaded_rows[config_name] = [dict(row) for row in dataset]
         except Exception as exc:
             errors[config_name] = f"{type(exc).__name__}: {str(exc)[:400]}"
+
+    notinject_partition_info = None
+    if args.notinject_partition_manifest:
+        manifest_path = Path(args.notinject_partition_manifest)
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        excluded_hashes = set(manifest.get("excluded_hashes", []))
+        if "notinject" in loaded_rows:
+            original_rows = loaded_rows["notinject"]
+            filtered_rows = [
+                row for row in original_rows
+                if normalized_hash(str(row.get("text") or "")) not in excluded_hashes
+            ]
+            notinject_partition_info = {
+                "manifest_path": str(manifest_path),
+                "license": manifest.get("license", "MIT"),
+                "original_rows": len(original_rows),
+                "excluded_train_and_calibration_rows": len(original_rows) - len(filtered_rows),
+                "holdout_rows_scored": len(filtered_rows),
+                "seed": manifest.get("seed"),
+                "split_policy": manifest.get("split_policy"),
+            }
+            if len(filtered_rows) < 25:
+                raise RuntimeError(
+                    f"NotInject holdout too small after partitioning: {len(filtered_rows)} rows; expected at least 25"
+                )
+            loaded_rows["notinject"] = filtered_rows
 
     if not loaded_rows:
         raise RuntimeError(f"Could not load any dataset configurations: {errors}")
@@ -482,6 +519,7 @@ def main() -> None:
         "dataset_errors": errors,
         "seed": args.seed,
         "max_per_class": args.max_per_class,
+        "notinject_partition": notinject_partition_info,
         "results": results,
     }
     json_path = output_dir / "injection_ood_results.json"
@@ -499,6 +537,7 @@ def main() -> None:
         f"- Integrated gate semantic threshold: {args.integrated_semantic_threshold}; marker threshold: {marker_threshold}; PPL threshold: {ppl_threshold}; PPL min classifier score: {configured_ppl_min_score}.",
         f"- PPL path enabled: {bool(ppl_url and ppl_model)}; model={ppl_model or 'not configured'}.",
         f"- Fixed seed: {args.seed}; maximum selected examples per class/config: {args.max_per_class}.",
+        f"- NotInject partition mode: {notinject_partition_info if notinject_partition_info else 'not applied; full published config used'}.",
         "",
         "| Dataset config | License | N | ROC-AUC | Semantic TPR | Semantic FPR | Semantic F1 | Gate TPR | Gate FPR |",
         "|---|---|---:|---:|---:|---:|---:|---:|---:|",
