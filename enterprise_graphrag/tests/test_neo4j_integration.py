@@ -249,3 +249,69 @@ def test_neo4j_two_hop_retrieval_returns_linked_evidence_and_stays_tenant_scoped
         assert all(hit.tenant_id == "twohop-acme" for hit in hits)
     finally:
         store.close()
+
+
+@pytest.mark.integration
+def test_vector_seeded_two_hop_expansion_retrieves_related_tenant_document():
+    uri = os.getenv("NEO4J_URI")
+    password = os.getenv("NEO4J_PASSWORD")
+    if not uri or not password:
+        pytest.skip("NEO4J_URI/NEO4J_PASSWORD not configured")
+
+    store = Neo4jTenantStore(
+        uri,
+        os.getenv("NEO4J_USER", "neo4j"),
+        password,
+        os.getenv("NEO4J_DATABASE", "neo4j"),
+    )
+    try:
+        for _ in range(30):
+            try:
+                store.verify()
+                break
+            except Exception:
+                time.sleep(1)
+        else:
+            pytest.fail("Neo4j did not become ready")
+
+        store.ensure_schema()
+        store.add_many(
+            "vector-seed-acme",
+            [
+                {
+                    "doc_id": "vector-seed-anchor",
+                    "title": "Acme Incident Response",
+                    "text": "Acme coordinates recovery with Helios Analytics after incidents.",
+                },
+                {
+                    "doc_id": "vector-seed-related",
+                    "title": "Telemetry Operations",
+                    "text": "Helios Analytics supplies orbital telemetry through Orion Instruments.",
+                },
+            ],
+        )
+        store.add(
+            "vector-seed-globex",
+            {
+                "doc_id": "vector-seed-globex-related",
+                "title": "Telemetry Operations",
+                "text": "Helios Analytics supplies telemetry to Globex operations.",
+            },
+        )
+
+        expanded = store.expand_from_anchors(
+            "vector-seed-acme",
+            ["vector-seed-anchor"],
+            10,
+        )
+        by_id = {hit.doc_id: hit for hit in expanded}
+        assert "vector-seed-related" in by_id, [
+            (hit.doc_id, hit.metadata) for hit in expanded
+        ]
+        assert by_id["vector-seed-related"].metadata["retrieval_path"] == "vector_seeded_two_hop"
+        assert by_id["vector-seed-related"].metadata["traversal_hops"] == 2
+        assert by_id["vector-seed-related"].metadata["best_anchor_rank"] == 1
+        assert all(hit.tenant_id == "vector-seed-acme" for hit in expanded)
+        assert "vector-seed-globex-related" not in by_id
+    finally:
+        store.close()
