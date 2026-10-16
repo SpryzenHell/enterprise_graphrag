@@ -77,9 +77,9 @@ Inspect the uploaded report and only accept hybrid if its predeclared held-out g
 
 ### Active run
 
-- The earlier run [38896427003](https://github.com/SpryzenHell/integrator/actions/runs/38896427003) was cancelled during package installation when a new workflow revision arrived; it never reached model training or PPL tests. The cancellation came from job-level `cancel-in-progress: true`, not a model failure.
-- Hosted CPU pair-integrity, partition, and threshold-policy preflight passed on that run.
-- The integrated-gate calibration and untouched holdout scoring have not completed yet; no PPL defense is claimed as achieved until their artifacts pass the gate.
+- Run [38896885801](https://github.com/SpryzenHell/integrator/actions/runs/38896885801) is active on A100: dependencies, GPU check, compile and API/RLS/MCP/data-split regressions passed, and mixed-corpus fine-tuning is in progress. It was launched before the latest full-document PPL patch, so its PPL stage will not validate that patch.
+- The no-cancel workflow setting and GPU placement fix are committed. Run [38897174690](https://github.com/SpryzenHell/integrator/actions/runs/38897174690) was cancelled while still pending after a newer workflow revision arrived; replacement run [38898498659](https://github.com/SpryzenHell/integrator/actions/runs/38898498659) is queued and will clone the latest code/workflow revision.
+- The integrated-gate calibration and untouched holdout scoring have not completed yet; no PPL defense is claimed as achieved until the real prompt-logprob contract and acceptance report pass the gate.
 
 ### Remaining action
 
