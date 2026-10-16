@@ -48,11 +48,20 @@ class EnterpriseGraphRAGAgent:
         if resolved_top_k < 1 or resolved_top_k > 50:
             raise ValueError("top_k must be between 1 and 50")
 
+        # Fetch a deeper candidate pool than the final citation limit. The
+        # gateway filters unsafe passages after rank fusion; without overfetch,
+        # blocked top-ranked contexts would leave too few safe citations even if
+        # relevant safe passages exist just below the initial cutoff.
+        candidate_limit = min(
+            100,
+            resolved_top_k * settings.candidate_pool_multiplier,
+        )
         allowed, blocked, vector_count, graph_count = (
             self.retriever.search(
                 principal.tenant_id,
                 query,
                 resolved_top_k,
+                candidate_limit=candidate_limit,
             )
         )
 
