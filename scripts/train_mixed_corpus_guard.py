@@ -44,17 +44,17 @@ def write_validation_jsonl(path: Path, rows: list[dict]) -> int:
     literal, so splitlines() can report phantom records.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8", newline="\\n") as handle:
+    with path.open("w", encoding="utf-8", newline="\n") as handle:
         for row in rows:
             payload = {
                 "text": str(row.get("text") or ""),
                 "label": int(row["label"]),
                 "source": str(row.get("source") or ""),
             }
-            handle.write(json.dumps(payload, ensure_ascii=False) + "\\n")
+            handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
     content = path.read_text(encoding="utf-8")
-    records = content.split("\\n")
+    records = content.split("\n")
     if records and records[-1] == "":
         records.pop()
     if len(records) != len(rows):
