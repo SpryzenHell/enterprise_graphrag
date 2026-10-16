@@ -67,6 +67,7 @@ jobs:
         run: |
           python -m compileall -q enterprise_graphrag scripts
           pytest -q enterprise_graphrag/tests -m "not integration and not gpu"
+          pytest -q scripts/tests/test_hotpotqa_candidate_coverage.py
       - name: Run live Neo4j tenant and two-hop regressions
         run: |
           pytest -q enterprise_graphrag/tests/test_neo4j_integration.py -m integration
