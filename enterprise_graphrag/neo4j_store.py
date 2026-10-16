@@ -8,6 +8,19 @@ from .fusion import Hit
 ENTITY_RE = re.compile(
     r"\b[A-Z][A-Za-z0-9&.-]{2,}(?:\s+[A-Z][A-Za-z0-9&.-]{2,}){0,2}\b"
 )
+ENTITY_ALIAS_STOPWORDS = {
+    "about", "after", "again", "also", "among", "around", "because", "before",
+    "being", "between", "could", "during", "every", "first", "found", "from",
+    "great", "having", "however", "known", "later", "might", "other", "often",
+    "since", "their", "there", "these", "those", "through", "under", "until",
+    "using", "which", "while", "where", "whose", "would", "year", "years",
+    "city", "county", "state", "country", "united", "states", "national",
+    "international", "university", "college", "school", "company", "group",
+    "team", "family", "report", "series", "season", "episode", "history",
+    "story", "book", "film", "movie", "album", "song", "music", "record",
+    "records", "department", "association", "organization", "society",
+    "government", "minister", "president", "general", "major", "district",
+}
 
 
 def extract_entities(text: str) -> list[str]:
@@ -20,6 +33,35 @@ def extract_entities(text: str) -> list[str]:
             seen.add(key)
             entities.append(value)
     return entities[:24]
+
+
+def expand_entity_aliases(names: list[str]) -> list[str]:
+    """Expose distinctive single-token aliases while retaining full entity names.
+
+    Exact multiword phrase matching misses common entity mentions such as
+    "Marie Curie" in one passage and "Curie" in another. Single-token alias
+    nodes improve recall for these references; common/generic words are excluded
+    and the graph expansion ranks high-degree bridges with an inverse-degree
+    penalty to limit hub pollution.
+    """
+    result: list[str] = []
+    seen: set[str] = set()
+    for raw in names:
+        name = re.sub(r"\s+", " ", str(raw or "")).strip()
+        if not name:
+            continue
+        key = name.casefold()
+        if key not in seen:
+            seen.add(key)
+            result.append(name)
+        tokens = re.findall(r"[A-Za-z][A-Za-z0-9'-]{3,}", name)
+        for token in tokens:
+            token_key = token.casefold()
+            if token_key in ENTITY_ALIAS_STOPWORDS or token_key in seen:
+                continue
+            seen.add(token_key)
+            result.append(token)
+    return result[:96]
 
 
 class Neo4jTenantStore:
@@ -101,8 +143,10 @@ class Neo4jTenantStore:
                     # Extract title and body independently so the final capitalized
                     # token in a title cannot merge with the first entity in the
                     # body (e.g. "Schedule Project Atlas") and hide shared graph keys.
-                    for name in dict.fromkeys(
-                        extract_entities(doc["title"]) + extract_entities(doc["text"])
+                    for name in expand_entity_aliases(
+                        list(dict.fromkeys(
+                            extract_entities(doc["title"]) + extract_entities(doc["text"])
+                        ))
                     )
                 ],
             }
@@ -136,6 +180,7 @@ class Neo4jTenantStore:
         tenant: str,
         anchor_doc_ids: list[str],
         limit: int,
+        max_anchors: int = 32,
     ) -> list[Hit]:
         """Expand tenant-scoped neighbors, preferring rare entity bridges.
 
@@ -146,9 +191,11 @@ class Neo4jTenantStore:
         anchor. This reduces hub dominance while still rewarding evidence linked
         to multiple strong anchors.
         """
-        if limit < 1 or not anchor_doc_ids:
+        if limit < 1 or max_anchors < 1 or not anchor_doc_ids:
             return []
-        unique_anchor_ids = list(dict.fromkeys(str(value) for value in anchor_doc_ids if value))[:1000]
+        # Many low-ranked semantic candidates add latency but little graph value.
+        # The caller controls the vector candidate depth; cap graph fan-out separately.
+        unique_anchor_ids = list(dict.fromkeys(str(value) for value in anchor_doc_ids if value))[:max_anchors]
         if not unique_anchor_ids:
             return []
         anchors = [
@@ -225,6 +272,7 @@ class Neo4jTenantStore:
                     "bridge_rarity_score": float(row["rarity_seed_score"]),
                     "retrieval_path": "vector_seeded_two_hop",
                     "bridge_scoring": "inverse_sqrt_degree_x_inverse_sqrt_anchor_rank",
+                    "expansion_anchor_count": len(unique_anchor_ids),
                 },
             )
             for row in rows
