@@ -394,3 +394,76 @@ def test_vector_seeded_expansion_penalizes_high_degree_entity_hubs():
         assert all(hit.doc_id != "hub-cross-tenant" for hit in hits)
     finally:
         store.close()
+
+
+
+@pytest.mark.integration
+def test_vector_seeded_expansion_uses_single_token_entity_aliases():
+    uri = os.getenv("NEO4J_URI")
+    password = os.getenv("NEO4J_PASSWORD")
+    if not uri or not password:
+        pytest.skip("NEO4J_URI/NEO4J_PASSWORD not configured")
+
+    store = Neo4jTenantStore(
+        uri,
+        os.getenv("NEO4J_USER", "neo4j"),
+        password,
+        os.getenv("NEO4J_DATABASE", "neo4j"),
+    )
+    try:
+        for _ in range(30):
+            try:
+                store.verify()
+                break
+            except Exception:
+                time.sleep(1)
+        else:
+            pytest.fail("Neo4j did not become ready")
+
+        store.ensure_schema()
+        store.add_many(
+            "entity-alias-acme",
+            [
+                {
+                    "doc_id": "entity-alias-anchor",
+                    "title": "Research note on radioactivity",
+                    "text": "Marie Curie investigated radioactivity and isolated radium.",
+                },
+                {
+                    "doc_id": "entity-alias-related",
+                    "title": "Curie laboratory note",
+                    "text": "Curie developed mobile radiography units during the war.",
+                },
+                {
+                    "doc_id": "entity-alias-unrelated",
+                    "title": "Ocean temperature note",
+                    "text": "Marine measurements describe warm tropical current patterns.",
+                },
+            ],
+        )
+
+        expanded = store.expand_from_anchors(
+            "entity-alias-acme",
+            ["entity-alias-anchor", "entity-alias-unrelated"],
+            10,
+        )
+        by_id = {hit.doc_id: hit for hit in expanded}
+        assert "entity-alias-related" in by_id, [
+            (hit.doc_id, hit.metadata.get("bridge_entities"))
+            for hit in expanded
+        ]
+        assert by_id["entity-alias-related"].metadata["traversal_hops"] == 2
+        assert by_id["entity-alias-related"].metadata["expansion_anchor_count"] == 2
+        assert all(hit.tenant_id == "entity-alias-acme" for hit in expanded)
+    finally:
+        store.close()
+
+
+def test_entity_alias_expansion_is_deterministic_and_ignores_generic_words():
+    from enterprise_graphrag.neo4j_store import expand_entity_aliases
+
+    aliases = expand_entity_aliases(["Marie Curie", "Project Obsidian Gateway", "Curie"])
+    lowered = {value.casefold() for value in aliases}
+    assert {"marie curie", "marie", "curie", "project obsidian gateway", "obsidian", "gateway"} <= lowered
+    assert "project" not in lowered
+    assert aliases == expand_entity_aliases(["Marie Curie", "Project Obsidian Gateway", "Curie"])
