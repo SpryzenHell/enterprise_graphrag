@@ -1,4 +1,4 @@
-name: GraphRAG HotpotQA Neo4j bridge-degree performance smoke
+name: GraphRAG HotpotQA 400-query multi-hop retrieval evaluation
 
 on:
   push:
@@ -76,8 +76,9 @@ jobs:
           python scripts/evaluate_hotpotqa_rrf.py \
             --output-dir artifacts/hotpotqa-multihop \
             --cache-dir "$HOME/.cache/hotpotqa-multihop" \
-            --max-queries 80 \
+            --max-queries 400 \
             --embedding-batch-size 128 \
+            --anchor-depth 20 \
             --seed 20261015
       - name: Upload aggregate results and dataset license notes
         if: always()
