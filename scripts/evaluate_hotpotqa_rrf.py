@@ -302,8 +302,8 @@ def evaluate_rankings(
     calibration = shuffled[:midpoint]
     heldout = shuffled[midpoint:] or calibration
     weights = (0.0, 0.10, 0.20, 0.30, 0.45, 0.60, 0.75, 0.90, 0.95, 0.99, 1.0)
-    vector_depths = (5, 10, 20, 50, 100)
-    graph_depths = (10, 20, 50, 100)
+    vector_depths = (5, 10, 20, 100)
+    graph_depths = (10, 50, 100)
     sweep = []
 
     for profile in profiles:
@@ -351,7 +351,7 @@ def evaluate_rankings(
             row["vector_weight"],
             -row["vector_candidate_depth"],
             -row["graph_candidate_depth"],
-            row["candidate_profile"] == "neo4j_enriched",
+            row["candidate_profile"] == "neo4j_vector_seeded",
         ),
     )
 
@@ -423,7 +423,7 @@ def evaluate_rankings(
         acceptance["ndcg_not_materially_worse"],
     ))
     selected_sweep = {
-        "selection_rule": "Maximize calibration supporting-title recall@10, then all-supporting-titles@10, MRR@10 and nDCG@10; ties prefer more vector weight, shallower vector pool, shallower graph pool, then the graph-enriched profile.",
+        "selection_rule": "Maximize calibration supporting-title recall@10, then all-supporting-titles@10, MRR@10 and nDCG@10; ties prefer more vector weight, shallower vector pool, shallower graph pool, then the vector-seeded graph profile over the weaker direct-graph blend.",
         "seed": 20261015,
         "calibration_queries": len(calibration),
         "heldout_queries": len(heldout),
