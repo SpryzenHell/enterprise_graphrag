@@ -2,7 +2,7 @@ name: enterprise-graphrag
 
 concurrency:
   group: enterprise-graphrag-${{ github.workflow }}-${{ github.head_ref || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 on:
   push:
@@ -50,6 +50,9 @@ jobs:
 
       - name: Tests
         run: pytest -q enterprise_graphrag/tests -m "not integration and not gpu"
+
+      - name: Security threshold and promotion-gate unit tests
+        run: pytest -q scripts/tests/test_integrated_ppl_calibration.py scripts/tests/test_compare_guard_reports.py
 
       - name: Deterministic security evaluation
         run: python scripts/evaluate_enterprise.py
@@ -142,7 +145,17 @@ jobs:
             -e MCP_ALLOWED_HOSTS=graphrag.example.invalid:* \
             -e MCP_ALLOWED_ORIGINS=https://graphrag.example.invalid \
             -e ALLOWED_ORIGINS=https://graphrag.example.invalid \
-            enterprise-graphrag:ci
+            -e VLLM_BASE_URL=http://127.0.0.1:8001 \
+            -e VLLM_MODEL=ci-mock \
+            --entrypoint /bin/sh \
+            enterprise-graphrag:ci -c ' \
+              python scripts/mock_openai_server.py --port 8001 & \
+              for i in $(seq 1 20); do \
+                if python -c "import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8001/v1/models\", timeout=1)" 2>/dev/null; then break; fi; \
+                sleep 1; \
+              done; \
+              exec python -m enterprise_graphrag.run --host 0.0.0.0 --port 8000 \
+            '
 
       - name: Health and readiness smoke test
         run: |

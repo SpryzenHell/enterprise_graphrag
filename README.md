@@ -576,6 +576,10 @@ The Compose stack includes:
 
 The Compose setup is intended for development and repeatable smoke testing. It is not a complete internet-facing production topology.
 
+## Resume-milestone evidence
+
+The dated measurement log and pass/fail decision for the three resume claims are maintained in [docs/EXPERIMENT_LOG_2026-10-14.md](docs/EXPERIMENT_LOG_2026-10-14.md). The acceptance plan is in [docs/RESUME_MILESTONE_PLAN.md](docs/RESUME_MILESTONE_PLAN.md). These reports distinguish successful regression/smoke tests from unachieved ranking-quality or prompt-injection targets; do not treat a running workflow or a synthetic-only score as milestone completion.
+
 ## Validation
 
 ### Local regression suite

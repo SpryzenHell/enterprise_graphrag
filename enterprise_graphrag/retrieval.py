@@ -8,7 +8,7 @@ import threading
 from collections import defaultdict
 from pathlib import Path
 
-from .fusion import Hit, weighted_rrf
+from .fusion import Hit, prefix_protected_rrf, weighted_rrf
 from .schemas import validate_documents
 from .security import SecurityGateway
 
@@ -279,13 +279,17 @@ class HybridRetriever:
         vector_weight: float,
         graph_weight: float,
         rrf_k: int,
+        vector_protected_prefix: int = 0,
     ) -> None:
+        if vector_protected_prefix < 0 or vector_protected_prefix > 50:
+            raise ValueError("vector_protected_prefix must be between 0 and 50")
         self.vector = vector
         self.graph = graph
         self.security = security
         self.vector_weight = vector_weight
         self.graph_weight = graph_weight
         self.rrf_k = rrf_k
+        self.vector_protected_prefix = vector_protected_prefix
 
     def add(
         self,
@@ -328,33 +332,48 @@ class HybridRetriever:
         tenant: str,
         query: str,
         limit: int,
+        candidate_limit: int | None = None,
     ):
+        """Retrieve a larger candidate pool before fusion/security filtering.
+
+        limit is the final number of allowed hits to return. candidate_limit
+        controls how many results each backend contributes to RRF, so a blocked
+        top-ranked passage does not unnecessarily leave the caller with fewer hits.
+        """
+        if limit < 1:
+            raise ValueError("limit must be at least 1")
+        fetch_limit = limit if candidate_limit is None else candidate_limit
+        if fetch_limit < limit:
+            raise ValueError("candidate_limit must be greater than or equal to limit")
+
         vector_hits = self.vector.search(
             tenant,
             query,
-            limit,
+            fetch_limit,
         )
         graph_hits = self.graph.search(
             tenant,
             query,
-            limit,
+            fetch_limit,
         )
 
-        fused = weighted_rrf(
-            {
-                "vector": vector_hits,
-                "graph": graph_hits,
-            },
-            {
+        fused = prefix_protected_rrf(
+            vector_hits=vector_hits,
+            graph_hits=graph_hits,
+            weights={
                 "vector": self.vector_weight,
                 "graph": self.graph_weight,
             },
             k=self.rrf_k,
             limit=limit,
+            candidate_limit=fetch_limit,
+            protected_prefix=self.vector_protected_prefix,
         )
 
         allowed = []
         blocked = []
+        tenant_hits = []
+        tenant_texts = []
 
         for hit in fused:
             if hit.tenant_id != tenant:
@@ -365,11 +384,20 @@ class HybridRetriever:
                     }
                 )
                 continue
+            tenant_hits.append(hit)
+            tenant_texts.append(hit.title + "\n" + hit.text)
 
-            decision = self.security.inspect(
-                hit.title + "\n" + hit.text,
-                direct=False,
-            )
+        inspect_many = getattr(self.security, "inspect_many", None)
+        if inspect_many is not None:
+            decisions = inspect_many(tenant_texts, direct=False)
+        else:
+            # Preserve compatibility with simple test doubles and external gates.
+            decisions = [
+                self.security.inspect(text, direct=False)
+                for text in tenant_texts
+            ]
+
+        for hit, decision in zip(tenant_hits, decisions):
             if decision["allowed"]:
                 allowed.append(hit)
             else:
@@ -378,12 +406,15 @@ class HybridRetriever:
                         "doc_id": hit.doc_id,
                         "reason": decision["reason"],
                         "marker_count": decision["marker_count"],
-                        "perplexity": decision["perplexity"],
+                        "perplexity": decision.get("perplexity"),
+                        "classifier_score": decision.get("classifier_score"),
                     }
                 )
 
+        # Screen the larger fused pool before truncating, so unsafe results at the
+        # top do not unnecessarily leave the caller with fewer citations.
         return (
-            allowed,
+            allowed[:limit],
             blocked,
             len(vector_hits),
             len(graph_hits),

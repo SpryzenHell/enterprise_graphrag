@@ -145,6 +145,18 @@ def create_app(
                 settings.vllm_base_url
                 and settings.vllm_model
             ),
+            "security_gateway": {
+                "ppl_enabled": bool(
+                    settings.vllm_base_url
+                    and settings.vllm_model
+                ),
+                "ppl_required": settings.environment.strip().lower() == "production",
+                "ppl_threshold": settings.security_ppl_threshold,
+                "marker_threshold": settings.security_marker_threshold,
+                "semantic_classifier_enabled": bool(settings.security_classifier_model),
+                "semantic_classifier_threshold": settings.security_classifier_threshold,
+                "ppl_min_classifier_score": settings.security_ppl_min_classifier_score,
+            },
         }
 
     @application.get("/ready")

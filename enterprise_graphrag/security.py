@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import re
 import unicodedata
+from collections.abc import Callable
 
 import httpx
 
@@ -20,7 +21,12 @@ PATTERNS = [
 
 
 class SecurityGateway:
-    """Marker-based injection detection with an optional exact prompt-PPL signal."""
+    """Tenant retrieval content gate using markers, optional vLLM PPL, and an optional semantic detector.
+
+    When SECURITY_CLASSIFIER_MODEL is set, the classifier is loaded during construction.
+    Explicitly enabling a classifier is fail-closed: model-load or inference errors block the
+    inspected item instead of silently reverting to the weaker marker-only behavior.
+    """
 
     def __init__(
         self,
@@ -29,27 +35,209 @@ class SecurityGateway:
         model: str = "",
         threshold: float = 80.0,
         marker_threshold: int = 2,
+        classifier_model: str = "",
+        classifier_threshold: float = 0.5,
+        classifier_max_length: int = 8192,
+        classifier_device: str = "auto",
+        classifier_window_overlap: int = 512,
+        classifier_score_fn: Callable[[str], float] | None = None,
+        ppl_min_classifier_score: float = 0.10,
+        ppl_max_chars: int = 12000,
+        ppl_window_overlap_chars: int = 1000,
     ) -> None:
+        if marker_threshold < 1:
+            raise ValueError("marker_threshold must be at least 1")
+        if not 0.0 <= classifier_threshold <= 1.0:
+            raise ValueError("classifier_threshold must be between 0 and 1")
+        if not 0.0 <= ppl_min_classifier_score <= 1.0:
+            raise ValueError("ppl_min_classifier_score must be between 0 and 1")
+        if ppl_max_chars < 256 or ppl_max_chars > 120000:
+            raise ValueError("ppl_max_chars must be between 256 and 120000")
+        if not 0 <= ppl_window_overlap_chars < ppl_max_chars:
+            raise ValueError("ppl_window_overlap_chars must be non-negative and smaller than ppl_max_chars")
+        if classifier_max_length < 8 or classifier_max_length > 8192:
+            raise ValueError("classifier_max_length must be between 8 and 8192")
+        if classifier_window_overlap < 0 or classifier_window_overlap >= classifier_max_length - 2:
+            raise ValueError("classifier_window_overlap must be non-negative and smaller than classifier_max_length - 2")
+
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.model = model
         self.threshold = threshold
         self.marker_threshold = marker_threshold
+        self.ppl_min_classifier_score = float(ppl_min_classifier_score)
+        self.ppl_max_chars = int(ppl_max_chars)
+        self.ppl_window_overlap_chars = int(ppl_window_overlap_chars)
+        self.classifier_model = classifier_model.strip()
+        self.classifier_threshold = float(classifier_threshold)
+        self.classifier_max_length = int(classifier_max_length)
+        self.classifier_window_overlap = int(classifier_window_overlap)
         self.patterns = [
             re.compile(pattern, re.IGNORECASE)
             for pattern in PATTERNS
         ]
+        self._classifier_score_fn = classifier_score_fn
+        self._classifier_enabled = bool(self.classifier_model or classifier_score_fn)
+        self._classifier_tokenizer = None
+        self._classifier = None
+        self._classifier_torch = None
+        self._classifier_device = None
+        self._positive_class_index = 1
 
-    def perplexity(
-        self,
-        text: str,
-    ) -> float | None:
-        if not (
-            self.base_url
-            and self.model
-        ):
+        if self.classifier_model:
+            try:
+                self._load_semantic_classifier(classifier_device)
+            except Exception as exc:
+                raise RuntimeError(
+                    f"Semantic injection classifier {self.classifier_model!r} could not be loaded"
+                ) from exc
+
+    def _load_semantic_classifier(self, requested_device: str) -> None:
+        import torch
+        from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+        if requested_device == "auto":
+            if torch.cuda.is_available():
+                # Keep vLLM on GPU 0 when a second GPU is available.
+                requested_device = "cuda:1" if torch.cuda.device_count() > 1 else "cuda:0"
+            else:
+                requested_device = "cpu"
+
+        self._classifier_torch = torch
+        self._classifier_device = torch.device(requested_device)
+        self._classifier_tokenizer = AutoTokenizer.from_pretrained(self.classifier_model)
+        self._classifier = AutoModelForSequenceClassification.from_pretrained(self.classifier_model)
+        self._classifier.to(self._classifier_device)
+        self._classifier.eval()
+
+        labels = {
+            int(index): str(label)
+            for index, label in (self._classifier.config.id2label or {}).items()
+        }
+        candidates = [
+            index for index, label in labels.items()
+            if "inject" in label.lower() and "non" not in label.lower()
+        ]
+        if candidates:
+            self._positive_class_index = candidates[0]
+        elif int(self._classifier.config.num_labels) == 2:
+            # Binary sequence-classification checkpoints conventionally map positive to index 1.
+            self._positive_class_index = 1
+        else:
+            raise RuntimeError(f"Cannot identify injection class in classifier labels: {labels}")
+
+    def _semantic_scores(self, texts: list[str]) -> list[float]:
+        if not texts:
+            return []
+        if self._classifier_score_fn is not None:
+            scores = [float(self._classifier_score_fn(text)) for text in texts]
+        else:
+            if not (
+                self._classifier_enabled
+                and self._classifier_tokenizer is not None
+                and self._classifier is not None
+                and self._classifier_torch is not None
+            ):
+                raise RuntimeError("semantic classifier was enabled but is not initialized")
+
+            tokenizer = self._classifier_tokenizer
+            torch = self._classifier_torch
+            special_tokens = int(tokenizer.num_special_tokens_to_add(pair=False))
+            content_limit = self.classifier_max_length - special_tokens
+            step = content_limit - self.classifier_window_overlap
+            windows: list[dict] = []
+            owners: list[int] = []
+
+            # Scan the complete input. Truncating only the prefix could miss an injected
+            # instruction deliberately placed near the end of a long retrieved document.
+            for owner, text in enumerate(texts):
+                token_ids = tokenizer.encode(
+                    text,
+                    add_special_tokens=False,
+                    truncation=False,
+                )
+                starts = [0]
+                if len(token_ids) > content_limit:
+                    starts = list(range(0, len(token_ids), step))
+                    last_start = max(0, len(token_ids) - content_limit)
+                    if starts[-1] < last_start:
+                        starts.append(last_start)
+                for start in starts:
+                    content = token_ids[start:start + content_limit]
+                    encoded = tokenizer.prepare_for_model(
+                        content,
+                        add_special_tokens=True,
+                        truncation=True,
+                        max_length=self.classifier_max_length,
+                        return_attention_mask=True,
+                    )
+                    windows.append(encoded)
+                    owners.append(owner)
+                    if start + content_limit >= len(token_ids):
+                        break
+
+            window_scores: list[list[float]] = [[] for _ in texts]
+            batch_size = 16
+            for offset in range(0, len(windows), batch_size):
+                batch = tokenizer.pad(
+                    windows[offset:offset + batch_size],
+                    padding=True,
+                    return_tensors="pt",
+                )
+                batch = {
+                    key: value.to(self._classifier_device)
+                    for key, value in batch.items()
+                }
+                with torch.inference_mode():
+                    logits = self._classifier(**batch).logits.float()
+                    probs = torch.softmax(logits, dim=-1)[:, self._positive_class_index]
+                    values = [float(value) for value in probs.detach().cpu().tolist()]
+                for owner, value in zip(owners[offset:offset + batch_size], values):
+                    window_scores[owner].append(value)
+            # Model guidance for long inputs is max-over-windows: any malicious region
+            # must be sufficient to block the passage, regardless of where it occurs.
+            scores = [max(values, default=0.0) for values in window_scores]
+
+        if len(scores) != len(texts):
+            raise ValueError("semantic classifier returned the wrong number of probabilities")
+        if any(not math.isfinite(score) or not 0.0 <= score <= 1.0 for score in scores):
+            raise ValueError("semantic classifier returned an invalid probability")
+        return scores
+
+    def _semantic_score(self, text: str) -> float:
+        return self._semantic_scores([text])[0]
+
+    def perplexity(self, text: str) -> float | None:
+        """Score the entire passage in overlapping windows, not just its prefix.
+
+        The maximum window perplexity is the passage-level risk signal so a
+        suspicious instruction hidden at the tail is still visible. If any
+        window cannot be scored, return None; the caller's configured PPL
+        policy then blocks eligible content closed rather than treating a
+        partially-scored document as benign.
+        """
+        if not (self.base_url and self.model):
+            return None
+        if not text:
             return None
 
+        window_size = self.ppl_max_chars
+        step = window_size - self.ppl_window_overlap_chars
+        scores: list[float] = []
+        start = 0
+        while start < len(text):
+            window = text[start:start + window_size]
+            score = self._perplexity_window(window)
+            if score is None:
+                return None
+            scores.append(score)
+            if start + window_size >= len(text):
+                break
+            start += step
+        return max(scores) if scores else None
+
+    def _perplexity_window(self, text: str) -> float | None:
+        """Obtain real prompt-token log probabilities for one bounded window."""
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
@@ -60,161 +248,204 @@ class SecurityGateway:
                 headers=headers,
                 json={
                     "model": self.model,
-                    "prompt": text[:12000],
-                    "max_tokens": 1,
+                    "prompt": text,
+                    "max_tokens": 0,
                     "temperature": 0.0,
+                    "echo": True,
+                    "logprobs": 1,
                     "prompt_logprobs": 1,
                     "return_token_ids": True,
                 },
                 timeout=60,
             )
             response.raise_for_status()
-
-            choice = response.json()[
-                "choices"
-            ][0]
-            entries = (
-                choice.get(
-                    "prompt_logprobs"
-                )
-                or []
-            )
-            token_ids = (
-                choice.get(
-                    "prompt_token_ids"
-                )
-                or []
-            )
-
-            if len(entries) != len(token_ids):
+            payload = response.json()
+            if not isinstance(payload, dict):
                 return None
-
+            choices = payload.get("choices")
+            if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+                return None
+            choice = choices[0]
+            entries = choice.get("prompt_logprobs") or []
+            token_ids = choice.get("prompt_token_ids") or []
             observed = []
+            if isinstance(entries, list) and isinstance(token_ids, list) and len(entries) == len(token_ids):
+                for position, entry in enumerate(entries):
+                    if position == 0 or entry is None or not isinstance(entry, dict):
+                        continue
+                    token_id = token_ids[position]
+                    token_data = entry.get(str(token_id))
+                    if token_data is None:
+                        token_data = entry.get(token_id)
+                    if not isinstance(token_data, dict):
+                        continue
+                    logprob = token_data.get("logprob")
+                    if isinstance(logprob, (int, float)) and math.isfinite(float(logprob)):
+                        observed.append(float(logprob))
 
-            for position, entry in enumerate(
-                entries
-            ):
-                if (
-                    position == 0
-                    or entry is None
-                ):
-                    continue
-
-                token_id = token_ids[position]
-                token_data = entry.get(
-                    str(token_id)
-                )
-
-                if token_data is None:
-                    token_data = entry.get(
-                        token_id
-                    )
-
-                if not isinstance(
-                    token_data,
-                    dict,
-                ):
-                    continue
-
-                logprob = token_data.get(
-                    "logprob"
-                )
-
-                if isinstance(
-                    logprob,
-                    (int, float),
-                ):
-                    observed.append(
-                        float(logprob)
-                    )
+            # Older vLLM builds may accept prompt_logprobs but omit prompt_token_ids.
+            # With echo=True and logprobs=1, token_logprobs is the observed token's
+            # own logprob sequence; don't confuse top-k alternatives with actual tokens.
+            if not observed:
+                logprob_payload = choice.get("logprobs") or {}
+                if not isinstance(logprob_payload, dict):
+                    logprob_payload = {}
+                token_logprobs = logprob_payload.get("token_logprobs") or []
+                if isinstance(token_logprobs, list):
+                    observed = [
+                        float(value)
+                        for value in token_logprobs
+                        if isinstance(value, (int, float)) and math.isfinite(float(value))
+                    ]
 
             if not observed:
                 return None
-
             try:
-                return float(
-                    math.exp(
-                        -(
-                            sum(observed)
-                            / len(observed)
-                        )
-                    )
-                )
+                score = float(math.exp(-(sum(observed) / len(observed))))
+                return score if math.isfinite(score) else None
             except OverflowError:
                 return None
-
         except (
             OSError,
             httpx.HTTPError,
             KeyError,
             TypeError,
             ValueError,
+            IndexError,
+            AttributeError,
         ):
             return None
 
     @staticmethod
     def _normalize(text: str) -> str:
-        # Normalize compatibility characters and strip zero-width controls so
-        # obvious prompt-injection phrases cannot evade marker detection by
-        # Unicode formatting tricks.
-        normalized = unicodedata.normalize(
-            "NFKC",
-            text,
-        )
+        normalized = unicodedata.normalize("NFKC", text)
         return "".join(
             char
             for char in normalized
             if char not in "\u200b\u200c\u200d\ufeff"
         )
 
-    def inspect(
-        self,
-        text: str,
-        direct: bool = False,
+    @staticmethod
+    def _ppl_policy_blocks(
+        eligible: bool,
+        configured: bool,
+        perplexity: float | None,
+        threshold: float,
+    ) -> bool:
+        """Return whether the deployed PPL policy must block this eligible item."""
+        return eligible and configured and (
+            perplexity is None or perplexity >= threshold
+        )
+
+    @staticmethod
+    def _decision(
+        allowed: bool,
+        reason: str,
+        marker_count: int,
+        perplexity: float | None = None,
+        classifier_score: float | None = None,
     ) -> dict:
-        text = self._normalize(text)
-        marker_count = sum(
-            len(
-                pattern.findall(text)
-            )
-            for pattern in self.patterns
-        )
-
-        if direct and marker_count:
-            return {
-                "allowed": False,
-                "reason": "direct injection marker",
-                "marker_count": marker_count,
-                "perplexity": None,
-            }
-
-        if marker_count >= self.marker_threshold:
-            return {
-                "allowed": False,
-                "reason": "retrieved injection markers",
-                "marker_count": marker_count,
-                "perplexity": None,
-            }
-
-        perplexity = self.perplexity(
-            text
-        )
-
-        if (
-            perplexity is not None
-            and perplexity >= self.threshold
-            and marker_count >= 1
-        ):
-            return {
-                "allowed": False,
-                "reason": "high perplexity plus injection marker",
-                "marker_count": marker_count,
-                "perplexity": perplexity,
-            }
-
         return {
-            "allowed": True,
-            "reason": "allowed",
+            "allowed": allowed,
+            "reason": reason,
             "marker_count": marker_count,
             "perplexity": perplexity,
+            "classifier_score": classifier_score,
         }
+
+    def inspect(self, text: str, direct: bool = False) -> dict:
+        return self.inspect_many([text], direct=direct)[0]
+
+    def inspect_many(self, texts: list[str], direct: bool = False) -> list[dict]:
+        """Inspect several untrusted passages with one batched classifier forward pass."""
+        normalized = [self._normalize(text) for text in texts]
+        decisions: list[dict | None] = [None] * len(normalized)
+        marker_counts = [
+            sum(len(pattern.findall(text)) for pattern in self.patterns)
+            for text in normalized
+        ]
+        pending: list[int] = []
+
+        for index, marker_count in enumerate(marker_counts):
+            if direct and marker_count:
+                decisions[index] = self._decision(False, "direct injection marker", marker_count)
+            elif marker_count >= self.marker_threshold:
+                decisions[index] = self._decision(False, "retrieved injection markers", marker_count)
+            else:
+                pending.append(index)
+
+        classifier_scores: dict[int, float] = {}
+        if self._classifier_enabled and pending:
+            try:
+                scores = self._semantic_scores([normalized[index] for index in pending])
+                for index, score in zip(pending, scores):
+                    classifier_scores[index] = score
+            except Exception:
+                # An explicitly configured detector must not silently fail open.
+                for index in pending:
+                    decisions[index] = self._decision(
+                        False,
+                        "semantic injection classifier failure (blocked closed)",
+                        marker_counts[index],
+                    )
+                pending = []
+
+        after_classifier: list[int] = []
+        for index in pending:
+            score = classifier_scores.get(index)
+            if score is not None and score >= self.classifier_threshold:
+                decisions[index] = self._decision(
+                    False,
+                    "semantic injection classifier",
+                    marker_counts[index],
+                    classifier_score=score,
+                )
+            else:
+                after_classifier.append(index)
+
+        # PPL is a second-stage discriminator, not a standalone policy: the
+        # A100 sweep showed high perplexity alone flags too many benign documents.
+        # Call it for marker-positive text or semantically borderline text, where
+        # it can add evidence while avoiding a costly request for every clean passage.
+        for index in after_classifier:
+            marker_count = marker_counts[index]
+            classifier_score = classifier_scores.get(index)
+            borderline_semantic = (
+                classifier_score is not None
+                and self.ppl_min_classifier_score <= classifier_score < self.classifier_threshold
+            )
+            ppl_eligible = marker_count >= 1 or borderline_semantic
+            ppl_configured = bool(self.base_url and self.model)
+            perplexity = self.perplexity(normalized[index]) if ppl_eligible else None
+            if self._ppl_policy_blocks(
+                ppl_eligible,
+                ppl_configured,
+                perplexity,
+                self.threshold,
+            ):
+                reason = (
+                    "perplexity evaluation unavailable (blocked closed)"
+                    if perplexity is None
+                    else (
+                        "high perplexity plus injection marker"
+                        if marker_count >= 1
+                        else "high perplexity in borderline semantic region"
+                    )
+                )
+                decisions[index] = self._decision(
+                    False,
+                    reason,
+                    marker_count,
+                    perplexity,
+                    classifier_score,
+                )
+            else:
+                decisions[index] = self._decision(
+                    True,
+                    "allowed",
+                    marker_count,
+                    perplexity,
+                    classifier_score,
+                )
+
+        return [decision if decision is not None else self._decision(False, "security decision unavailable", marker_counts[index]) for index, decision in enumerate(decisions)]

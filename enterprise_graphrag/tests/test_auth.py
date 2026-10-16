@@ -156,6 +156,8 @@ def test_production_accepts_explicit_external_urls():
         environment="production",
         jwt_secret="ci-only-secret-change-me-please-32-bytes",
         jwt_issuer="https://issuer.example",
+        vllm_base_url="https://vllm.example",
+        vllm_model="Qwen/Qwen2.5-0.5B-Instruct",
         mcp_resource_url="https://graphrag.example/mcp/",
         mcp_issuer_url="https://issuer.example",
         mcp_allowed_hosts=("graphrag.example:*",),
@@ -460,3 +462,27 @@ def test_missing_expiration_is_rejected():
         principal_from_token(token)
 
     assert exc.value.status_code == 401
+
+
+def test_ppl_window_configuration_is_validated():
+    invalid_size = Settings(
+        environment="test",
+        security_ppl_max_chars=128,
+    )
+    with pytest.raises(ValueError, match="SECURITY_PPL_MAX_CHARS"):
+        invalid_size.validate()
+
+    invalid_overlap = Settings(
+        environment="test",
+        security_ppl_max_chars=256,
+        security_ppl_window_overlap_chars=256,
+    )
+    with pytest.raises(ValueError, match="SECURITY_PPL_WINDOW_OVERLAP_CHARS"):
+        invalid_overlap.validate()
+
+
+def test_ppl_window_configuration_accepts_safe_defaults():
+    config = Settings(environment="test")
+    config.validate()
+    assert config.security_ppl_max_chars == 12000
+    assert config.security_ppl_window_overlap_chars == 1000

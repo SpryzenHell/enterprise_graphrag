@@ -64,34 +64,71 @@ class Neo4jTenantStore:
                 "CREATE INDEX entity_tenant IF NOT EXISTS "
                 "FOR (e:Entity) ON (e.tenant_id)"
             ),
+            (
+                "CREATE FULLTEXT INDEX document_text_fulltext IF NOT EXISTS "
+                "FOR (d:Document) ON EACH [d.title, d.text]"
+            ),
         ]
 
         with self.driver.session(database=self.database) as session:
             for query in queries:
                 session.run(query).consume()
+            # Searches must not race the asynchronous full-text index build.
+            session.run("CALL db.awaitIndexes(60)").consume()
 
     def add(self, tenant: str, doc: dict) -> None:
-        entities = extract_entities(doc["text"])
+        self.add_many(tenant, [doc])
+
+    def add_many(self, tenant: str, documents: list[dict]) -> None:
+        """Bulk-upsert documents and tenant-scoped entity relationships in one query."""
+        if not documents:
+            return
+        rows = [
+            {
+                "doc_id": doc["doc_id"],
+                "title": doc["title"],
+                "text": doc["text"],
+                "entities": [
+                    {
+                        "name": name,
+                        "search_terms": sorted(
+                            set(
+                                token.lower()
+                                for token in re.findall(r"[A-Za-z0-9]{3,}", name)
+                            )
+                        ),
+                    }
+                    # Extract title and body independently so the final capitalized
+                    # token in a title cannot merge with the first entity in the
+                    # body (e.g. "Schedule Project Atlas") and hide shared graph keys.
+                    for name in dict.fromkeys(
+                        extract_entities(doc["title"]) + extract_entities(doc["text"])
+                    )
+                ],
+            }
+            for doc in documents
+        ]
         query = """
-        MERGE (d:Document {tenant_id:$tenant, doc_id:$doc_id})
-        SET d.title=$title, d.text=$text
-        WITH d
+        UNWIND $documents AS item
+        MERGE (d:Document {tenant_id:$tenant, doc_id:item.doc_id})
+        SET d.title=item.title,
+            d.text=item.text
+        WITH d, item
         OPTIONAL MATCH (d)-[r:MENTIONS]->(:Entity {tenant_id:$tenant})
         DELETE r
-        WITH d
-        UNWIND $entities AS name
-        MERGE (e:Entity {tenant_id:$tenant, key:toLower(name)})
-        SET e.name=name
-        MERGE (d)-[:MENTIONS]->(e)
+        WITH DISTINCT d, item
+        FOREACH (entity IN item.entities |
+            MERGE (e:Entity {tenant_id:$tenant, key:toLower(entity.name)})
+            SET e.name=entity.name,
+                e.search_terms=entity.search_terms
+            MERGE (d)-[:MENTIONS]->(e)
+        )
         """
         with self.driver.session(database=self.database) as session:
             session.run(
                 query,
                 tenant=tenant,
-                doc_id=doc["doc_id"],
-                title=doc["title"],
-                text=doc["text"],
-                entities=entities,
+                documents=rows,
             ).consume()
 
     def search(
@@ -100,65 +137,185 @@ class Neo4jTenantStore:
         query_text: str,
         limit: int,
     ) -> list[Hit]:
+        """Use indexed full-text retrieval and tenant-filtered two-hop graph traversal.
+
+        Full-text scores give graph-only retrieval a useful lexical ranking rather than
+        assigning nearly identical scores to documents that happen to contain common
+        query tokens. Tenant filtering remains inside each Cypher query, before rows
+        are returned to the application. The second path adds linked evidence that
+        need not repeat the original query terms.
+        """
         terms = [
             token.lower()
-            for token in re.findall(
-                r"[A-Za-z0-9]{3,}",
-                query_text,
-            )
+            for token in re.findall(r"[A-Za-z0-9]{3,}", query_text)
         ][:12]
-        if not terms:
+        if not terms or limit < 1:
             return []
 
-        query = """
-        MATCH (d:Document {tenant_id:$tenant})
+        # Every term is generated from an ASCII alphanumeric regex, then quoted for
+        # Lucene. OR recall is important for questions where relevant evidence shares
+        # only one or two content words with the user query.
+        fulltext_query = " OR ".join(f'"{term}"' for term in terms)
+
+        direct_query = """
+        CALL db.index.fulltext.queryNodes(
+            "document_text_fulltext",
+            $fulltext_query
+        )
+        YIELD node AS d, score AS lexical_score
+        WHERE d.tenant_id = $tenant
         OPTIONAL MATCH (d)-[:MENTIONS]->(e:Entity {tenant_id:$tenant})
-        WITH d, collect(DISTINCT e.name) AS entity_names
+        WITH d, lexical_score, collect(DISTINCT e.name) AS entity_names
         WITH d,
-             size([
+             lexical_score
+             + 0.15 * size([
                  term IN $terms
                  WHERE any(name IN entity_names WHERE toLower(name) CONTAINS term)
-             ]) AS entity_hits,
-             size([
+             ])
+             + 0.05 * size([
                  term IN $terms
                  WHERE toLower(d.title) CONTAINS term
-             ]) AS title_hits,
-             size([
-                 term IN $terms
-                 WHERE toLower(d.text) CONTAINS term
-             ]) AS text_hits
-        WHERE entity_hits + title_hits + text_hits > 0
+             ]) AS score
         RETURN d.doc_id AS doc_id,
                d.title AS title,
                d.text AS text,
-               (2.0 * entity_hits + 0.5 * title_hits + 0.1 * text_hits) AS score
+               score AS score
         ORDER BY score DESC, doc_id
         LIMIT $limit
         """
 
+        # Bounded two-hop traversal:
+        # query-matched entity -> anchor document -> shared entity -> candidate doc.
+        # Indexed entity tokens avoid scanning every entity name with CONTAINS.
+        traversal_query = """
+        // Start from a small, ranked set of text-relevant anchor documents, then
+        // expand their tenant-scoped entity edges. This avoids a tenant-wide scan
+        // over every Entity node and reliably finds related evidence whose own text
+        // does not repeat the user's query terms.
+        CALL db.index.fulltext.queryNodes(
+            "document_text_fulltext",
+            $fulltext_query
+        )
+        YIELD node AS anchor, score AS anchor_score
+        WHERE anchor.tenant_id = $tenant
+        WITH anchor, anchor_score
+        ORDER BY anchor_score DESC
+        LIMIT $anchor_limit
+        MATCH (anchor)-[:MENTIONS]->(bridge:Entity {tenant_id:$tenant})
+        MATCH (bridge)<-[:MENTIONS]-(candidate:Document {tenant_id:$tenant})
+        WHERE candidate.doc_id <> anchor.doc_id
+        WITH candidate,
+             collect(DISTINCT anchor.doc_id) AS anchor_docs,
+             collect(DISTINCT bridge.key) AS bridge_keys,
+             max(anchor_score) AS best_anchor_score
+        RETURN candidate.doc_id AS doc_id,
+               candidate.title AS title,
+               candidate.text AS text,
+               (best_anchor_score
+                + 0.1 * size(anchor_docs)
+                + 0.05 * size(bridge_keys)) AS score,
+               anchor_docs AS anchor_docs,
+               bridge_keys AS bridge_keys
+        ORDER BY score DESC, doc_id
+        LIMIT $limit
+        """
+
+        def collect_rows(result) -> list:
+            data_method = getattr(result, "data", None)
+            if callable(data_method):
+                return list(data_method())
+            try:
+                return list(result)
+            except TypeError:
+                return []
+
         with self.driver.session(database=self.database) as session:
-            rows = session.run(
-                query,
-                tenant=tenant,
-                terms=terms,
-                limit=limit,
+            direct_rows = collect_rows(
+                session.run(
+                    direct_query,
+                    tenant=tenant,
+                    terms=terms,
+                    fulltext_query=fulltext_query,
+                    limit=limit,
+                )
             )
-            return [
-                Hit(
-                    doc_id=row["doc_id"],
+            traversal_rows = collect_rows(
+                session.run(
+                    traversal_query,
+                    tenant=tenant,
+                    fulltext_query=fulltext_query,
+                    # Bound graph fan-out independently of output depth: requesting
+                    # 100 candidates must not expand 500 anchors per query.
+                    anchor_limit=min(100, max(20, limit * 2)),
+                    limit=limit,
+                )
+            )
+
+        hits_by_id: dict[str, Hit] = {}
+        for row in direct_rows:
+            doc_id = row["doc_id"]
+            hits_by_id[doc_id] = Hit(
+                doc_id=doc_id,
+                title=row["title"],
+                tenant_id=tenant,
+                text=row["text"],
+                score=float(row["score"]),
+                source="graph",
+                metadata={
+                    "doc_id": doc_id,
+                    "title": row["title"],
+                    "text": row["text"],
+                    "traversal_hops": 0,
+                    "traversal_score": 0.0,
+                    "retrieval_path": "fulltext",
+                },
+            )
+
+        for row in traversal_rows:
+            doc_id = row["doc_id"]
+            traversal_score = float(row["score"])
+            if doc_id in hits_by_id:
+                hit = hits_by_id[doc_id]
+                hits_by_id[doc_id] = Hit(
+                    doc_id=hit.doc_id,
+                    title=hit.title,
+                    tenant_id=hit.tenant_id,
+                    text=hit.text,
+                    score=hit.score + 0.5 * traversal_score,
+                    source=hit.source,
+                    metadata={
+                        **hit.metadata,
+                        "traversal_score": traversal_score,
+                        "traversal_hops": 2,
+                        "anchor_docs": row["anchor_docs"],
+                        "bridge_entities": row["bridge_keys"],
+                        "retrieval_path": "fulltext+two_hop",
+                    },
+                )
+            else:
+                hits_by_id[doc_id] = Hit(
+                    doc_id=doc_id,
                     title=row["title"],
                     tenant_id=tenant,
                     text=row["text"],
-                    score=float(row["score"]),
+                    score=traversal_score,
                     source="graph",
                     metadata={
-                        "doc_id": row["doc_id"],
+                        "doc_id": doc_id,
                         "title": row["title"],
                         "text": row["text"],
+                        "traversal_hops": 2,
+                        "traversal_score": traversal_score,
+                        "anchor_docs": row["anchor_docs"],
+                        "bridge_entities": row["bridge_keys"],
+                        "retrieval_path": "two_hop",
                     },
                 )
-                for row in rows
-            ]
+
+        return sorted(
+            hits_by_id.values(),
+            key=lambda hit: (-hit.score, hit.doc_id),
+        )[:limit]
 
     def trace(
         self,

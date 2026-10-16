@@ -142,7 +142,15 @@ def build_agent() -> EnterpriseGraphRAGAgent:
         api_key=settings.vllm_api_key,
         model=settings.vllm_model,
         threshold=settings.security_ppl_threshold,
+        ppl_max_chars=settings.security_ppl_max_chars,
+        ppl_window_overlap_chars=settings.security_ppl_window_overlap_chars,
         marker_threshold=settings.security_marker_threshold,
+        ppl_min_classifier_score=settings.security_ppl_min_classifier_score,
+        classifier_model=settings.security_classifier_model,
+        classifier_threshold=settings.security_classifier_threshold,
+        classifier_max_length=settings.security_classifier_max_length,
+        classifier_device=settings.security_classifier_device,
+        classifier_window_overlap=settings.security_classifier_window_overlap,
     )
 
     retriever = HybridRetriever(
@@ -152,6 +160,7 @@ def build_agent() -> EnterpriseGraphRAGAgent:
         vector_weight=settings.vector_weight,
         graph_weight=settings.graph_weight,
         rrf_k=settings.rrf_k,
+        vector_protected_prefix=settings.vector_protected_prefix,
     )
 
     return EnterpriseGraphRAGAgent(

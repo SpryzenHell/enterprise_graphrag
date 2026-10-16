@@ -160,10 +160,54 @@ class Settings:
             "80",
         )
     )
+    security_ppl_max_chars: int = int(
+        os.getenv(
+            "SECURITY_PPL_MAX_CHARS",
+            "12000",
+        )
+    )
+    security_ppl_window_overlap_chars: int = int(
+        os.getenv(
+            "SECURITY_PPL_WINDOW_OVERLAP_CHARS",
+            "1000",
+        )
+    )
+    security_ppl_min_classifier_score: float = float(
+        os.getenv(
+            "SECURITY_PPL_MIN_CLASSIFIER_SCORE",
+            "0.10",
+        )
+    )
     security_marker_threshold: int = int(
         os.getenv(
             "SECURITY_MARKER_THRESHOLD",
             "2",
+        )
+    )
+    security_classifier_model: str = os.getenv(
+        "SECURITY_CLASSIFIER_MODEL",
+        "",
+    )
+    security_classifier_threshold: float = float(
+        os.getenv(
+            "SECURITY_CLASSIFIER_THRESHOLD",
+            "0.5",
+        )
+    )
+    security_classifier_max_length: int = int(
+        os.getenv(
+            "SECURITY_CLASSIFIER_MAX_LENGTH",
+            "8192",
+        )
+    )
+    security_classifier_device: str = os.getenv(
+        "SECURITY_CLASSIFIER_DEVICE",
+        "auto",
+    )
+    security_classifier_window_overlap: int = int(
+        os.getenv(
+            "SECURITY_CLASSIFIER_WINDOW_OVERLAP",
+            "512",
         )
     )
 
@@ -183,6 +227,12 @@ class Settings:
         os.getenv(
             "GRAPH_WEIGHT",
             "0.45",
+        )
+    )
+    vector_protected_prefix: int = int(
+        os.getenv(
+            "VECTOR_PROTECTED_PREFIX",
+            "0",
         )
     )
     top_k: int = int(
@@ -280,6 +330,10 @@ class Settings:
             problems.append(
                 "VLLM_BASE_URL and VLLM_MODEL must be set together"
             )
+        if env == "production" and not (self.vllm_base_url and self.vllm_model):
+            problems.append(
+                "VLLM_BASE_URL and VLLM_MODEL are required in production to enforce the perplexity security gateway"
+            )
         if self.vllm_max_context_chars <= 0:
             problems.append(
                 "VLLM_MAX_CONTEXT_CHARS must be greater than zero"
@@ -302,9 +356,37 @@ class Settings:
             problems.append(
                 "SECURITY_PPL_THRESHOLD must be greater than zero"
             )
+        if not 256 <= self.security_ppl_max_chars <= 120000:
+            problems.append(
+                "SECURITY_PPL_MAX_CHARS must be between 256 and 120000"
+            )
+        if not 0 <= self.security_ppl_window_overlap_chars < self.security_ppl_max_chars:
+            problems.append(
+                "SECURITY_PPL_WINDOW_OVERLAP_CHARS must be non-negative and smaller than SECURITY_PPL_MAX_CHARS"
+            )
+        if not 0.0 <= self.security_ppl_min_classifier_score <= 1.0:
+            problems.append(
+                "SECURITY_PPL_MIN_CLASSIFIER_SCORE must be between 0 and 1"
+            )
         if self.security_marker_threshold <= 0:
             problems.append(
                 "SECURITY_MARKER_THRESHOLD must be greater than zero"
+            )
+        if not 0.0 <= self.security_classifier_threshold <= 1.0:
+            problems.append(
+                "SECURITY_CLASSIFIER_THRESHOLD must be between 0 and 1"
+            )
+        if not 8 <= self.security_classifier_max_length <= 8192:
+            problems.append(
+                "SECURITY_CLASSIFIER_MAX_LENGTH must be between 8 and 8192"
+            )
+        if self.security_classifier_device not in {"auto", "cpu", "cuda", "cuda:0", "cuda:1", "cuda:2", "cuda:3"}:
+            problems.append(
+                "SECURITY_CLASSIFIER_DEVICE must be auto, cpu, cuda, or cuda:N for N in 0..3"
+            )
+        if not 0 <= self.security_classifier_window_overlap < self.security_classifier_max_length - 2:
+            problems.append(
+                "SECURITY_CLASSIFIER_WINDOW_OVERLAP must be non-negative and smaller than SECURITY_CLASSIFIER_MAX_LENGTH - 2"
             )
         if self.rrf_k <= 0:
             problems.append("RRF_K must be greater than zero")
@@ -318,6 +400,8 @@ class Settings:
             problems.append(
                 "VECTOR_WEIGHT + GRAPH_WEIGHT must be greater than zero"
             )
+        if self.vector_protected_prefix < 0 or self.vector_protected_prefix > 50:
+            problems.append("VECTOR_PROTECTED_PREFIX must be between 0 and 50")
 
         if not self.mcp_resource_url:
             problems.append("MCP_RESOURCE_URL is required")

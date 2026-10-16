@@ -74,3 +74,12 @@ The deterministic benchmark currently contains four labeled questions and is use
 The real provider and application probes report protocol success and operation latency. They do not establish model quality on an arbitrary corpus.
 
 Production measurements should be recorded separately for the target model, embedding model, corpus, Neo4j deployment and security test set. Keep the configuration used for each measurement with the resulting evidence so that later comparisons remain meaningful.
+
+
+## External retrieval and security benchmarks
+
+The external benchmark harness evaluates the BEIR SciFact test qrels using the actual project FAISS retriever, weighted RRF, the in-memory graph fallback, and—when `NEO4J_URI` plus `NEO4J_PASSWORD` are configured—the live `Neo4jTenantStore`. It reports Recall@1/5/10, MRR@10, nDCG@10, index build time, post-warm-up p50/p95/max latency, and an RRF-weight sweep. The SciFact corpus is CC-BY-SA-4.0; follow its attribution/share-alike terms when redistributing derived material.
+
+The security evaluator is separate from retrieval scoring. It reports marker-only, semantic detector, and combined-gate results on public prompt-injection and benign-lookalike configurations, records model/dataset licenses, and saves aggregate metrics rather than source passages. The publisher-generated synthetic config is not a substitute for independent indirect-injection tests. A PPL result is only meaningful when the vLLM endpoint was configured and actually returned prompt-token scores.
+
+Run `python scripts/evaluate_injection_ood.py --max-per-class 400` for the mixed-config security evaluation. The CPU workflow checks the retrieval/model pipeline; the A100 workflow additionally evaluates vLLM prompt-token logprobs, the configured semantic gate, and the live API/MCP tenant boundary. Compare artifacts for the same source revision and settings before treating runs as performance comparisons.
