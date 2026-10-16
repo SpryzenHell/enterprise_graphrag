@@ -20,6 +20,7 @@ ENTITY_ALIAS_STOPWORDS = {
     "story", "book", "film", "movie", "album", "song", "music", "record",
     "records", "department", "association", "organization", "society",
     "government", "minister", "president", "general", "major", "district",
+    "project", "projects",
 }
 
 
