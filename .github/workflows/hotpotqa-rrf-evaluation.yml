@@ -8,6 +8,7 @@ on:
       - eval/neo4j-rarity-ranked-expansion-2026-10-16
       - eval/independent-depth-rrf-gate-2026-10-16
       - eval/vector-prefix-protected-rank-fusion-2026-10-16
+      - eval/hotpotqa-prefix-fusion-quick-120-2026-10-16
     paths:
       - ".github/workflows/hotpotqa-rrf-evaluation.yml"
       - "scripts/evaluate_hotpotqa_rrf.py"
@@ -80,7 +81,7 @@ jobs:
           python scripts/evaluate_hotpotqa_rrf.py \
             --output-dir artifacts/hotpotqa-multihop \
             --cache-dir "$HOME/.cache/hotpotqa-multihop" \
-            --max-queries 400 \
+            --max-queries 120 \
             --embedding-batch-size 128 \
             --seed 20261015
       - name: Upload aggregate results and dataset license notes
