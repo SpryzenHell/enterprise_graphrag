@@ -624,6 +624,11 @@ def main():
     parser.add_argument("--max-length", type=int, default=512)
     parser.add_argument("--learning-rate", type=float, default=5e-6)
     parser.add_argument("--seed", type=int, default=20261014)
+    parser.add_argument(
+        "--validation-rows-path",
+        default="",
+        help="Optional local-only JSONL export of grouped validation rows for integrated PPL threshold calibration.",
+    )
     args = parser.parse_args()
 
     random.seed(args.seed)
@@ -649,6 +654,20 @@ def main():
         json.dumps(notinject_manifest, indent=2),
         encoding="utf-8",
     )
+
+    if args.validation_rows_path:
+        # Keep validation text outside the uploaded artifacts directory. The
+        # subsequent A100 step uses this exact grouped partition to calibrate
+        # semantic + live-vLLM PPL thresholds; the file is deleted before cleanup.
+        validation_path = Path(args.validation_rows_path)
+        validation_path.parent.mkdir(parents=True, exist_ok=True)
+        with validation_path.open("w", encoding="utf-8") as handle:
+            for row in validation_rows:
+                handle.write(json.dumps({
+                    "text": str(row.get("text") or ""),
+                    "label": int(row["label"]),
+                    "source": str(row.get("source") or ""),
+                }, ensure_ascii=False) + "\\n")
 
     tokenizer = AutoTokenizer.from_pretrained(args.base_model)
 
