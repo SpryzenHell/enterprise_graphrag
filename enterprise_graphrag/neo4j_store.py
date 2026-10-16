@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 
 from .fusion import Hit
 
@@ -20,6 +21,49 @@ def extract_entities(text: str) -> list[str]:
             seen.add(key)
             entities.append(value)
     return entities[:24]
+
+
+
+BRIDGE_TOKEN_RE = re.compile(r"\b[A-Za-z][A-Za-z0-9-]{3,}\b")
+BRIDGE_STOPWORDS = frozenset({
+    "about", "after", "again", "against", "along", "also", "among", "another",
+    "around", "because", "before", "being", "between", "could", "during",
+    "each", "from", "have", "into", "more", "most", "other", "over", "same",
+    "some", "such", "than", "that", "their", "there", "these", "they", "this",
+    "those", "through", "under", "using", "very", "what", "when", "where",
+    "which", "while", "with", "would", "your", "were", "been", "does", "them",
+    "then", "only", "both", "many", "much", "make", "made", "like", "just",
+    "often", "however", "according", "within", "without", "following", "called",
+    "known", "used", "well", "part", "first", "second", "later", "years", "year",
+    "days", "day", "people", "person", "time", "times", "world", "system",
+    "systems", "group", "groups", "number", "numbers",
+})
+
+
+def extract_bridge_terms(title: str, text: str, limit: int = 36) -> list[str]:
+    """Extract lowercase content terms to connect passages lacking shared capitalization.
+
+    The graph keeps named-entity nodes, but entity-only extraction misses common
+    concepts when references are lowercased in prose. These bounded token bridges
+    use a separate key namespace; high-degree terms are downweighted at traversal.
+    """
+    title_terms = [
+        token.casefold()
+        for token in BRIDGE_TOKEN_RE.findall(title)
+        if token.casefold() not in BRIDGE_STOPWORDS
+    ]
+    counts = Counter(
+        token.casefold()
+        for token in BRIDGE_TOKEN_RE.findall(text)
+        if token.casefold() not in BRIDGE_STOPWORDS
+    )
+    ordered = list(dict.fromkeys(title_terms))
+    for token in sorted(counts, key=lambda value: (-counts[value], -len(value), value)):
+        if token not in ordered:
+            ordered.append(token)
+        if len(ordered) >= limit:
+            break
+    return ordered[:limit]
 
 
 class Neo4jTenantStore:
@@ -90,6 +134,7 @@ class Neo4jTenantStore:
                 "text": doc["text"],
                 "entities": [
                     {
+                        "key": key,
                         "name": name,
                         "search_terms": sorted(
                             set(
@@ -98,11 +143,17 @@ class Neo4jTenantStore:
                             )
                         ),
                     }
-                    # Extract title and body independently so the final capitalized
-                    # token in a title cannot merge with the first entity in the
-                    # body (e.g. "Schedule Project Atlas") and hide shared graph keys.
-                    for name in dict.fromkeys(
-                        extract_entities(doc["title"]) + extract_entities(doc["text"])
+                    for key, name in (
+                        [
+                            (name.casefold(), name)
+                            for name in dict.fromkeys(
+                                extract_entities(doc["title"]) + extract_entities(doc["text"])
+                            )
+                        ]
+                        + [
+                            ("term:" + token, token)
+                            for token in extract_bridge_terms(doc["title"], doc["text"])
+                        ]
                     )
                 ],
             }
@@ -118,7 +169,7 @@ class Neo4jTenantStore:
         DELETE r
         WITH DISTINCT d, item
         FOREACH (entity IN item.entities |
-            MERGE (e:Entity {tenant_id:$tenant, key:toLower(entity.name)})
+            MERGE (e:Entity {tenant_id:$tenant, key:entity.key})
             SET e.name=entity.name,
                 e.search_terms=entity.search_terms
             MERGE (d)-[:MENTIONS]->(e)
