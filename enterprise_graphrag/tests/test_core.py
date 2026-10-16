@@ -1199,3 +1199,64 @@ def test_ppl_policy_helper_matches_fail_closed_configuration_contract():
     assert block(eligible=True, configured=True, perplexity=79.99, threshold=80) is False
     assert block(eligible=True, configured=True, perplexity=80.0, threshold=80) is True
     assert block(eligible=False, configured=True, perplexity=None, threshold=80) is False
+
+
+def test_perplexity_scans_full_document_and_uses_max_window_score(monkeypatch):
+    gateway = SecurityGateway(
+        base_url="http://vllm.test",
+        model="qwen-test",
+        ppl_max_chars=256,
+        ppl_window_overlap_chars=32,
+    )
+    observed = []
+
+    def fake_window(text):
+        observed.append(text)
+        return 25.0 if "TAIL_INJECTION_SENTINEL" in text else 10.0
+
+    monkeypatch.setattr(gateway, "_perplexity_window", fake_window)
+    document = ("ordinary evidence " * 70) + "TAIL_INJECTION_SENTINEL"
+
+    score = gateway.perplexity(document)
+
+    assert len(observed) > 1
+    assert any("TAIL_INJECTION_SENTINEL" in window for window in observed)
+    assert score == 25.0
+
+
+def test_perplexity_returns_none_if_any_long_document_window_fails_closed(monkeypatch):
+    gateway = SecurityGateway(
+        base_url="http://vllm.test",
+        model="qwen-test",
+        ppl_max_chars=256,
+        ppl_window_overlap_chars=32,
+    )
+    call_count = 0
+
+    def fake_window(_text):
+        nonlocal call_count
+        call_count += 1
+        return 12.0 if call_count == 1 else None
+
+    monkeypatch.setattr(gateway, "_perplexity_window", fake_window)
+    score = gateway.perplexity("long document " * 100)
+
+    assert call_count >= 2
+    assert score is None
+    assert gateway._ppl_policy_blocks(True, True, score, 80.0) is True
+
+
+def test_perplexity_window_parameters_are_validated():
+    try:
+        SecurityGateway(ppl_max_chars=128)
+    except ValueError as exc:
+        assert "ppl_max_chars" in str(exc)
+    else:
+        raise AssertionError("too-small PPL window was accepted")
+
+    try:
+        SecurityGateway(ppl_max_chars=256, ppl_window_overlap_chars=256)
+    except ValueError as exc:
+        assert "ppl_window_overlap_chars" in str(exc)
+    else:
+        raise AssertionError("PPL overlap equal to window length was accepted")
