@@ -1258,3 +1258,60 @@ def test_hybrid_retriever_fuses_vector_seeded_graph_expansion():
     assert blocked == []
     fused_related = next(hit for hit in allowed if hit.doc_id == "related-two-hop")
     assert fused_related.metadata["retrieval_path"] == "vector_seeded_two_hop"
+
+
+
+def test_agent_overfetches_before_blocking_untrusted_context(monkeypatch):
+    from types import SimpleNamespace
+    import enterprise_graphrag.agent as agent_module
+
+    monkeypatch.setattr(
+        agent_module,
+        "settings",
+        SimpleNamespace(top_k=8, candidate_pool_multiplier=4),
+    )
+
+    class RecordingRetriever:
+        def __init__(self):
+            self.security = SecurityGateway()
+            self.vector_weight = 0.9
+            self.graph_weight = 0.1
+            self.calls = []
+
+        def search(self, tenant, query, limit, candidate_limit=None):
+            self.calls.append({
+                "tenant": tenant,
+                "query": query,
+                "limit": limit,
+                "candidate_limit": candidate_limit,
+            })
+            return [], [], candidate_limit, candidate_limit
+
+        def trace(self, tenant, doc_ids):
+            return {"nodes": [], "edges": []}
+
+    class AnswerModel:
+        def answer(self, query, contexts):
+            return "No answer without allowed evidence."
+
+    retriever = RecordingRetriever()
+    agent = EnterpriseGraphRAGAgent(retriever, AnswerModel())
+    principal = SimpleNamespace(tenant_id="acme", subject="test-user")
+
+    agent.query(principal, "What is the retention policy?", top_k=3)
+    agent.query(principal, "What is the retention policy?", top_k=50)
+
+    assert retriever.calls == [
+        {
+            "tenant": "acme",
+            "query": "What is the retention policy?",
+            "limit": 3,
+            "candidate_limit": 12,
+        },
+        {
+            "tenant": "acme",
+            "query": "What is the retention policy?",
+            "limit": 50,
+            "candidate_limit": 100,
+        },
+    ]
