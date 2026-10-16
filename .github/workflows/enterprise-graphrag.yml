@@ -51,8 +51,8 @@ jobs:
       - name: Tests
         run: pytest -q enterprise_graphrag/tests -m "not integration and not gpu"
 
-      - name: Joint semantic and PPL calibration unit tests
-        run: pytest -q scripts/tests/test_integrated_ppl_calibration.py
+      - name: Security threshold and promotion-gate unit tests
+        run: pytest -q scripts/tests/test_integrated_ppl_calibration.py scripts/tests/test_compare_guard_reports.py
 
       - name: Deterministic security evaluation
         run: python scripts/evaluate_enterprise.py
