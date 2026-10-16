@@ -10,6 +10,7 @@ on:
       - eval/vector-prefix-protected-rank-fusion-2026-10-16
       - eval/hotpotqa-prefix-fusion-quick-120-2026-10-16
       - eval/hotpotqa-fanout-smoke-32-2026-10-16
+      - eval/hotpotqa-two-hop-debug-2026-10-16
     paths:
       - ".github/workflows/hotpotqa-rrf-evaluation.yml"
       - "scripts/evaluate_hotpotqa_rrf.py"
