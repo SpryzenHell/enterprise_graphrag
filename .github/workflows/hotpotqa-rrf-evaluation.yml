@@ -9,6 +9,7 @@ on:
       - eval/independent-depth-rrf-gate-2026-10-16
       - eval/vector-prefix-protected-rank-fusion-2026-10-16
       - eval/hotpotqa-prefix-fusion-quick-120-2026-10-16
+      - eval/hotpotqa-fanout-smoke-32-2026-10-16
     paths:
       - ".github/workflows/hotpotqa-rrf-evaluation.yml"
       - "scripts/evaluate_hotpotqa_rrf.py"
@@ -26,7 +27,7 @@ jobs:
   multihop-evaluation:
     name: HotpotQA supporting-fact retrieval with live Neo4j
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 60
     services:
       neo4j:
         image: neo4j:2026-community
@@ -81,7 +82,7 @@ jobs:
           python scripts/evaluate_hotpotqa_rrf.py \
             --output-dir artifacts/hotpotqa-multihop \
             --cache-dir "$HOME/.cache/hotpotqa-multihop" \
-            --max-queries 120 \
+            --max-queries 32 \
             --embedding-batch-size 128 \
             --seed 20261015
       - name: Upload aggregate results and dataset license notes
