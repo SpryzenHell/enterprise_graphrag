@@ -6,6 +6,7 @@ on:
       - eval/hotpotqa-multihop-2026-10-15
       - eval/vector-seeded-neo4j-rrf-2026-10-15
       - eval/neo4j-rarity-ranked-expansion-2026-10-16
+      - fix/runtime-safe-context-refill-2026-10-16
     paths:
       - ".github/workflows/hotpotqa-rrf-evaluation.yml"
       - "scripts/evaluate_hotpotqa_rrf.py"
