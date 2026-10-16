@@ -229,6 +229,12 @@ class Settings:
             "0.45",
         )
     )
+    vector_protected_prefix: int = int(
+        os.getenv(
+            "VECTOR_PROTECTED_PREFIX",
+            "0",
+        )
+    )
     top_k: int = int(
         os.getenv(
             "TOP_K",
@@ -394,6 +400,8 @@ class Settings:
             problems.append(
                 "VECTOR_WEIGHT + GRAPH_WEIGHT must be greater than zero"
             )
+        if self.vector_protected_prefix < 0 or self.vector_protected_prefix > 50:
+            problems.append("VECTOR_PROTECTED_PREFIX must be between 0 and 50")
 
         if not self.mcp_resource_url:
             problems.append("MCP_RESOURCE_URL is required")
