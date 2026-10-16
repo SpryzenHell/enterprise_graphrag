@@ -29,6 +29,8 @@ def main() -> None:
     parser.add_argument("--candidate-report", required=True)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--bipia-min-tpr-gain", type=float, default=0.10)
+    parser.add_argument("--min-bipia-tpr", type=float, default=0.80)
+    parser.add_argument("--min-piarena-tpr", type=float, default=0.60)
     parser.add_argument("--max-hard-negative-fpr", type=float, default=0.05)
     parser.add_argument(
         "--calibration-report",
@@ -76,6 +78,14 @@ def main() -> None:
         "bipia_tpr_gain_at_least_minimum": (
             by_name["bipia"]["tpr_delta"] >= args.bipia_min_tpr_gain
             and by_name["bipia"]["candidate_fpr"] <= args.max_hard_negative_fpr
+        ),
+        "bipia_absolute_tpr_floor": (
+            by_name["bipia"]["candidate_tpr"] >= args.min_bipia_tpr
+            and by_name["bipia"]["candidate_fpr"] <= args.max_hard_negative_fpr
+        ),
+        "piarena_absolute_tpr_floor": (
+            by_name["piarena"]["candidate_tpr"] >= args.min_piarena_tpr
+            and by_name["piarena"]["candidate_fpr"] <= 0.02
         ),
         "piarena_no_material_tpr_regression": (
             by_name["piarena"]["candidate_tpr"] >= by_name["piarena"]["base_tpr"] - 0.03
@@ -127,8 +137,11 @@ def main() -> None:
         "candidate_report": str(args.candidate_report),
         "acceptance_criteria": {
             "BIPIA absolute TPR improvement": args.bipia_min_tpr_gain,
+            "BIPIA minimum absolute TPR": args.min_bipia_tpr,
+            "PIArena minimum absolute TPR": args.min_piarena_tpr,
             "maximum false-positive rate on BIPIA": args.max_hard_negative_fpr,
             "maximum false-positive rate on benign hard-negative sets": args.max_hard_negative_fpr,
+            "maximum false-positive rate on PIArena": 0.02,
             "PIArena TPR regression tolerance": 0.03,
             "generated-set TPR regression tolerance": 0.03,
         },
