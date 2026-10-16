@@ -91,7 +91,7 @@ def test_validation_jsonl_handles_unicode_line_separator_characters(tmp_path):
     # JSONL records are separated by literal LF only. Unicode separators inside
     # JSON strings must not be treated as physical records by str.splitlines().
     content = path.read_text(encoding="utf-8")
-    records = content.split("\\n")
+    records = content.split("\n")
     assert records[-1] == ""
     records = records[:-1]
     assert len(records) == 2
