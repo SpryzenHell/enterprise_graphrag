@@ -244,7 +244,9 @@ class Neo4jTenantStore:
                     traversal_query,
                     tenant=tenant,
                     fulltext_query=fulltext_query,
-                    anchor_limit=max(50, limit * 5),
+                    # Bound graph fan-out independently of output depth: requesting
+                    # 100 candidates must not expand 500 anchors per query.
+                    anchor_limit=min(100, max(20, limit * 2)),
                     limit=limit,
                 )
             )
