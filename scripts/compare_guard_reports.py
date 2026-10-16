@@ -30,7 +30,7 @@ def main() -> None:
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--bipia-min-tpr-gain", type=float, default=0.10)
     parser.add_argument("--min-bipia-tpr", type=float, default=0.80)
-    parser.add_argument("--min-piarena-tpr", type=float, default=0.60)
+    parser.add_argument("--min-piarena-tpr", type=float, default=0.80)
     parser.add_argument("--max-hard-negative-fpr", type=float, default=0.05)
     parser.add_argument(
         "--calibration-report",
