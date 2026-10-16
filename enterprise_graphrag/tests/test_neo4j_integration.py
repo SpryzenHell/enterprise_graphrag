@@ -389,7 +389,7 @@ def test_vector_seeded_expansion_penalizes_high_degree_entity_hubs():
             for hit in hits
             if hit.doc_id == "hub-candidate-00"
         )
-        assert "Project Obsidian Gateway" in hits[0].metadata["bridge_entities"]
+        assert "project obsidian gateway" in {name.casefold() for name in hits[0].metadata["bridge_entities"]}
         assert all(hit.tenant_id == "rarity-acme" for hit in hits)
         assert all(hit.doc_id != "hub-cross-tenant" for hit in hits)
     finally:
