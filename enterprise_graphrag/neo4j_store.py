@@ -175,23 +175,33 @@ class Neo4jTenantStore:
             for rank, doc_id in enumerate(unique_anchor_ids, start=1)
         ]
         query = """
+        // First collapse all anchor paths into one row per bridge entity.
+        // The bridge degree is then counted once for each entity, rather than
+        // repeatedly for every anchor->candidate path sharing that entity.
         UNWIND $anchors AS seed
         MATCH (anchor:Document {tenant_id:$tenant, doc_id:seed.doc_id})
         MATCH (anchor)-[:MENTIONS]->(bridge:Entity {tenant_id:$tenant})
+        WITH bridge,
+             collect(DISTINCT {doc_id: anchor.doc_id, rank: seed.rank}) AS anchor_seeds
+        CALL {
+            WITH bridge
+            MATCH (bridge)<-[:MENTIONS]-(neighbor:Document {tenant_id:$tenant})
+            RETURN count(DISTINCT neighbor) AS bridge_degree
+        }
+        UNWIND anchor_seeds AS anchor_seed
         MATCH (bridge)<-[:MENTIONS]-(candidate:Document {tenant_id:$tenant})
-        WHERE candidate.doc_id <> anchor.doc_id
-        WITH DISTINCT candidate, anchor, seed, bridge,
-             size([
-                 (bridge)<-[:MENTIONS]-(neighbor:Document {tenant_id:$tenant})
-                 | neighbor.doc_id
-             ]) AS bridge_degree
+        WHERE candidate.doc_id <> anchor_seed.doc_id
         WITH candidate,
-             collect(DISTINCT anchor.doc_id) AS anchor_docs,
+             anchor_seed,
+             bridge,
+             bridge_degree
+        WITH candidate,
+             collect(DISTINCT anchor_seed.doc_id) AS anchor_docs,
              collect(DISTINCT bridge.key) AS bridge_keys,
-             min(seed.rank) AS best_anchor_rank,
+             min(anchor_seed.rank) AS best_anchor_rank,
              sum(
                  (1.0 / sqrt(toFloat(bridge_degree)))
-                 / sqrt(toFloat(seed.rank))
+                 / sqrt(toFloat(anchor_seed.rank))
              ) AS rarity_seed_score
         WITH candidate,
              anchor_docs,
