@@ -20,7 +20,7 @@ This plan distinguishes implemented architecture from evidence that the claim wo
 - `enterprise_graphrag/tests/test_core.py`: request-body tenant spoofing test.
 - `enterprise_graphrag/tests/test_mcp_http.py`: authenticated MCP tenant test and cross-tenant MCP query test.
 - `enterprise_graphrag/tests/test_neo4j_integration.py`: live Neo4j tenant isolation, bulk upsert, stale-link removal, and two-hop tenant-scoped retrieval.
-- The Enterprise GraphRAG CI at SHA `b67fa4af6d752b5e317ab56828fc7b9eb0b7e... ` passed unit, container smoke, compose smoke, and Neo4j integration jobs on 2026-10-16. Use the exact workflow run as the source of record: https://github.com/SpryzenHell/enterprise_graphrag/actions/runs/38884930814
+- Enterprise GraphRAG CI passed unit, container smoke, compose smoke, and Neo4j integration jobs on 2026-10-16. Use the exact workflow run as the source of record: https://github.com/SpryzenHell/enterprise_graphrag/actions/runs/38884930814
 
 ### Remaining qualification
 This establishes reproducible implementation and integration-test evidence, not a third-party security audit or proof of absence of every possible side channel.
