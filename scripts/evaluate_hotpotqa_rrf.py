@@ -561,6 +561,208 @@ def evaluate_independent_depths(
     }
 
 
+
+def evaluate_vector_prefix_fusion(
+    queries: list[dict],
+    candidate_lists: dict[str, dict[str, list]],
+    seed: int = 20261016,
+) -> dict:
+    """Evaluate prefix-protected RRF: preserve the vector head, fuse its tail.
+
+    The vector top-prefix is emitted in its original order. RRF ranks the remaining
+    candidates; at most (10 - prefix_size) of those can affect the tail. This is
+    intended to recover graph-only supporting evidence without letting a weak graph
+    score reorder high-confidence vector hits.
+    """
+    shuffled = list(queries)
+    random.Random(seed).shuffle(shuffled)
+    midpoint = max(1, len(shuffled) // 2)
+    calibration = shuffled[:midpoint]
+    heldout = shuffled[midpoint:] or calibration
+    profiles = [
+        profile for profile in ("neo4j_vector_seeded", "neo4j_enriched")
+        if profile in candidate_lists
+    ]
+    prefix_sizes = (5, 7, 9)
+    graph_depths = (10, 20, 50, 100)
+    graph_weights = (0.20, 0.35, 0.50, 0.65)
+
+    def build_rankings(rows, profile, prefix_size, graph_depth, graph_weight):
+        rankings = {}
+        for row in rows:
+            qid = row["query_id"]
+            vector_hits = candidate_lists["vector"].get(qid, [])[:100]
+            graph_hits = candidate_lists[profile].get(qid, [])[:graph_depth]
+            prefix = vector_hits[:prefix_size]
+            prefix_ids = {hit.doc_id for hit in prefix}
+            fused = weighted_rrf(
+                {"vector": vector_hits, "graph": graph_hits},
+                {"vector": 1.0 - graph_weight, "graph": graph_weight},
+                k=60,
+                limit=100,
+            )
+            tail = [hit for hit in fused if hit.doc_id not in prefix_ids]
+            tail_slots = 10 - prefix_size
+            # Keep full-length top-10 rankings even when one graph path returns
+            # fewer unique passages than the number of available tail slots.
+            if len(tail) < tail_slots:
+                already = prefix_ids | {hit.doc_id for hit in tail}
+                tail.extend(hit for hit in vector_hits if hit.doc_id not in already)
+            hits = (prefix + tail[:tail_slots])[:10]
+            rankings[qid] = [hit.title for hit in hits]
+            rankings[qid + "::answer_text"] = [hit.text for hit in hits]
+        return rankings
+
+    vector_cal = ranking_metrics(
+        calibration,
+        {
+            key: value
+            for qid in candidate_lists["vector"]
+            for key, value in (
+                (qid, [hit.title for hit in candidate_lists["vector"][qid][:10]]),
+                (qid + "::answer_text", [hit.text for hit in candidate_lists["vector"][qid][:10]]),
+            )
+        },
+    )
+    vector_test = ranking_metrics(
+        heldout,
+        {
+            key: value
+            for qid in candidate_lists["vector"]
+            for key, value in (
+                (qid, [hit.title for hit in candidate_lists["vector"][qid][:10]]),
+                (qid + "::answer_text", [hit.text for hit in candidate_lists["vector"][qid][:10]]),
+            )
+        },
+    )
+
+    configurations = []
+    for profile in profiles:
+        for prefix_size in prefix_sizes:
+            for graph_depth in graph_depths:
+                for graph_weight in graph_weights:
+                    calibration_metrics = ranking_metrics(
+                        calibration,
+                        build_rankings(calibration, profile, prefix_size, graph_depth, graph_weight),
+                    )
+                    deltas = {
+                        "supporting_title_recall@10": round(
+                            calibration_metrics["supporting_title_recall@10"]
+                            - vector_cal["supporting_title_recall@10"], 6
+                        ),
+                        "mrr@10": round(
+                            calibration_metrics["mrr@10"] - vector_cal["mrr@10"], 6
+                        ),
+                        "ndcg@10": round(
+                            calibration_metrics["ndcg@10"] - vector_cal["ndcg@10"], 6
+                        ),
+                    }
+                    configurations.append({
+                        "candidate_profile": profile,
+                        "protected_vector_prefix": prefix_size,
+                        "graph_candidate_depth": graph_depth,
+                        "graph_weight": graph_weight,
+                        "vector_weight": round(1.0 - graph_weight, 2),
+                        "calibration": calibration_metrics,
+                        "calibration_deltas_vs_vector": deltas,
+                        "clears_calibration_gate": (
+                            deltas["supporting_title_recall@10"] >= 0.01
+                            and deltas["mrr@10"] >= -0.02
+                            and deltas["ndcg@10"] >= -0.02
+                        ),
+                        "rank_stable": deltas["mrr@10"] >= -0.02 and deltas["ndcg@10"] >= -0.02,
+                    })
+
+    feasible = [record for record in configurations if record["clears_calibration_gate"]]
+    stable = [record for record in configurations if record["rank_stable"]]
+    if feasible:
+        selected = max(
+            feasible,
+            key=lambda row: (
+                row["calibration"]["supporting_title_recall@10"],
+                row["calibration"]["all_supporting_titles@10"],
+                row["calibration"]["mrr@10"],
+                row["calibration"]["ndcg@10"],
+                row["protected_vector_prefix"],
+                -row["graph_candidate_depth"],
+            ),
+        )
+        selection_status = "selected_feasible_prefix_protected_hybrid"
+    elif stable:
+        selected = max(
+            stable,
+            key=lambda row: (
+                row["calibration"]["supporting_title_recall@10"],
+                row["calibration"]["all_supporting_titles@10"],
+                row["calibration"]["mrr@10"],
+                row["calibration"]["ndcg@10"],
+                row["protected_vector_prefix"],
+                -row["graph_candidate_depth"],
+            ),
+        )
+        selection_status = "no_feasible_prefix_hybrid_best_rank_stable_diagnostic_only"
+    else:
+        selected = None
+        selection_status = "no_rank_stable_prefix_hybrid_vector_only_fallback"
+
+    if selected:
+        selected_heldout = ranking_metrics(
+            heldout,
+            build_rankings(
+                heldout,
+                selected["candidate_profile"],
+                selected["protected_vector_prefix"],
+                selected["graph_candidate_depth"],
+                selected["graph_weight"],
+            ),
+        )
+        deltas = {
+            "supporting_title_recall@10": round(
+                selected_heldout["supporting_title_recall@10"] - vector_test["supporting_title_recall@10"], 6
+            ),
+            "mrr@10": round(selected_heldout["mrr@10"] - vector_test["mrr@10"], 6),
+            "ndcg@10": round(selected_heldout["ndcg@10"] - vector_test["ndcg@10"], 6),
+        }
+        clears_heldout_gate = (
+            deltas["supporting_title_recall@10"] >= 0.01
+            and deltas["mrr@10"] >= -0.02
+            and deltas["ndcg@10"] >= -0.02
+        )
+    else:
+        selected_heldout = vector_test
+        deltas = {"supporting_title_recall@10": 0.0, "mrr@10": 0.0, "ndcg@10": 0.0}
+        clears_heldout_gate = False
+
+    return {
+        "selection_rule": (
+            "Preserve the top N vector hits in their original order; use weighted RRF to order the remaining tail. "
+            "Select on calibration only; require supporting-title recall@10 +0.01 and MRR/nDCG deltas >= -0.02 "
+            "on held-out queries before promotion."
+        ),
+        "seed": seed,
+        "calibration_queries": len(calibration),
+        "heldout_queries": len(heldout),
+        "grid": {
+            "profiles": profiles,
+            "protected_vector_prefix_sizes": list(prefix_sizes),
+            "graph_candidate_depths": list(graph_depths),
+            "graph_weights": list(graph_weights),
+            "configurations_evaluated": len(configurations),
+        },
+        "vector_only_calibration": vector_cal,
+        "vector_only_heldout": vector_test,
+        "selection_status": selection_status,
+        "selected": selected,
+        "selected_heldout": selected_heldout,
+        "heldout_deltas_vs_vector": deltas,
+        "selected_clears_heldout_gate": clears_heldout_gate,
+        "calibration_feasible_configurations": len(feasible),
+        "rank_stable_configurations": len(stable),
+        "all_configurations": configurations,
+        "warning": "HotpotQA validation sample only; the hidden test split remains untouched. Keep vector-only if no configuration passes.",
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description="Measure BGE, Neo4j entity traversal and RRF on HotpotQA multi-hop retrieval.")
     parser.add_argument("--output-dir", default="artifacts/hotpotqa-multihop")
@@ -653,6 +855,9 @@ def main():
             independent_depth_sweep = evaluate_independent_depths(
                 queries, candidate_lists, seed=args.seed + 101
             )
+            prefix_protected_sweep = evaluate_vector_prefix_fusion(
+                queries, candidate_lists, seed=args.seed + 211
+            )
             result = {
                 "schema_version": 1,
                 "started_utc": start_utc,
@@ -677,6 +882,7 @@ def main():
                 "controls": controls,
                 "rrf_tuning": sweep["rrf_tuning"],
                 "independent_depth_sweep": independent_depth_sweep,
+                "prefix_protected_sweep": prefix_protected_sweep,
                 "limitations": [
                     "The benchmark indexes only passages present in the sampled HotpotQA distractor contexts, not all Wikipedia.",
                     "Entity extraction is deterministic title/body capitalization matching; this tests the current production retriever rather than an idealized knowledge graph.",
@@ -730,6 +936,14 @@ def main():
         f"- Frozen selected configuration clears held-out gate: {independent_depth_sweep['selected_clears_heldout_gate']}.",
         f"- Held-out deltas vs vector-only: recall={independent_depth_sweep['heldout_deltas_vs_vector']['supporting_title_recall@10']:+.4f}; MRR={independent_depth_sweep['heldout_deltas_vs_vector']['mrr@10']:+.4f}; nDCG={independent_depth_sweep['heldout_deltas_vs_vector']['ndcg@10']:+.4f}.",
         f"- Gate: support recall +1 pp minimum, MRR/nDCG regression no worse than 0.02. {independent_depth_sweep['warning']}",
+        "",
+        "## Vector-prefix-protected RRF tail augmentation",
+        "",
+        f"- Grid: {prefix_protected_sweep['grid']['configurations_evaluated']} configurations; protected vector prefixes={prefix_protected_sweep['grid']['protected_vector_prefix_sizes']}; graph depths={prefix_protected_sweep['grid']['graph_candidate_depths']}; graph weights={prefix_protected_sweep['grid']['graph_weights']}.",
+        f"- Selection={prefix_protected_sweep['selection_status']}; calibration feasible={prefix_protected_sweep['calibration_feasible_configurations']}; rank-stable={prefix_protected_sweep['rank_stable_configurations']}.",
+        f"- Frozen selected configuration clears held-out gate: {prefix_protected_sweep['selected_clears_heldout_gate']}.",
+        f"- Held-out deltas vs vector-only: recall={prefix_protected_sweep['heldout_deltas_vs_vector']['supporting_title_recall@10']:+.4f}; MRR={prefix_protected_sweep['heldout_deltas_vs_vector']['mrr@10']:+.4f}; nDCG={prefix_protected_sweep['heldout_deltas_vs_vector']['ndcg@10']:+.4f}.",
+        f"- Warning: {prefix_protected_sweep['warning']}",
         "",
         "## Query latency (after model/index warm-up)",
         "",
