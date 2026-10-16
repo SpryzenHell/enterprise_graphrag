@@ -1307,6 +1307,8 @@ def test_hybrid_retriever_applies_configured_vector_protected_prefix():
 
 
 def test_hybrid_retriever_rejects_out_of_range_vector_protected_prefix():
+    import pytest
+
     with pytest.raises(ValueError, match="vector_protected_prefix"):
         HybridRetriever(
             vector=object(),
