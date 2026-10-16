@@ -160,6 +160,18 @@ class Settings:
             "80",
         )
     )
+    security_ppl_max_chars: int = int(
+        os.getenv(
+            "SECURITY_PPL_MAX_CHARS",
+            "12000",
+        )
+    )
+    security_ppl_window_overlap_chars: int = int(
+        os.getenv(
+            "SECURITY_PPL_WINDOW_OVERLAP_CHARS",
+            "1000",
+        )
+    )
     security_ppl_min_classifier_score: float = float(
         os.getenv(
             "SECURITY_PPL_MIN_CLASSIFIER_SCORE",
@@ -337,6 +349,14 @@ class Settings:
         if self.security_ppl_threshold <= 0:
             problems.append(
                 "SECURITY_PPL_THRESHOLD must be greater than zero"
+            )
+        if not 256 <= self.security_ppl_max_chars <= 120000:
+            problems.append(
+                "SECURITY_PPL_MAX_CHARS must be between 256 and 120000"
+            )
+        if not 0 <= self.security_ppl_window_overlap_chars < self.security_ppl_max_chars:
+            problems.append(
+                "SECURITY_PPL_WINDOW_OVERLAP_CHARS must be non-negative and smaller than SECURITY_PPL_MAX_CHARS"
             )
         if not 0.0 <= self.security_ppl_min_classifier_score <= 1.0:
             problems.append(
