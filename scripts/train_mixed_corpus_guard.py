@@ -667,7 +667,7 @@ def main():
                     "text": str(row.get("text") or ""),
                     "label": int(row["label"]),
                     "source": str(row.get("source") or ""),
-                }, ensure_ascii=False) + "\\n")
+                }, ensure_ascii=False) + "\n")
 
     tokenizer = AutoTokenizer.from_pretrained(args.base_model)
 
