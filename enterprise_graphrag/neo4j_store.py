@@ -11,15 +11,34 @@ ENTITY_RE = re.compile(
 
 
 def extract_entities(text: str) -> list[str]:
-    seen = set()
-    entities = []
+    """Extract capped capitalized phrases plus contiguous two-word aliases.
+
+    Wikipedia-style titles frequently extend the actual named entity with generic
+    suffixes (e.g. "Project Atlas Backup Schedule"), while the body mentions only
+    "Project Atlas". Adding bigrams makes those exact aliases share a tenant-scoped
+    Entity node. The retrieval scorer subsequently downweights high-degree aliases
+    to avoid promoting generic hubs.
+    """
+    seen: set[str] = set()
+    entities: list[str] = []
+
+    def add(value: str) -> None:
+        value = value.strip()
+        key = value.casefold()
+        if len(value) < 3 or key in seen:
+            return
+        seen.add(key)
+        entities.append(value)
+
     for raw in ENTITY_RE.findall(text):
-        value = raw.strip()
-        key = value.lower()
-        if key not in seen:
-            seen.add(key)
-            entities.append(value)
-    return entities[:24]
+        words = raw.split()
+        add(raw)
+        if len(words) >= 3:
+            for index in range(len(words) - 1):
+                add(" ".join(words[index:index + 2]))
+        if len(entities) >= 48:
+            break
+    return entities[:48]
 
 
 class Neo4jTenantStore:
