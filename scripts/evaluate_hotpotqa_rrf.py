@@ -199,6 +199,62 @@ def ranking_metrics(query_rows: list[dict], rankings: dict[str, list[str]]) -> d
     }
 
 
+
+def candidate_pool_metrics(
+    queries: list[dict],
+    candidate_lists: dict[str, dict[str, list]],
+    depth: int = 100,
+) -> dict:
+    """Measure evidence coverage before top-10 ranking and RRF.
+
+    This separates candidate-generation failures from ordering failures. It also
+    counts supporting titles the graph pool contributes that are absent from the
+    vector pool at the same depth.
+    """
+    gold_by_qid = {
+        row["query_id"]: {normalize_title(title) for title in row["supporting_titles"]}
+        for row in queries
+    }
+    vector_candidates = candidate_lists.get("vector", {})
+    vector_support_at_depth = {}
+    for row in queries:
+        qid = row["query_id"]
+        vector_support_at_depth[qid] = {
+            normalize_title(hit.title)
+            for hit in vector_candidates.get(qid, [])[:depth]
+        } & gold_by_qid[qid]
+
+    result = {}
+    for backend, per_query in candidate_lists.items():
+        per_query_recall = []
+        per_query_hit = []
+        candidate_counts = []
+        added_support_docs = 0
+        queries_with_added_support = 0
+        for row in queries:
+            qid = row["query_id"]
+            gold = gold_by_qid[qid]
+            hits = per_query.get(qid, [])[:depth]
+            ranked = {normalize_title(hit.title) for hit in hits}
+            found = ranked & gold
+            per_query_recall.append(len(found) / max(len(gold), 1))
+            per_query_hit.append(float(bool(found)))
+            candidate_counts.append(len(hits))
+            if backend not in ("vector",):
+                added = found - vector_support_at_depth.get(qid, set())
+                added_support_docs += len(added)
+                queries_with_added_support += int(bool(added))
+        result[backend] = {
+            "candidate_depth": depth,
+            "n_queries": len(queries),
+            "mean_candidate_count": round(statistics.mean(candidate_counts), 3) if candidate_counts else 0.0,
+            "supporting_title_recall_in_pool": round(statistics.mean(per_query_recall), 6) if per_query_recall else 0.0,
+            "queries_with_any_support_in_pool": round(statistics.mean(per_query_hit), 6) if per_query_hit else 0.0,
+            "supporting_titles_added_vs_vector_pool": added_support_docs,
+            "queries_with_added_support_vs_vector_pool": queries_with_added_support,
+        }
+    return result
+
 def evaluate_rankings(
     queries: list[dict],
     candidate_lists: dict[str, dict[str, list]],
@@ -454,6 +510,15 @@ def main():
                 controls[backend] = ranking_metrics(queries, title_and_text)
 
             sweep = evaluate_rankings(queries, candidate_lists, {})
+            # Preserve all four retrieval controls. Previously this script computed
+            # seeded and enriched graph metrics in evaluate_rankings(), but discarded
+            # them from the final JSON and printed a zero-valued fallback in Markdown.
+            controls.update(sweep["controls"])
+            candidate_coverage = candidate_pool_metrics(
+                queries,
+                candidate_lists,
+                depth=candidate_depth,
+            )
             result = {
                 "schema_version": 1,
                 "started_utc": start_utc,
@@ -476,6 +541,7 @@ def main():
                     for key, value in latencies.items()
                 },
                 "controls": controls,
+                "candidate_pool_coverage": candidate_coverage,
                 "rrf_tuning": sweep["rrf_tuning"],
                 "limitations": [
                     "The benchmark indexes only passages present in the sampled HotpotQA distractor contexts, not all Wikipedia.",
@@ -508,6 +574,18 @@ def main():
         f"- Embedding: {MODEL_ID} ({MODEL_LICENSE}), device={device}",
         f"- Queries: {len(queries)}; deduplicated passages: {len(corpus)}",
         f"- Vector index build: {result['vector_index_build_seconds']} seconds; Neo4j bulk ingest: {result['neo4j_index_build_seconds']} seconds",
+        "",
+        "## Candidate generation coverage before top-10 ranking",
+        "",
+        "| Candidate pool | Mean candidates | Support recall in top-100 pool | Queries with any support | Supporting titles added vs vector top-100 | Queries with added support |",
+        "|---|---:|---:|---:|---:|---:|",
+        *[
+            f"| {name} | {summary['mean_candidate_count']:.1f} | {summary['supporting_title_recall_in_pool']:.4f} | {summary['queries_with_any_support_in_pool']:.4f} | {summary['supporting_titles_added_vs_vector_pool']} | {summary['queries_with_added_support_vs_vector_pool']} |"
+            for name, summary in result["candidate_pool_coverage"].items()
+        ],
+        "",
+        "These metrics measure whether graph traversal generates relevant candidates at all, independent of the top-10 ordering and RRF.",
+        "",
         "",
         "| Method | Support recall@10 | Hit@10 | All supporting titles@10 | MRR@10 | nDCG@10 | Answer string present@10 |",
         "|---|---:|---:|---:|---:|---:|---:|",
