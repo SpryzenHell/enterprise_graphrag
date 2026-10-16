@@ -1,6 +1,6 @@
 # Enterprise GraphRAG résumé-milestone plan
 
-**Status snapshot:** 2026-10-16 11:52 UTC  
+**Status snapshot:** 2026-10-16 11:58 UTC  
 **Acceptance rule:** a résumé point is only marked achieved when the relevant integration/regression test and external evaluation artifact support it. The numeric gates below are engineering acceptance criteria for this project, not claims stated in the résumé.
 
 ## Executive decision
@@ -77,7 +77,7 @@ Inspect the uploaded report and only accept hybrid if its predeclared held-out g
 
 ### Active run
 
-- [A100 disjoint-data training + PPL acceptance run](https://github.com/SpryzenHell/integrator/actions/runs/38896427003) is running on `integrator-1`; its dependency-install step is in progress at this snapshot.
+- The earlier run [38896427003](https://github.com/SpryzenHell/integrator/actions/runs/38896427003) was cancelled during package installation when a new workflow revision arrived; it never reached model training or PPL tests. The cancellation came from job-level `cancel-in-progress: true`, not a model failure.
 - Hosted CPU pair-integrity, partition, and threshold-policy preflight passed on that run.
 - The integrated-gate calibration and untouched holdout scoring have not completed yet; no PPL defense is claimed as achieved until their artifacts pass the gate.
 
@@ -91,8 +91,10 @@ Inspect the uploaded report and only accept hybrid if its predeclared held-out g
 
 ## Current run links
 
-- [A100 disjoint OOD guard fine-tune and acceptance](https://github.com/SpryzenHell/integrator/actions/runs/38896427003)
-- [Latest HotpotQA live-Neo4j rank-fusion evaluation](https://github.com/SpryzenHell/enterprise_graphrag/actions/runs/38886127446)
+- [A100 acceptance run with the corrected readiness gate](https://github.com/SpryzenHell/integrator/actions/runs/38896885801)
+- [Queued A100 run with job-level cancellation disabled](https://github.com/SpryzenHell/integrator/actions/runs/38897174690)
+- [Original 400-query HotpotQA live-Neo4j evaluation](https://github.com/SpryzenHell/enterprise_graphrag/actions/runs/38886127446)
+- [120-query HotpotQA diagnostic run](https://github.com/SpryzenHell/enterprise_graphrag/actions/runs/38896997692)
 - [Latest threshold-grid CI](https://github.com/SpryzenHell/enterprise_graphrag/actions/runs/38896415890)
 - [Latest integrated calibration-script CI](https://github.com/SpryzenHell/enterprise_graphrag/actions/runs/38896430328)
 
