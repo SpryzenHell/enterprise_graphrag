@@ -1260,3 +1260,60 @@ def test_perplexity_window_parameters_are_validated():
         assert "ppl_window_overlap_chars" in str(exc)
     else:
         raise AssertionError("PPL overlap equal to window length was accepted")
+
+
+
+def test_hybrid_retriever_applies_configured_vector_protected_prefix():
+    from enterprise_graphrag.fusion import Hit
+
+    class Backend:
+        def __init__(self, hits):
+            self.hits = hits
+
+        def search(self, tenant, query, limit):
+            return self.hits[:limit]
+
+    def hit(doc_id, source="vector"):
+        return Hit(
+            doc_id=doc_id,
+            title=doc_id,
+            tenant_id="acme",
+            text=f"policy text for {doc_id}",
+            score=1.0,
+            source=source,
+            metadata={},
+        )
+
+    vectors = [hit(f"v{i}") for i in range(1, 7)]
+    graphs = [hit("g1", "graph"), hit("g2", "graph"), hit("g3", "graph"), hit("v3", "graph")]
+    retriever = HybridRetriever(
+        vector=Backend(vectors),
+        graph=Backend(graphs),
+        security=SecurityGateway(),
+        vector_weight=0.10,
+        graph_weight=0.90,
+        rrf_k=60,
+        vector_protected_prefix=2,
+    )
+
+    allowed, _, vector_count, graph_count = retriever.search(
+        "acme", "policy", 4, candidate_limit=8
+    )
+
+    assert [item.doc_id for item in allowed[:2]] == ["v1", "v2"]
+    assert [item.metadata.get("vector_prefix_protected") for item in allowed[:2]] == [True, True]
+    assert vector_count == 6
+    assert graph_count == 4
+
+
+def test_hybrid_retriever_rejects_out_of_range_vector_protected_prefix():
+    with pytest.raises(ValueError, match="vector_protected_prefix"):
+        HybridRetriever(
+            vector=object(),
+            graph=object(),
+            security=SecurityGateway(),
+            vector_weight=0.55,
+            graph_weight=0.45,
+            rrf_k=60,
+            vector_protected_prefix=51,
+        )
