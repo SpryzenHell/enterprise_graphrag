@@ -444,7 +444,10 @@ def main():
     parser.add_argument("--max-queries", type=int, default=400)
     parser.add_argument("--seed", type=int, default=20261015)
     parser.add_argument("--embedding-batch-size", type=int, default=128)
+    parser.add_argument("--anchor-depth", type=int, default=20)
     args = parser.parse_args()
+    if not 1 <= args.anchor_depth <= 100:
+        parser.error("--anchor-depth must be between 1 and 100")
 
     os.environ["GRAGRAPH_EMBED_BATCH_SIZE"] = str(args.embedding_batch_size)
     output_dir = Path(args.output_dir)
@@ -507,7 +510,7 @@ def main():
                 tick = time.perf_counter()
                 seeded_graph_hits = store.expand_from_anchors(
                     "hotpotqa",
-                    [hit.doc_id for hit in vector_hits],
+                    [hit.doc_id for hit in vector_hits[:args.anchor_depth]],
                     candidate_depth,
                 )
                 latencies.setdefault("neo4j_vector_seeded_top100_ms", []).append((time.perf_counter() - tick) * 1000)
@@ -550,6 +553,7 @@ def main():
                 "raw_validation_rows": len(raw_dataset),
                 "evaluated_queries": len(queries),
                 "deduplicated_corpus_documents": len(corpus),
+                "vector_anchor_depth_for_graph_expansion": args.anchor_depth,
                 "vector_index_build_seconds": round(vector_index_seconds, 3),
                 "neo4j_index_build_seconds": round(neo_index_seconds, 3),
                 "query_latency": {
@@ -590,6 +594,7 @@ def main():
         f"- Embedding: {MODEL_ID} ({MODEL_LICENSE}), device={device}",
         f"- Queries: {len(queries)}; deduplicated passages: {len(corpus)}",
         f"- Vector index build: {result['vector_index_build_seconds']} seconds; Neo4j bulk ingest: {result['neo4j_index_build_seconds']} seconds",
+        f"- Vector anchors passed to each Neo4j expansion: {result['vector_anchor_depth_for_graph_expansion']}",
         "",
         "## Candidate generation coverage before top-10 ranking",
         "",
