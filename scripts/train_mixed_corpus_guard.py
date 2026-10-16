@@ -554,6 +554,59 @@ def load_mixed_rows(
         },
     }, notinject_manifest
 
+def select_training_window_bounds(
+    token_count: int,
+    content_limit: int,
+    position: str,
+    is_poisoned: bool,
+    attack_start: int = -1,
+    attack_end: int = -1,
+    attack_length: int = 0,
+    paired_attack: bool = False,
+) -> tuple[int, int]:
+    """Choose context-aligned clean/poison windows for long paired examples.
+
+    A positive window uses the full token budget; a paired BIPIA negative reserves
+    the space occupied by the absent payload. That means removing the payload from
+    the positive window's context gives the same source-context slice as the clean
+    example, rather than exposing different document regions by label.
+    """
+    if token_count < 0 or content_limit < 1:
+        raise ValueError("token_count must be non-negative and content_limit positive")
+    position = (position or "end").casefold()
+    effective_attack_length = min(max(0, attack_length), max(0, content_limit - 1))
+    if paired_attack and not is_poisoned:
+        window_length = max(1, content_limit - effective_attack_length)
+    else:
+        window_length = content_limit
+    actual_length = min(token_count, window_length)
+    if token_count <= window_length:
+        return 0, actual_length
+
+    max_start = token_count - window_length
+    if is_poisoned and 0 <= attack_start < attack_end <= token_count:
+        span_length = attack_end - attack_start
+        if position == "start":
+            desired_start = 0
+        elif position == "middle":
+            left_context = max(0, (content_limit - span_length) // 2)
+            desired_start = attack_start - left_context
+        else:
+            # Put an end-position payload at the end of the available window.
+            desired_start = attack_end - content_limit
+    elif position == "start":
+        desired_start = 0
+    elif position == "middle":
+        desired_start = (token_count // 2) - (window_length // 2)
+    else:
+        # For a clean end-position pair, reserving the absent payload above makes
+        # the rightmost context slice line up with the positive tail window.
+        desired_start = token_count - window_length
+
+    start = min(max(0, desired_start), max_start)
+    return start, actual_length
+
+
 def prepare_training_window(
     text: str,
     tokenizer,
@@ -562,9 +615,11 @@ def prepare_training_window(
     is_poisoned: bool,
     max_length: int,
 ) -> dict:
-    """Keep the injected span and align the clean paired window for long BIPIA contexts."""
+    """Keep injected content and align its clean counterpart on start/middle/end."""
     special_count = int(tokenizer.num_special_tokens_to_add(pair=False))
     content_limit = max_length - special_count
+    if content_limit < 1:
+        raise ValueError("max_length is too small for the tokenizer's special tokens")
     token_ids = tokenizer.encode(text, add_special_tokens=False, truncation=False)
     attack_ids = tokenizer.encode(attack, add_special_tokens=False, truncation=False) if attack else []
     attack_start = -1
@@ -577,20 +632,21 @@ def prepare_training_window(
                 attack_end = index + len(attack_ids)
                 break
 
-    normalized_position = (position or "end").casefold()
-    if len(token_ids) > content_limit:
-        if is_poisoned and attack_start >= 0:
-            desired = attack_start - max(0, (content_limit - (attack_end - attack_start)) // 2)
-            start = min(max(0, desired), len(token_ids) - content_limit)
-        elif normalized_position == "start":
-            start = 0
-        elif normalized_position == "middle":
-            start = max(0, min(len(token_ids) - content_limit, len(token_ids) // 2 - content_limit // 2))
-        else:
-            # If the tokenized attack span could not be matched, keep the tail for an
-            # end-position injection instead of silently truncating it away.
-            start = max(0, len(token_ids) - content_limit)
-        token_ids = token_ids[start:start + content_limit]
+    # Clean BIPIA rows carry the removed attack in metadata so their context window
+    # can reserve matching space. Other benign sources have attack="" and retain
+    # the full token budget.
+    paired_attack = bool(attack_ids)
+    window_start, window_length = select_training_window_bounds(
+        token_count=len(token_ids),
+        content_limit=content_limit,
+        position=position,
+        is_poisoned=is_poisoned,
+        attack_start=attack_start,
+        attack_end=attack_end,
+        attack_length=len(attack_ids),
+        paired_attack=paired_attack,
+    )
+    token_ids = token_ids[window_start:window_start + window_length]
 
     encoded = tokenizer.prepare_for_model(
         token_ids,
@@ -604,6 +660,7 @@ def prepare_training_window(
         for key, value in encoded.items()
         if key in ("input_ids", "attention_mask", "token_type_ids")
     }
+
 
 
 def determine_positive_index(model) -> int:
