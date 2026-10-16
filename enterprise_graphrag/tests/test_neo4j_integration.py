@@ -318,3 +318,79 @@ def test_vector_seeded_two_hop_expansion_retrieves_related_tenant_document():
         assert "vector-seed-globex-related" not in by_id
     finally:
         store.close()
+
+
+@pytest.mark.integration
+def test_vector_seeded_expansion_penalizes_high_degree_entity_hubs():
+    uri = os.getenv("NEO4J_URI")
+    password = os.getenv("NEO4J_PASSWORD")
+    if not uri or not password:
+        pytest.skip("NEO4J_URI/NEO4J_PASSWORD not configured")
+
+    store = Neo4jTenantStore(
+        uri,
+        os.getenv("NEO4J_USER", "neo4j"),
+        password,
+        os.getenv("NEO4J_DATABASE", "neo4j"),
+    )
+    try:
+        for _ in range(30):
+            try:
+                store.verify()
+                break
+            except Exception:
+                time.sleep(1)
+        else:
+            pytest.fail("Neo4j did not become ready")
+
+        store.ensure_schema()
+        store.add_many(
+            "rarity-acme",
+            [
+                {
+                    "doc_id": "rarity-anchor",
+                    "title": "incident recovery anchor",
+                    "text": "the recovery workflow links Helios Analytics and Project Obsidian Gateway.",
+                },
+                {
+                    "doc_id": "rarity-target",
+                    "title": "credential escrow instructions",
+                    "text": "credential escrow is managed through Project Obsidian Gateway.",
+                },
+                *[
+                    {
+                        "doc_id": f"hub-candidate-{i:02d}",
+                        "title": f"routine monitor {i:02d}",
+                        "text": f"Helios Analytics monitors routine queue number {i}.",
+                    }
+                    for i in range(14)
+                ],
+            ],
+        )
+        # A similarly named entity in a separate tenant must not affect degree,
+        # candidates, or ranking in this tenant.
+        store.add(
+            "rarity-globex",
+            {
+                "doc_id": "hub-cross-tenant",
+                "title": "external credential system",
+                "text": "Project Obsidian Gateway handles Globex external access.",
+            },
+        )
+
+        hits = store.expand_from_anchors("rarity-acme", ["rarity-anchor"], 20)
+        assert hits, "two-hop expansion returned no candidates"
+        assert hits[0].doc_id == "rarity-target", [
+            (hit.doc_id, hit.metadata.get("bridge_rarity_score"), hit.metadata.get("bridge_entities"))
+            for hit in hits[:5]
+        ]
+        assert hits[0].metadata["bridge_rarity_score"] > next(
+            hit.metadata["bridge_rarity_score"]
+            for hit in hits
+            if hit.doc_id == "hub-candidate-00"
+        )
+        assert "Project Obsidian Gateway" in hits[0].metadata["bridge_entities"]
+        assert all(hit.tenant_id == "rarity-acme" for hit in hits)
+        assert all(hit.doc_id != "hub-cross-tenant" for hit in hits)
+    finally:
+        store.close()
