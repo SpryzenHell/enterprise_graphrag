@@ -3,7 +3,7 @@ import time
 
 import pytest
 
-from enterprise_graphrag.neo4j_store import Neo4jTenantStore
+from enterprise_graphrag.neo4j_store import Neo4jTenantStore, extract_entities
 
 
 @pytest.mark.integration
@@ -392,5 +392,69 @@ def test_vector_seeded_expansion_penalizes_high_degree_entity_hubs():
         assert "project obsidian gateway" in {name.casefold() for name in hits[0].metadata["bridge_entities"]}
         assert all(hit.tenant_id == "rarity-acme" for hit in hits)
         assert all(hit.doc_id != "hub-cross-tenant" for hit in hits)
+    finally:
+        store.close()
+
+
+@pytest.mark.integration
+def test_compound_title_entity_alias_links_to_body_mention():
+    uri = os.getenv("NEO4J_URI")
+    password = os.getenv("NEO4J_PASSWORD")
+    if not uri or not password:
+        pytest.skip("NEO4J_URI/NEO4J_PASSWORD not configured")
+
+    store = Neo4jTenantStore(
+        uri,
+        os.getenv("NEO4J_USER", "neo4j"),
+        password,
+        os.getenv("NEO4J_DATABASE", "neo4j"),
+    )
+    try:
+        for _ in range(30):
+            try:
+                store.verify()
+                break
+            except Exception:
+                time.sleep(1)
+        else:
+            pytest.fail("Neo4j did not become ready")
+
+        store.ensure_schema()
+        store.add_many(
+            "alias-acme",
+            [
+                {
+                    "doc_id": "compound-title-anchor",
+                    "title": "Project Atlas Backup Schedule",
+                    "text": "This document describes retention windows without repeating the project name.",
+                },
+                {
+                    "doc_id": "body-alias-target",
+                    "title": "Retention Appendix",
+                    "text": "Project Atlas records are archived after seven years.",
+                },
+                {
+                    "doc_id": "unrelated-document",
+                    "title": "Routine Operations",
+                    "text": "Routine operations cover ordinary scheduling and maintenance.",
+                },
+            ],
+        )
+        # The anchor contains a longer title entity; its bigram alias "Project Atlas"
+        # must intersect the shorter body mention in the target document.
+        anchor_aliases = set(extract_entities("Project Atlas Backup Schedule"))
+        assert "Project Atlas" in anchor_aliases
+
+        hits = store.expand_from_anchors(
+            "alias-acme",
+            ["compound-title-anchor"],
+            20,
+        )
+        assert "body-alias-target" in [hit.doc_id for hit in hits], [
+            (hit.doc_id, hit.metadata.get("bridge_entities"))
+            for hit in hits
+        ]
+        assert all(hit.tenant_id == "alias-acme" for hit in hits)
+        assert all(hit.doc_id != "globex-body-alias-target" for hit in hits)
     finally:
         store.close()
