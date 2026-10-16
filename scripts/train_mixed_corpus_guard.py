@@ -35,6 +35,55 @@ def normalized_hash(text: str) -> str:
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
+def write_validation_jsonl(path: Path, rows: list[dict]) -> int:
+    """Write and validate JSONL by literal LF record boundaries.
+
+    str.splitlines() is deliberately avoided: it treats U+0085, U+2028 and
+    U+2029 inside valid JSON strings as line terminators, although they are not
+    JSONL record separators. With ensure_ascii=False these characters remain
+    literal, so splitlines() can report phantom records.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="\\n") as handle:
+        for row in rows:
+            payload = {
+                "text": str(row.get("text") or ""),
+                "label": int(row["label"]),
+                "source": str(row.get("source") or ""),
+            }
+            handle.write(json.dumps(payload, ensure_ascii=False) + "\\n")
+
+    content = path.read_text(encoding="utf-8")
+    records = content.split("\\n")
+    if records and records[-1] == "":
+        records.pop()
+    if len(records) != len(rows):
+        raise RuntimeError(
+            f"Validation JSONL export is malformed: expected {len(rows)} rows, "
+            f"got {len(records)} LF-delimited records"
+        )
+
+    parsed = []
+    for index, record in enumerate(records):
+        try:
+            parsed.append(json.loads(record))
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(
+                f"Validation JSONL export has invalid JSON at record {index + 1}"
+            ) from exc
+    for index, (actual, expected) in enumerate(zip(parsed, rows), start=1):
+        if (
+            str(actual.get("text") or "") != str(expected.get("text") or "")
+            or int(actual.get("label", -1)) != int(expected["label"])
+            or str(actual.get("source") or "") != str(expected.get("source") or "")
+        ):
+            raise RuntimeError(
+                f"Validation JSONL export round-trip content mismatch at record {index}"
+            )
+    return len(parsed)
+
+
+
 def parse_label(value) -> int | None:
     if isinstance(value, bool):
         return int(value)
@@ -730,19 +779,7 @@ def main():
         # subsequent A100 step uses this exact grouped partition to calibrate
         # semantic + live-vLLM PPL thresholds; the file is deleted before cleanup.
         validation_path = Path(args.validation_rows_path)
-        validation_path.parent.mkdir(parents=True, exist_ok=True)
-        with validation_path.open("w", encoding="utf-8") as handle:
-            for row in validation_rows:
-                handle.write(json.dumps({
-                    "text": str(row.get("text") or ""),
-                    "label": int(row["label"]),
-                    "source": str(row.get("source") or ""),
-                }, ensure_ascii=False) + "\n")
-        exported_lines = validation_path.read_text(encoding="utf-8").splitlines()
-        if len(exported_lines) != len(validation_rows):
-            raise RuntimeError(
-                f"Validation JSONL export is malformed: expected {len(validation_rows)} rows, got {len(exported_lines)} lines"
-            )
+        write_validation_jsonl(validation_path, validation_rows)
 
     tokenizer = AutoTokenizer.from_pretrained(args.base_model)
 
