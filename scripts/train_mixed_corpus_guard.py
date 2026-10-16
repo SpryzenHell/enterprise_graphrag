@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import torch
+
+from enterprise_graphrag.training_pairs import build_clean_poison_pair
 from datasets import Dataset, load_dataset
 from transformers import (
     AutoModelForSequenceClassification,
@@ -302,14 +304,25 @@ def load_mixed_rows(
         context = str(row["context"]).strip()
         attack = str(row["attack_str"]).strip()
         position = str(row.get("position") or "end")
-        clean, found = remove_attack(context, attack)
+        try:
+            clean, poisoned, found = build_clean_poison_pair(
+                context,
+                attack,
+                position,
+            )
+        except ValueError:
+            raw_counts["bipia_pairs_rejected_invalid"] = (
+                raw_counts.get("bipia_pairs_rejected_invalid", 0) + 1
+            )
+            continue
         if found:
-            poisoned = context
             raw_counts["bipia_existing_attack_matches"] += 1
         else:
-            clean = context
-            poisoned = insert_attack(context, attack, position)
             raw_counts["bipia_reconstructed_attacks"] += 1
+        # Do not permit a mislabeled/identical pair into the training corpus.
+        assert attack.casefold() not in clean.casefold()
+        assert attack.casefold() in poisoned.casefold()
+        assert clean != poisoned
         if len(clean) < 8 or len(poisoned) < 8:
             continue
         if normalized_hash(clean) in ood_eval_hashes or normalized_hash(poisoned) in ood_eval_hashes:
