@@ -63,7 +63,7 @@ def test_source_classifier_preserves_hard_negative_partitions():
 
 
 def test_integrated_threshold_selector_never_prefers_infeasible_high_recall_point():
-    def point(threshold, bipia_tpr, fpr, feasible):
+    def point(threshold, bipia_tpr, piarena_tpr, fpr, feasible):
         return {
             "semantic_threshold": threshold,
             "ppl_threshold": 80.0,
@@ -72,11 +72,13 @@ def test_integrated_threshold_selector_never_prefers_infeasible_high_recall_poin
             "overall": {"tpr": bipia_tpr},
             "overall_benign": {"fpr": fpr},
             "by_source": {
-                "piarena": {"tpr": bipia_tpr, "fpr": fpr},
+                "piarena": {"tpr": piarena_tpr, "fpr": fpr},
                 "notinject": {"fpr": fpr},
                 "orbench": {"fpr": fpr},
             },
             "validation_constraints": {
+                "bipia_injected_tpr_ge_0_80": bipia_tpr >= 0.80,
+                "piarena_injected_tpr_ge_0_80": piarena_tpr >= 0.80,
                 "overall_benign_fpr_le_0_05": feasible,
                 "orbench_fpr_le_0_05": feasible,
                 "notinject_fpr_le_0_05": feasible,
@@ -86,9 +88,11 @@ def test_integrated_threshold_selector_never_prefers_infeasible_high_recall_poin
         }
 
     result = select_operating_point([
-        point(0.15, 0.99, 0.20, False),
-        point(0.35, 0.85, 0.03, True),
-        point(0.40, 0.80, 0.01, True),
+        point(0.15, 0.99, 0.90, 0.20, False),
+        # High BIPIA recall is not enough when PIArena recall misses the gate.
+        point(0.25, 0.99, 0.70, 0.01, True),
+        point(0.35, 0.85, 0.82, 0.03, True),
+        point(0.40, 0.80, 0.80, 0.01, True),
     ])
 
     assert result["feasible"] is True
