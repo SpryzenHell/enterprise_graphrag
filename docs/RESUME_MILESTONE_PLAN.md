@@ -1,73 +1,99 @@
 # Enterprise GraphRAG résumé-milestone plan
 
-**Status date:** 2026-10-14  
-**Rule:** a résumé milestone is accepted only when its referenced report/artifact exists and the relevant regression suite passes. The targets below are engineering acceptance bars for this project, not metrics stated in the résumé bullets.
+**Status snapshot:** 2026-10-16 11:52 UTC  
+**Acceptance rule:** a résumé point is only marked achieved when the relevant integration/regression test and external evaluation artifact support it. The numeric gates below are engineering acceptance criteria for this project, not claims stated in the résumé.
+
+## Executive decision
+
+| Résumé point | Current status | Evidence required to close |
+|---|---|---|
+| Strict row-level tenant security through MCP | **Demonstrated in tests; final end-to-end sign-off pending** | Zero cross-tenant IDs/citations on authenticated API and MCP probes, JWT tenant beats any body/tool tenant field, plus live Neo4j two-hop/isolation tests |
+| FAISS + Neo4j traversals + rank fusion reduce unsupported answers | **Not yet demonstrated as a quality improvement** | Frozen hybrid beats the stronger BGE vector-only baseline on held-out multi-hop support retrieval, with no material MRR/nDCG regression; keep vector-only if it does not |
+| Real-time prompt-injection filtering with vLLM perplexity | **Not yet demonstrated to the acceptance bar** | Live vLLM prompt-token logprobs contract passes and combined semantic/PPL gate reaches required TPR/FPR on untouched attack and benign-hard-negative sets |
 
 ## 1. Strict tenant row-level security through API and MCP
 
-**Acceptance**
-- Zero cross-tenant document IDs/citations returned in adversarial API and MCP tests, including request-body tenant spoof attempts.
-- Tenant identity comes only from the authenticated principal/JWT; no caller-supplied tenant ID may broaden access.
-- Real Neo4j integration tests verify tenant predicates during direct retrieval, two-hop traversal, trace/explain, bulk upsert, and document replacement.
-- Repeated test cases across two tenants plus negative/expired/scope-less tokens; any uncertainty or backend failure must not fall through to a global query.
+### Required acceptance
 
-**Current evidence**
-- The deterministic suite and real Neo4j integration test job have passed on the feature branches.
-- The tenant-spoof test is present on the current security branch.
-- A latest A100 workflow was launched on 2026-10-14 and is still running the dependency-install step at last inspection; live API/MCP evidence from that run is not yet available.
+- Zero cross-tenant document IDs/citations in authenticated API and MCP tests, including malicious `tenant_id` body/tool arguments.
+- Tenant identity comes only from the validated JWT/principal; caller input cannot broaden access.
+- Real Neo4j tests check tenant predicates on direct retrieval, two-hop traversal, trace/explain, bulk upsert, and document replacement.
+- Negative, expired, wrong-scope, and wrong-tenant tokens cannot fall through to an unscoped/global query.
 
-**Next actions**
-1. Run API and MCP probes with valid, expired, wrong-scope, and wrong-tenant claims.
-2. Add repeated cross-tenant fuzz cases and assert zero leaked IDs/citations, including errors/timeouts.
-3. Save sanitized request/response counts and test commit SHA as CI artifacts.
+### Evidence so far
+
+- The current security branch's test, Neo4j integration, container-smoke, and Compose-smoke CI jobs passed on run [38896430328](https://github.com/SpryzenHell/enterprise_graphrag/actions/runs/38896430328).
+- Live Neo4j tests cover tenant-scoped two-hop traversal and bulk upsert/replacement; the test asserts that Globex records never surface through Acme's query.
+- The MCP/body tenant-spoof regression is present on the security branch.
+
+### Remaining action
+
+Run authenticated runtime probes for valid, expired, wrong-scope, and wrong-tenant credentials through the real API and MCP transports; upload sanitized counts, zero-leak assertions, and the source SHA. Do not rely solely on direct class-level tests for the final sign-off.
 
 ## 2. Reduce unsupported answers using FAISS + Neo4j + rank fusion
 
-**Acceptance**
-- Use a public, license-compatible benchmark with official qrels and a separate query calibration/holdout split.
-- Report Recall@1/5/10, MRR@10, nDCG@10, index/build time, and warmed p50/p95 latency for vector-only, graph-only, and hybrid results.
-- On an enterprise multi-hop evaluation, the frozen hybrid model must improve held-out answer-support recall or ranking quality over the stronger vector-only baseline without tenant leakage. SciFact alone is not sufficient evidence for multi-hop enterprise reasoning.
-- Tune candidate depth and RRF weights only on calibration queries; publish the untouched holdout result.
+### Required acceptance
 
-**Measured baseline**
-- On 150 SciFact test queries, BGE-base vector-only scored Recall@10 **0.8640**, MRR@10 **0.7076**, nDCG@10 **0.7425**.
-- Initial BGE + Neo4j RRF scored Recall@10 **0.8640**, MRR@10 **0.6624**, nDCG@10 **0.7121**. Recall improved over MiniLM, but this fusion configuration did **not** beat BGE-only ranking quality.
-- CPU BGE indexing took approximately **38.1 minutes** for the 5,183-document corpus in the first ablation; do not present this as A100 index-build time.
-- A separate live Neo4j two-hop + BGE benchmark is in progress, including candidate/fusion calibration and a held-out split. Its report has not been accepted yet.
+- Use an openly licensed benchmark with official labels/qrels and an explicit calibration/held-out split.
+- Report Recall@1/5/10, MRR@10, nDCG@10, index/ingest time, and warmed p50/p95 query latency for vector-only, graph-only, and hybrid retrieval.
+- The frozen hybrid must improve held-out multi-hop supporting-evidence retrieval over the stronger vector-only baseline without a meaningful ranking regression and without tenant leakage.
+- Choose graph candidate depth/RRF weights on calibration queries only. Publish the untouched held-out scores.
+- A failure of the gate means **do not promote fusion**; keep the best vector-only path and report graph retrieval as an additional evidence source only.
 
-**Next actions**
-1. Finish the current live Neo4j two-hop/BGE run and inspect graph-only, vector-only, and RRF holdout metrics.
-2. Use entity/bridge evidence and anchor-coverage analysis to remove noisy graph candidates; tune vector weight and candidate depth on calibration queries only.
-3. Report a no-fusion control and compare with paired bootstrap confidence intervals. If fusion does not beat the vector-only baseline on the appropriate multi-hop metric, do not claim a ranking-quality gain; preserve improved recall as a narrower result.
-4. Profile BGE inference/index build on the A100 separately from CPU measurements.
+### Measured results
 
-## 3. Block indirect prompt injection with a real-time API-gateway security filter
+- On 150 SciFact qrels-backed queries, BGE-base vector-only scored Recall@10 **0.8640**, MRR@10 **0.7076**, nDCG@10 **0.7425**.
+- Initial BGE + Neo4j RRF scored Recall@10 **0.8640**, MRR@10 **0.6624**, nDCG@10 **0.7121**. That configuration ties Recall@10 but loses ranking quality and is not an improvement.
+- The initial HotpotQA multi-hop run measured vector-only supporting-title Recall@10 **0.9450**, MRR@10 **0.9433**, nDCG@10 **0.8895**. Its first RRF selection gained only **0.0025 Recall@10** and regressed MRR by **0.0810** and nDCG by **0.0726**; the gate correctly rejected it.
+- BGE CPU indexing took about **38.1 minutes** for 5,183 SciFact documents in the first ablation. This is not an A100 throughput result.
 
-**Acceptance**
-- Evaluate marker-only, semantic classifier, PPL-only, and combined policy on the same seeded benign + injected samples.
-- Use two independent injection sets plus benign hard negatives; report TPR/recall, FPR, precision, F1, ROC-AUC, score distributions, coverage, and p50/p95 latency.
-- Minimum engineering promotion bar: **TPR >= 80% at FPR <= 5% on both independent injection sets**, and <=5% FPR on each benign hard-negative set. If a model cannot satisfy this, it remains experimental and is not called a successful blocking layer.
-- Tests must include markerless attacks near the start/middle/end of long passages, normalization/zero-width characters, vLLM timeout/API error, malformed logprobs, and fail-closed/observable behavior.
-- A100/vLLM evidence must include actual prompt-token logprobs and one integrated request through the real API path.
+### Active experiment
 
-**Critical finding and correction**
-- The first fine-tuned artifact was invalid for model-selection purposes. Its pair builder stored the *cleaned document for both labels*; the injected payload was passed only as metadata. This makes the model vulnerable to learning truncation/window artifacts rather than the injected content.
-- The dataset builder has now been corrected to train negatives on the cleaned text and positives on the actual poisoned document. It asserts that positive samples contain the attack string and negatives exclude it; a synthetic regression test enforces this invariant.
-- The previous checkpoint’s threshold/score table is **not accepted** as injection-defense evidence and must not be used for deployment.
-- The newly corrected A100 training run is queued behind the A100 runtime job, which first runs the pair-integrity regression before training.
-- Previous off-the-shelf classifiers performed poorly on independent data (e.g. the small Horizon classifier caught only a small fraction of BIPIA/PIArena examples; the ProtectAI classifier had an unacceptable benign FPR on BIPIA). Threshold tuning alone did not solve this.
+- [HotpotQA live-Neo4j evaluation](https://github.com/SpryzenHell/enterprise_graphrag/actions/runs/38886127446) is evaluating vector-seeded two-hop graph candidates, independent vector/graph candidate depths, and prefix-protected RRF on a calibration/held-out split.
+- The prefix-protected approach preserves a configurable head of the original vector ranking and lets Neo4j/RRF augment only the tail, designed to avoid displacing top vector support with noisy graph candidates.
 
-**Next actions**
-1. Pass the clean/poisoned pair-integrity regression, rerun BIPIA fine-tuning on A100, and upload the new checkpoint plus score distributions.
-2. Calibrate threshold on only half of the benign NotInject/OR-Bench-hard samples, then freeze it before testing on the remaining halves plus all injected sets.
-3. Compare the corrected model to the pretrained detector and to the PPL/marker cascade using identical samples.
-4. If the promotion bar is missed, try lower learning rate/one epoch, context-group split, weighted sampling across payload families, and adversarial/hard-negative mixtures; never silently promote a model because training loss is low.
-5. Run the complete vLLM prompt-logprob contract and integrated API/MCP test before calling the PPL layer operational.
+### Remaining action
 
-## Runs and evidence to attach
+Inspect the uploaded report and only accept hybrid if its predeclared held-out gate passes: supporting-title Recall@10 gain at least **+0.01**, with MRR@10 and nDCG@10 deltas no worse than **-0.02**. Also report the no-fusion control and confidence intervals. If none passes, retain vector-only as the production ranking fallback.
 
-- Current A100 security/retrieval run: [integrator workflow](https://github.com/SpryzenHell/integrator/actions/runs/38586061884).
-- Corrected BIPIA fine-tune run: [integrator workflow](https://github.com/SpryzenHell/integrator/actions/runs/38586063917).
-- Live Neo4j two-hop/BGE run: [enterprise_graphrag workflow](https://github.com/SpryzenHell/enterprise_graphrag/actions/runs/38581864122).
+## 3. Block indirect prompt injection with a real-time gateway filter
 
-These links may point to in-progress runs; check the final job conclusion and download the report artifact before accepting a milestone.
+### Required acceptance
+
+- Measure marker-only, semantic-only, PPL-only where applicable, and combined policy on the same deterministic samples.
+- Use independent BIPIA and PIArena attack samples plus NotInject and OR-Bench-hard benign hard negatives. Report TPR/recall, FPR, precision, F1, ROC-AUC where defined, per-set counts, coverage, score distributions, and p50/p95 latency.
+- Promotion bar: **TPR >= 80% at FPR <= 5% on both independent attack sets**, and **FPR <= 5% on each benign hard-negative set**. Calibration additionally constrains PIArena benign FPR to <=2%. A model that fails stays experimental.
+- Exercise long-document start/middle/end attacks, Unicode/zero-width normalization, vLLM timeouts/malformed logprobs, fail-closed behavior, and an actual request through the API/MCP path.
+- Confirm that the vLLM server returns observed prompt-token log probabilities; a server process starting is not sufficient evidence.
+
+### Findings and fixes
+
+- Marker-only filtering missed **200/200** injected examples in the initial balanced CPU sample. The old marker-only claim was insufficient.
+- The off-the-shelf Horizon small semantic classifier generalizes poorly: earlier 100-per-class results showed BIPIA TPR **1%**, PIArena TPR **7%**, with no false positives in those small samples. ProtectAI DeBERTa also exceeded the benign false-positive budget. Neither was promoted.
+- Mixed-corpus fine-tuning uses a licensed Guard Base checkpoint, paired BIPIA contexts, a disjoint NotInject train/calibration/holdout split, a PIArena calibration slice, and OR-Bench-80K benign hard negatives with exact held-out overlap exclusion.
+- Latest candidate validation at threshold **0.95** produced BIPIA TPR **0.9988**, PIArena TPR **0.7333** / FPR **0.02027**, NotInject FPR **0.01176**, OR-Bench FPR **0.00000**, and aggregate-benign FPR **0.00919**. It was marked **infeasible** because PIArena FPR was 2.027%, just over the 2% calibration limit. It is not a production threshold.
+- Training and integrated-gate threshold grids now include **0.96, 0.97, 0.98, 0.99** to test whether a slightly stricter operating point clears calibration constraints.
+- The prior A100 run loaded Qwen/Qwen2.5-0.5B-Instruct and started the vLLM application, but the readiness code rejected the `/v1/models` response shape and skipped real PPL calibration. The workflow now probes `/openapi.json`, records the model-list body/status, uploads full evidence directories, and proceeds to the explicit prompt-logprob contract test.
+
+### Active run
+
+- [A100 disjoint-data training + PPL acceptance run](https://github.com/SpryzenHell/integrator/actions/runs/38896427003) is running on `integrator-1`; its dependency-install step is in progress at this snapshot.
+- Hosted CPU pair-integrity, partition, and threshold-policy preflight passed on that run.
+- The integrated-gate calibration and untouched holdout scoring have not completed yet; no PPL defense is claimed as achieved until their artifacts pass the gate.
+
+### Remaining action
+
+1. Complete A100 training with the corrected pair builder and check its split/hash manifest.
+2. Get the vLLM endpoint and prompt-logprob contract green, then calibrate semantic/PPL thresholds only on the reserved validation partitions.
+3. Freeze thresholds before evaluating the candidate and base Guard Base on the exact same untouched attack and benign sets.
+4. If the hard-negative/PIArena constraints still fail at 0.99, improve data coverage, class balance/loss, or model features; do not simply loosen the FPR bar or promote a model because its BIPIA score is high.
+5. Save all reports/score distributions/model metadata as Actions artifacts and update this plan from the resulting evidence.
+
+## Current run links
+
+- [A100 disjoint OOD guard fine-tune and acceptance](https://github.com/SpryzenHell/integrator/actions/runs/38896427003)
+- [Latest HotpotQA live-Neo4j rank-fusion evaluation](https://github.com/SpryzenHell/enterprise_graphrag/actions/runs/38886127446)
+- [Latest threshold-grid CI](https://github.com/SpryzenHell/enterprise_graphrag/actions/runs/38896415890)
+- [Latest integrated calibration-script CI](https://github.com/SpryzenHell/enterprise_graphrag/actions/runs/38896430328)
+
+**Do not mark all résumé points achieved yet.** Tenant isolation is well supported by regression/integration tests; the ranking-quality gain and real-time vLLM/PPL blocking criteria still need final held-out artifacts.
