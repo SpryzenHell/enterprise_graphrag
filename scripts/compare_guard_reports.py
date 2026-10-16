@@ -23,6 +23,46 @@ def metrics(report: dict, config: str) -> dict:
     return found
 
 
+def live_ppl_evidence(base: dict, candidate: dict, calibration: dict, configs: tuple[str, ...]) -> dict:
+    """Require actual vLLM-configured holdout reports and non-zero calibrated PPL evidence.
+
+    A report can still contain a field named "perplexity_plus_semantic_gate_metrics"
+    when its PPL endpoint was disabled. That is marker+semantic-only output, not
+    proof of the résumé's real-time PPL filter. Promotion therefore checks both
+    report configuration flags and observed score coverage from calibration.
+    """
+    base_configured = all(
+        bool(base.get(config, {}).get("perplexity", {}).get("configured", False))
+        for config in configs
+    )
+    candidate_configured = all(
+        bool(candidate.get(config, {}).get("perplexity", {}).get("configured", False))
+        for config in configs
+    )
+    eligible = int(calibration.get("ppl_eligible_rows", 0) or 0)
+    observed = int(calibration.get("ppl_observed_scores", 0) or 0)
+    coverage = float(calibration.get("ppl_score_coverage", 0.0) or 0.0)
+    return {
+        "base_report_ppl_configured_for_every_required_config": base_configured,
+        "candidate_report_ppl_configured_for_every_required_config": candidate_configured,
+        "calibration_endpoint_configured": bool(calibration.get("ppl_endpoint_configured", False)),
+        "calibration_eligible_rows": eligible,
+        "calibration_observed_scores": observed,
+        "calibration_score_coverage": coverage,
+        "has_eligible_ppl_rows": eligible > 0,
+        "observed_ppl_scores_nonzero": observed > 0,
+        "calibration_coverage_at_least_95_percent": coverage >= 0.95,
+        "passes": (
+            base_configured
+            and candidate_configured
+            and bool(calibration.get("ppl_endpoint_configured", False))
+            and eligible > 0
+            and observed > 0
+            and coverage >= 0.95
+        ),
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Compare base/candidate combined semantic + PPL guard using the same frozen OOD sample.")
     parser.add_argument("--base-report", required=True)
@@ -74,6 +114,7 @@ def main() -> None:
         })
 
     by_name = {row["config"]: row for row in rows}
+    ppl_evidence = live_ppl_evidence(base, candidate, calibration, configs)
     checks = {
         "bipia_tpr_gain_at_least_minimum": (
             by_name["bipia"]["tpr_delta"] >= args.bipia_min_tpr_gain
@@ -117,6 +158,7 @@ def main() -> None:
         ),
     }
     checks["validation_threshold_satisfies_hard_negative_constraints"] = calibration_feasible
+    checks["live_vllm_ppl_measured_on_validation_and_both_holdout_reports"] = ppl_evidence["passes"]
     promote_candidate_for_further_staging = all(checks.values())
     result = {
         "schema_version": 1,
@@ -132,6 +174,7 @@ def main() -> None:
         "calibrated_ppl_min_classifier_score": calibration.get("selected_min_classifier_score"),
         "calibration_feasible": calibration_feasible,
         "calibration_selection_reason": calibration.get("selection_reason"),
+        "live_ppl_evidence": ppl_evidence,
         "metric": METRIC_KEY,
         "base_report": str(args.base_report),
         "candidate_report": str(args.candidate_report),
@@ -164,6 +207,8 @@ def main() -> None:
         f"- Frozen PPL threshold: {calibration.get('selected_ppl_threshold', 'not recorded')}",
         f"- Frozen PPL trigger floor: {calibration.get('selected_min_classifier_score', 'not recorded')} (calibration feasible={calibration_feasible})",
         f"- Calibration selection: {calibration.get('selection_reason', 'not recorded')}",
+        f"- Live PPL evidence check: {ppl_evidence['passes']}; eligible={ppl_evidence['calibration_eligible_rows']}; observed={ppl_evidence['calibration_observed_scores']}; coverage={ppl_evidence['calibration_score_coverage']:.3f}.",
+        f"- Base/candidate report PPL configured for every required config: {ppl_evidence['base_report_ppl_configured_for_every_required_config']} / {ppl_evidence['candidate_report_ppl_configured_for_every_required_config']}.",
         f"- Metric scored: {METRIC_KEY}. Both reports use the same seed, OOD configs, semantic threshold, PPL threshold, and PPL trigger floor.",
         "",
         "| Config | N | Base TPR | Candidate TPR | Delta TPR | Base FPR | Candidate FPR | Delta FPR |",
