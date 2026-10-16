@@ -668,6 +668,11 @@ def main():
                     "label": int(row["label"]),
                     "source": str(row.get("source") or ""),
                 }, ensure_ascii=False) + "\n")
+        exported_lines = validation_path.read_text(encoding="utf-8").splitlines()
+        if len(exported_lines) != len(validation_rows):
+            raise RuntimeError(
+                f"Validation JSONL export is malformed: expected {len(validation_rows)} rows, got {len(exported_lines)} lines"
+            )
 
     tokenizer = AutoTokenizer.from_pretrained(args.base_model)
 
