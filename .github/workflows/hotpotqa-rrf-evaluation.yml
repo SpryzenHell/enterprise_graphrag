@@ -7,6 +7,7 @@ on:
       - eval/vector-seeded-neo4j-rrf-2026-10-15
       - eval/neo4j-rarity-ranked-expansion-2026-10-16
       - eval/independent-depth-rrf-gate-2026-10-16
+      - eval/vector-prefix-protected-rank-fusion-2026-10-16
     paths:
       - ".github/workflows/hotpotqa-rrf-evaluation.yml"
       - "scripts/evaluate_hotpotqa_rrf.py"
@@ -69,6 +70,7 @@ jobs:
       - name: Validate independent-depth RRF selection before data download
         run: |
           pytest -q scripts/tests/test_hotpotqa_independent_depths.py
+          pytest -q scripts/tests/test_hotpotqa_vector_prefix_fusion.py
 
       - name: Run live Neo4j tenant and two-hop regressions
         run: |
