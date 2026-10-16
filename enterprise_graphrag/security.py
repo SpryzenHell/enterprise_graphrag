@@ -42,6 +42,8 @@ class SecurityGateway:
         classifier_window_overlap: int = 512,
         classifier_score_fn: Callable[[str], float] | None = None,
         ppl_min_classifier_score: float = 0.10,
+        ppl_max_chars: int = 12000,
+        ppl_window_overlap_chars: int = 1000,
     ) -> None:
         if marker_threshold < 1:
             raise ValueError("marker_threshold must be at least 1")
@@ -49,6 +51,10 @@ class SecurityGateway:
             raise ValueError("classifier_threshold must be between 0 and 1")
         if not 0.0 <= ppl_min_classifier_score <= 1.0:
             raise ValueError("ppl_min_classifier_score must be between 0 and 1")
+        if ppl_max_chars < 256 or ppl_max_chars > 120000:
+            raise ValueError("ppl_max_chars must be between 256 and 120000")
+        if not 0 <= ppl_window_overlap_chars < ppl_max_chars:
+            raise ValueError("ppl_window_overlap_chars must be non-negative and smaller than ppl_max_chars")
         if classifier_max_length < 8 or classifier_max_length > 8192:
             raise ValueError("classifier_max_length must be between 8 and 8192")
         if classifier_window_overlap < 0 or classifier_window_overlap >= classifier_max_length - 2:
@@ -60,6 +66,8 @@ class SecurityGateway:
         self.threshold = threshold
         self.marker_threshold = marker_threshold
         self.ppl_min_classifier_score = float(ppl_min_classifier_score)
+        self.ppl_max_chars = int(ppl_max_chars)
+        self.ppl_window_overlap_chars = int(ppl_window_overlap_chars)
         self.classifier_model = classifier_model.strip()
         self.classifier_threshold = float(classifier_threshold)
         self.classifier_max_length = int(classifier_max_length)
@@ -200,9 +208,36 @@ class SecurityGateway:
         return self._semantic_scores([text])[0]
 
     def perplexity(self, text: str) -> float | None:
+        """Score the entire passage in overlapping windows, not just its prefix.
+
+        The maximum window perplexity is the passage-level risk signal so a
+        suspicious instruction hidden at the tail is still visible. If any
+        window cannot be scored, return None; the caller's configured PPL
+        policy then blocks eligible content closed rather than treating a
+        partially-scored document as benign.
+        """
         if not (self.base_url and self.model):
             return None
+        if not text:
+            return None
 
+        window_size = self.ppl_max_chars
+        step = window_size - self.ppl_window_overlap_chars
+        scores: list[float] = []
+        start = 0
+        while start < len(text):
+            window = text[start:start + window_size]
+            score = self._perplexity_window(window)
+            if score is None:
+                return None
+            scores.append(score)
+            if start + window_size >= len(text):
+                break
+            start += step
+        return max(scores) if scores else None
+
+    def _perplexity_window(self, text: str) -> float | None:
+        """Obtain real prompt-token log probabilities for one bounded window."""
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
@@ -213,7 +248,7 @@ class SecurityGateway:
                 headers=headers,
                 json={
                     "model": self.model,
-                    "prompt": text[:12000],
+                    "prompt": text,
                     "max_tokens": 0,
                     "temperature": 0.0,
                     "echo": True,
@@ -248,11 +283,9 @@ class SecurityGateway:
                     if isinstance(logprob, (int, float)) and math.isfinite(float(logprob)):
                         observed.append(float(logprob))
 
-            # Older vLLM builds may accept prompt_logprobs but omit the optional
-            # prompt_token_ids response field. With echo=True and logprobs=1,
-            # OpenAI-compatible completions return the observed token's own
-            # logprob sequence; prefer that over confusing top-k alternatives
-            # with the token actually present in the prompt.
+            # Older vLLM builds may accept prompt_logprobs but omit prompt_token_ids.
+            # With echo=True and logprobs=1, token_logprobs is the observed token's
+            # own logprob sequence; don't confuse top-k alternatives with actual tokens.
             if not observed:
                 logprob_payload = choice.get("logprobs") or {}
                 if not isinstance(logprob_payload, dict):
