@@ -142,6 +142,8 @@ def build_agent() -> EnterpriseGraphRAGAgent:
         api_key=settings.vllm_api_key,
         model=settings.vllm_model,
         threshold=settings.security_ppl_threshold,
+        ppl_max_chars=settings.security_ppl_max_chars,
+        ppl_window_overlap_chars=settings.security_ppl_window_overlap_chars,
         marker_threshold=settings.security_marker_threshold,
         ppl_min_classifier_score=settings.security_ppl_min_classifier_score,
         classifier_model=settings.security_classifier_model,
