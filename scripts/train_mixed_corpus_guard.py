@@ -867,6 +867,7 @@ def main():
         save_strategy="no",
         logging_steps=100,
         fp16=on_cuda,
+        ddp_find_unused_parameters=False,
         report_to=[],
         seed=args.seed,
         data_seed=args.seed,
@@ -1013,8 +1014,19 @@ def main():
         "bipia_injected_validation_rows": len(bipia_positive_indices),
     }
 
+    # Trainer coordinates gradients/evaluation across all ranks. Only rank 0
+    # writes the tokenizer, runs the expensive OOD matrix, and emits reports.
+    # A barrier ensures the complete checkpoint exists before rank 0 reloads it
+    # through the production SecurityGateway.
+    is_world_process_zero = trainer.is_world_process_zero()
     trainer.save_model(str(model_dir))
-    tokenizer.save_pretrained(str(model_dir))
+    if is_world_process_zero:
+        tokenizer.save_pretrained(str(model_dir))
+    distributed = torch.distributed.is_available() and torch.distributed.is_initialized()
+    if distributed:
+        torch.distributed.barrier()
+    if not is_world_process_zero:
+        return
     (output_dir / "calibration.json").write_text(json.dumps(calibration, indent=2), encoding="utf-8")
     (output_dir / "calibrated_threshold.txt").write_text(f"{calibration['selected_threshold']:.2f}\n", encoding="utf-8")
 
