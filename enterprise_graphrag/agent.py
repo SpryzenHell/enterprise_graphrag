@@ -160,6 +160,7 @@ def build_agent() -> EnterpriseGraphRAGAgent:
         vector_weight=settings.vector_weight,
         graph_weight=settings.graph_weight,
         rrf_k=settings.rrf_k,
+        vector_protected_prefix=settings.vector_protected_prefix,
     )
 
     return EnterpriseGraphRAGAgent(
