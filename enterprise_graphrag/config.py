@@ -223,6 +223,12 @@ class Settings:
             "8",
         )
     )
+    candidate_pool_multiplier: int = int(
+        os.getenv(
+            "CANDIDATE_POOL_MULTIPLIER",
+            "4",
+        )
+    )
 
     allowed_origins: tuple[str, ...] = _csv(
         os.getenv(
@@ -362,6 +368,8 @@ class Settings:
             problems.append("RRF_K must be greater than zero")
         if self.top_k < 1 or self.top_k > 50:
             problems.append("TOP_K must be between 1 and 50")
+        if self.candidate_pool_multiplier < 1 or self.candidate_pool_multiplier > 10:
+            problems.append("CANDIDATE_POOL_MULTIPLIER must be between 1 and 10")
         if self.vector_weight < 0 or self.graph_weight < 0:
             problems.append(
                 "VECTOR_WEIGHT and GRAPH_WEIGHT cannot be negative"
