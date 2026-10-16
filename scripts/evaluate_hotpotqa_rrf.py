@@ -365,6 +365,202 @@ def evaluate_rankings(
     return {"controls": controls, "rrf_tuning": selected_sweep}
 
 
+
+def evaluate_independent_depths(
+    queries: list[dict],
+    candidate_lists: dict[str, dict[str, list]],
+    seed: int = 20261016,
+) -> dict:
+    """Tune vector/graph depths independently and select only on calibration.
+
+    The production retrieval gate requires (a) at least +1 percentage point
+    supporting-title recall@10, (b) no more than 0.02 MRR regression, and
+    (c) no more than 0.02 nDCG regression against vector-only. This experiment
+    splits the fixed query sample before selection and reports an untouched
+    held-out score for the frozen calibration winner.
+    """
+    shuffled = list(queries)
+    random.Random(seed).shuffle(shuffled)
+    midpoint = max(1, len(shuffled) // 2)
+    calibration = shuffled[:midpoint]
+    heldout = shuffled[midpoint:] or calibration
+    profiles = [
+        profile for profile in ("neo4j_vector_seeded", "neo4j_enriched")
+        if profile in candidate_lists
+    ]
+    vector_depths = (10, 20, 50, 100)
+    graph_depths = (10, 20, 50, 100)
+    vector_weights = (0.50, 0.60, 0.75, 0.90, 0.95, 0.99)
+
+    def compute_rankings(query_rows, profile, vector_depth, graph_depth, vector_weight):
+        rankings = {}
+        for row in query_rows:
+            qid = row["query_id"]
+            vector_hits = candidate_lists["vector"].get(qid, [])[:vector_depth]
+            graph_hits = candidate_lists[profile].get(qid, [])[:graph_depth] if profile else []
+            if profile:
+                hits = weighted_rrf(
+                    {"vector": vector_hits, "graph": graph_hits},
+                    {"vector": vector_weight, "graph": 1.0 - vector_weight},
+                    k=60,
+                    limit=10,
+                )
+            else:
+                hits = vector_hits[:10]
+            rankings[qid] = [hit.title for hit in hits]
+            rankings[qid + "::answer_text"] = [hit.text for hit in hits]
+        return rankings
+
+    vector_cal = ranking_metrics(
+        calibration,
+        compute_rankings(calibration, None, 10, 0, 1.0),
+    )
+    vector_test = ranking_metrics(
+        heldout,
+        compute_rankings(heldout, None, 10, 0, 1.0),
+    )
+
+    configurations = []
+    for profile in profiles:
+        for vector_depth in vector_depths:
+            for graph_depth in graph_depths:
+                for vector_weight in vector_weights:
+                    calibration_metrics = ranking_metrics(
+                        calibration,
+                        compute_rankings(
+                            calibration, profile, vector_depth, graph_depth, vector_weight
+                        ),
+                    )
+                    deltas = {
+                        "supporting_title_recall@10": round(
+                            calibration_metrics["supporting_title_recall@10"]
+                            - vector_cal["supporting_title_recall@10"], 6
+                        ),
+                        "mrr@10": round(
+                            calibration_metrics["mrr@10"] - vector_cal["mrr@10"], 6
+                        ),
+                        "ndcg@10": round(
+                            calibration_metrics["ndcg@10"] - vector_cal["ndcg@10"], 6
+                        ),
+                    }
+                    configurations.append({
+                        "candidate_profile": profile,
+                        "vector_depth": vector_depth,
+                        "graph_depth": graph_depth,
+                        "vector_weight": vector_weight,
+                        "graph_weight": round(1.0 - vector_weight, 2),
+                        "calibration": calibration_metrics,
+                        "calibration_deltas_vs_vector": deltas,
+                        "clears_calibration_gate": (
+                            deltas["supporting_title_recall@10"] >= 0.01
+                            and deltas["mrr@10"] >= -0.02
+                            and deltas["ndcg@10"] >= -0.02
+                        ),
+                        "rank_stable": (
+                            deltas["mrr@10"] >= -0.02
+                            and deltas["ndcg@10"] >= -0.02
+                        ),
+                    })
+
+    feasible = [row for row in configurations if row["clears_calibration_gate"]]
+    rank_stable = [row for row in configurations if row["rank_stable"]]
+    if feasible:
+        selected = max(
+            feasible,
+            key=lambda row: (
+                row["calibration"]["supporting_title_recall@10"],
+                row["calibration"]["all_supporting_titles@10"],
+                row["calibration"]["mrr@10"],
+                row["calibration"]["ndcg@10"],
+                row["vector_weight"],
+                -row["graph_depth"],
+                -row["vector_depth"],
+            ),
+        )
+        selection_status = "selected_feasible_hybrid"
+    elif rank_stable:
+        selected = max(
+            rank_stable,
+            key=lambda row: (
+                row["calibration"]["supporting_title_recall@10"],
+                row["calibration"]["all_supporting_titles@10"],
+                row["calibration"]["mrr@10"],
+                row["calibration"]["ndcg@10"],
+                row["vector_weight"],
+                -row["graph_depth"],
+                -row["vector_depth"],
+            ),
+        )
+        selection_status = "no_feasible_hybrid_best_rank_stable_diagnostic_only"
+    else:
+        selected = None
+        selection_status = "no_rank_stable_hybrid_vector_only_fallback"
+
+    if selected:
+        frozen_rankings = compute_rankings(
+            heldout,
+            selected["candidate_profile"],
+            selected["vector_depth"],
+            selected["graph_depth"],
+            selected["vector_weight"],
+        )
+        selected_test = ranking_metrics(heldout, frozen_rankings)
+        deltas = {
+            "supporting_title_recall@10": round(
+                selected_test["supporting_title_recall@10"] - vector_test["supporting_title_recall@10"], 6
+            ),
+            "mrr@10": round(selected_test["mrr@10"] - vector_test["mrr@10"], 6),
+            "ndcg@10": round(selected_test["ndcg@10"] - vector_test["ndcg@10"], 6),
+        }
+        clears_heldout_gate = (
+            deltas["supporting_title_recall@10"] >= 0.01
+            and deltas["mrr@10"] >= -0.02
+            and deltas["ndcg@10"] >= -0.02
+        )
+    else:
+        selected_test = vector_test
+        deltas = {
+            "supporting_title_recall@10": 0.0,
+            "mrr@10": 0.0,
+            "ndcg@10": 0.0,
+        }
+        clears_heldout_gate = False
+
+    return {
+        "selection_rule": (
+            "Separate vector and graph candidate depths; select on calibration only. "
+            "Require support recall@10 >= +0.01, MRR@10 delta >= -0.02 and "
+            "nDCG@10 delta >= -0.02 versus vector-only. The frozen selected configuration "
+            "must pass the same gate on held-out queries before any rollout."
+        ),
+        "seed": seed,
+        "calibration_queries": len(calibration),
+        "heldout_queries": len(heldout),
+        "grid": {
+            "profiles": profiles,
+            "vector_depths": list(vector_depths),
+            "graph_depths": list(graph_depths),
+            "vector_weights": list(vector_weights),
+            "configurations_evaluated": len(configurations),
+        },
+        "vector_only_calibration": vector_cal,
+        "vector_only_heldout": vector_test,
+        "selection_status": selection_status,
+        "selected": selected,
+        "selected_heldout": selected_test,
+        "heldout_deltas_vs_vector": deltas,
+        "selected_clears_heldout_gate": clears_heldout_gate,
+        "calibration_feasible_configurations": len(feasible),
+        "rank_stable_configurations": len(rank_stable),
+        "all_configurations": configurations,
+        "warning": (
+            "The query set is a fixed-seed sample from HotpotQA validation, not its hidden test. "
+            "Selection uses only the calibration half; held-out results are reported after freezing "
+            "the choice. If no configuration passes, keep vector-only as the default."
+        ),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description="Measure BGE, Neo4j entity traversal and RRF on HotpotQA multi-hop retrieval.")
     parser.add_argument("--output-dir", default="artifacts/hotpotqa-multihop")
@@ -454,6 +650,9 @@ def main():
                 controls[backend] = ranking_metrics(queries, title_and_text)
 
             sweep = evaluate_rankings(queries, candidate_lists, {})
+            independent_depth_sweep = evaluate_independent_depths(
+                queries, candidate_lists, seed=args.seed + 101
+            )
             result = {
                 "schema_version": 1,
                 "started_utc": start_utc,
@@ -477,6 +676,7 @@ def main():
                 },
                 "controls": controls,
                 "rrf_tuning": sweep["rrf_tuning"],
+                "independent_depth_sweep": independent_depth_sweep,
                 "limitations": [
                     "The benchmark indexes only passages present in the sampled HotpotQA distractor contexts, not all Wikipedia.",
                     "Entity extraction is deterministic title/body capitalization matching; this tests the current production retriever rather than an idealized knowledge graph.",
@@ -521,6 +721,15 @@ def main():
         f"- Held-out queries: {result['rrf_tuning']['heldout_queries']}; calibration queries: {result['rrf_tuning']['calibration_queries']}.",
         f"- Holdout delta vs vector-only: support recall {acceptance['supporting_title_recall_gain']:+.4f}; MRR {acceptance['mrr_delta']:+.4f}; nDCG {acceptance['ndcg_delta']:+.4f}; answer-string presence {acceptance['answer_text_presence_delta']:+.4f}.",
         f"- Clears predeclared retrieval gate: {acceptance['candidate_clears_retrieval_gate']} (support recall +1 pp; MRR/nDCG regressions limited to 0.02).",
+        "",
+        "## Independent vector/graph candidate-depth gate",
+        "",
+        f"- Grid: {independent_depth_sweep['grid']['configurations_evaluated']} configurations; vector depths={independent_depth_sweep['grid']['vector_depths']}; graph depths={independent_depth_sweep['grid']['graph_depths']}.",
+        f"- Calibration queries={independent_depth_sweep['calibration_queries']}; held-out queries={independent_depth_sweep['heldout_queries']}; selection={independent_depth_sweep['selection_status']}.",
+        f"- Rank-stable calibrations={independent_depth_sweep['rank_stable_configurations']}; configurations passing recall+ranking gates on calibration={independent_depth_sweep['calibration_feasible_configurations']}.",
+        f"- Frozen selected configuration clears held-out gate: {independent_depth_sweep['selected_clears_heldout_gate']}.",
+        f"- Held-out deltas vs vector-only: recall={independent_depth_sweep['heldout_deltas_vs_vector']['supporting_title_recall@10']:+.4f}; MRR={independent_depth_sweep['heldout_deltas_vs_vector']['mrr@10']:+.4f}; nDCG={independent_depth_sweep['heldout_deltas_vs_vector']['ndcg@10']:+.4f}.",
+        f"- Gate: support recall +1 pp minimum, MRR/nDCG regression no worse than 0.02. {independent_depth_sweep['warning']}",
         "",
         "## Query latency (after model/index warm-up)",
         "",
