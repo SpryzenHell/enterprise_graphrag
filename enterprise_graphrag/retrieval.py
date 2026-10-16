@@ -8,7 +8,7 @@ import threading
 from collections import defaultdict
 from pathlib import Path
 
-from .fusion import Hit, weighted_rrf
+from .fusion import Hit, prefix_protected_rrf, weighted_rrf
 from .schemas import validate_documents
 from .security import SecurityGateway
 
@@ -279,13 +279,17 @@ class HybridRetriever:
         vector_weight: float,
         graph_weight: float,
         rrf_k: int,
+        vector_protected_prefix: int = 0,
     ) -> None:
+        if vector_protected_prefix < 0 or vector_protected_prefix > 50:
+            raise ValueError("vector_protected_prefix must be between 0 and 50")
         self.vector = vector
         self.graph = graph
         self.security = security
         self.vector_weight = vector_weight
         self.graph_weight = graph_weight
         self.rrf_k = rrf_k
+        self.vector_protected_prefix = vector_protected_prefix
 
     def add(
         self,
@@ -353,17 +357,17 @@ class HybridRetriever:
             fetch_limit,
         )
 
-        fused = weighted_rrf(
-            {
-                "vector": vector_hits,
-                "graph": graph_hits,
-            },
-            {
+        fused = prefix_protected_rrf(
+            vector_hits=vector_hits,
+            graph_hits=graph_hits,
+            weights={
                 "vector": self.vector_weight,
                 "graph": self.graph_weight,
             },
             k=self.rrf_k,
-            limit=fetch_limit,
+            limit=limit,
+            candidate_limit=fetch_limit,
+            protected_prefix=self.vector_protected_prefix,
         )
 
         allowed = []
