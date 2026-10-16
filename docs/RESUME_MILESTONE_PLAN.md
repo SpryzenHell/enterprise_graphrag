@@ -1,6 +1,6 @@
 # Enterprise GraphRAG résumé-milestone plan
 
-**Status snapshot:** 2026-10-16 11:58 UTC  
+**Status snapshot:** 2026-10-16 12:09 UTC  
 **Acceptance rule:** a résumé point is only marked achieved when the relevant integration/regression test and external evaluation artifact support it. The numeric gates below are engineering acceptance criteria for this project, not claims stated in the résumé.
 
 ## Executive decision
@@ -22,7 +22,7 @@
 
 ### Evidence so far
 
-- The current security branch's test, Neo4j integration, container-smoke, and Compose-smoke CI jobs passed on run [38896430328](https://github.com/SpryzenHell/enterprise_graphrag/actions/runs/38896430328).
+- The current security branch's test, Neo4j integration, container-smoke, and Compose-smoke CI jobs passed on [run 38898109686](https://github.com/SpryzenHell/enterprise_graphrag/actions/runs/38898109686) after the full-document PPL window change; the additional environment validation tests are on the next run [38898440166](https://github.com/SpryzenHell/enterprise_graphrag/actions/runs/38898440166).
 - Live Neo4j tests cover tenant-scoped two-hop traversal and bulk upsert/replacement; the test asserts that Globex records never surface through Acme's query.
 - The MCP/body tenant-spoof regression is present on the security branch.
 
@@ -73,7 +73,7 @@ Inspect the uploaded report and only accept hybrid if its predeclared held-out g
 - Mixed-corpus fine-tuning uses a licensed Guard Base checkpoint, paired BIPIA contexts, a disjoint NotInject train/calibration/holdout split, a PIArena calibration slice, and OR-Bench-80K benign hard negatives with exact held-out overlap exclusion.
 - Latest candidate validation at threshold **0.95** produced BIPIA TPR **0.9988**, PIArena TPR **0.7333** / FPR **0.02027**, NotInject FPR **0.01176**, OR-Bench FPR **0.00000**, and aggregate-benign FPR **0.00919**. It was marked **infeasible** because PIArena FPR was 2.027%, just over the 2% calibration limit. It is not a production threshold.
 - Training and integrated-gate threshold grids now include **0.96, 0.97, 0.98, 0.99** to test whether a slightly stricter operating point clears calibration constraints.
-- The prior A100 run loaded Qwen/Qwen2.5-0.5B-Instruct and started the vLLM application, but the readiness code rejected the `/v1/models` response shape and skipped real PPL calibration. The workflow now probes `/openapi.json`, records the model-list body/status, uploads full evidence directories, and proceeds to the explicit prompt-logprob contract test.
+- The prior A100 run loaded Qwen/Qwen2.5-0.5B-Instruct and started the vLLM application, but the readiness code rejected the `/v1/models` response shape and skipped real PPL calibration. The workflow now probes `/openapi.json`, records the model-list body/status, uploads full evidence directories, and proceeds to the explicit prompt-logprob contract test. It now starts vLLM on GPU 0 when at least two GPUs are visible (the semantic classifier auto-selects GPU 1), avoiding accidental co-location. The full-document PPL function now scans overlapping character windows and fails closed if any eligible window cannot be scored.
 
 ### Active run
 
@@ -92,10 +92,11 @@ Inspect the uploaded report and only accept hybrid if its predeclared held-out g
 ## Current run links
 
 - [A100 acceptance run with the corrected readiness gate](https://github.com/SpryzenHell/integrator/actions/runs/38896885801)
-- [Queued A100 run with job-level cancellation disabled](https://github.com/SpryzenHell/integrator/actions/runs/38897174690)
+- [Queued A100 run with job-level cancellation disabled and GPU allocation fix](https://github.com/SpryzenHell/integrator/actions/runs/38898498659)
 - [Original 400-query HotpotQA live-Neo4j evaluation](https://github.com/SpryzenHell/enterprise_graphrag/actions/runs/38886127446)
 - [120-query HotpotQA diagnostic run](https://github.com/SpryzenHell/enterprise_graphrag/actions/runs/38896997692)
 - [Latest threshold-grid CI](https://github.com/SpryzenHell/enterprise_graphrag/actions/runs/38896415890)
-- [Latest integrated calibration-script CI](https://github.com/SpryzenHell/enterprise_graphrag/actions/runs/38896430328)
+- [Latest integrated calibration-script CI](https://github.com/SpryzenHell/enterprise_graphrag/actions/runs/38898109686)
+- [Environment/PPL-window configuration tests](https://github.com/SpryzenHell/enterprise_graphrag/actions/runs/38898440166)
 
 **Do not mark all résumé points achieved yet.** Tenant isolation is well supported by regression/integration tests; the ranking-quality gain and real-time vLLM/PPL blocking criteria still need final held-out artifacts.
