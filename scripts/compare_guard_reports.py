@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 
-METRIC_KEY = "marker_plus_semantic_gate_metrics"
+METRIC_KEY = "perplexity_plus_semantic_gate_metrics"
 
 
 def read_report(path: Path) -> dict:
@@ -24,7 +24,7 @@ def metrics(report: dict, config: str) -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Compare base/candidate guard using the same frozen OOD sample.")
+    parser = argparse.ArgumentParser(description="Compare base/candidate combined semantic + PPL guard using the same frozen OOD sample.")
     parser.add_argument("--base-report", required=True)
     parser.add_argument("--candidate-report", required=True)
     parser.add_argument("--output-dir", required=True)
@@ -111,11 +111,15 @@ def main() -> None:
     result = {
         "schema_version": 1,
         "threshold_semantics": (
-            f"Both input reports must use the same frozen sample seed and integrated semantic threshold {calibrated_threshold:.2f}; "
-            "threshold is selected from the grouped training validation split, never the external test set."
+            f"Both input reports must use the same frozen sample seed, integrated semantic threshold {calibrated_threshold:.2f}, "
+            f"PPL threshold {calibration.get('selected_ppl_threshold', 'not recorded')}, and PPL trigger floor "
+            f"{calibration.get('selected_min_classifier_score', 'not recorded')}; all are selected from grouped validation, "
+            "never from the external test set."
         ),
         "calibration_report": str(args.calibration_report),
         "calibrated_threshold": calibrated_threshold,
+        "calibrated_ppl_threshold": calibration.get("selected_ppl_threshold"),
+        "calibrated_ppl_min_classifier_score": calibration.get("selected_min_classifier_score"),
         "calibration_feasible": calibration_feasible,
         "calibration_selection_reason": calibration.get("selection_reason"),
         "metric": METRIC_KEY,
@@ -143,9 +147,11 @@ def main() -> None:
         "",
         f"- Candidate clears all checks: {promote_candidate_for_further_staging}",
         f"- Decision: {result['decision']}",
-        f"- Frozen integrated threshold: {calibrated_threshold:.2f} (calibration feasible={calibration_feasible})",
+        f"- Frozen semantic threshold: {calibrated_threshold:.2f}",
+        f"- Frozen PPL threshold: {calibration.get('selected_ppl_threshold', 'not recorded')}",
+        f"- Frozen PPL trigger floor: {calibration.get('selected_min_classifier_score', 'not recorded')} (calibration feasible={calibration_feasible})",
         f"- Calibration selection: {calibration.get('selection_reason', 'not recorded')}",
-        "- Both model reports use the same seed, the same OOD configs and the same calibrated integrated threshold.",
+        f"- Metric scored: {METRIC_KEY}. Both reports use the same seed, OOD configs, semantic threshold, PPL threshold, and PPL trigger floor.",
         "",
         "| Config | N | Base TPR | Candidate TPR | Delta TPR | Base FPR | Candidate FPR | Delta FPR |",
         "|---|---:|---:|---:|---:|---:|---:|---:|",
