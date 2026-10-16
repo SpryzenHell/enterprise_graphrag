@@ -66,6 +66,10 @@ jobs:
         run: |
           python -m compileall -q enterprise_graphrag scripts
           pytest -q enterprise_graphrag/tests -m "not integration and not gpu"
+      - name: Validate independent-depth RRF selection before data download
+        run: |
+          pytest -q scripts/tests/test_hotpotqa_independent_depths.py
+
       - name: Run live Neo4j tenant and two-hop regressions
         run: |
           pytest -q enterprise_graphrag/tests/test_neo4j_integration.py -m integration
