@@ -302,40 +302,43 @@ def evaluate_rankings(
     calibration = shuffled[:midpoint]
     heldout = shuffled[midpoint:] or calibration
     weights = (0.0, 0.10, 0.20, 0.30, 0.45, 0.60, 0.75, 0.90, 0.95, 0.99, 1.0)
-    depths = (10, 20, 50, 100)
+    vector_depths = (5, 10, 20, 50, 100)
+    graph_depths = (10, 20, 50, 100)
     sweep = []
 
     for profile in profiles:
-        for depth in depths:
-            for vector_weight in weights:
-                ranked: dict[str, list[str]] = {}
-                answer_texts: dict[str, list[str]] = {}
-                for qid in candidate_lists["vector"]:
-                    fused = weighted_rrf(
-                        {
-                            "vector": candidate_lists["vector"][qid][:depth],
-                            "graph": candidate_lists[profile].get(qid, [])[:depth],
-                        },
-                        {"vector": vector_weight, "graph": 1.0 - vector_weight},
-                        k=60,
-                        limit=10,
-                    )
-                    ranked[qid] = [hit.title for hit in fused]
-                    answer_texts[qid + "::answer_text"] = [hit.text for hit in fused]
-                full_rankings = dict(ranked)
-                full_rankings.update(answer_texts)
-                calibration_metrics = ranking_metrics(calibration, full_rankings)
-                heldout_metrics = ranking_metrics(heldout, full_rankings)
-                sweep.append({
-                    "candidate_profile": profile,
-                    "candidate_depth": depth,
-                    "vector_weight": vector_weight,
-                    "graph_weight": round(1.0 - vector_weight, 2),
-                    "vector_only_control": vector_weight == 1.0,
-                    "graph_only_control": vector_weight == 0.0,
-                    "calibration": calibration_metrics,
-                    "heldout": heldout_metrics,
-                })
+        for vector_depth in vector_depths:
+            for graph_depth in graph_depths:
+                for vector_weight in weights:
+                    ranked: dict[str, list[str]] = {}
+                    answer_texts: dict[str, list[str]] = {}
+                    for qid in candidate_lists["vector"]:
+                        fused = weighted_rrf(
+                            {
+                                "vector": candidate_lists["vector"][qid][:vector_depth],
+                                "graph": candidate_lists[profile].get(qid, [])[:graph_depth],
+                            },
+                            {"vector": vector_weight, "graph": 1.0 - vector_weight},
+                            k=60,
+                            limit=10,
+                        )
+                        ranked[qid] = [hit.title for hit in fused]
+                        answer_texts[qid + "::answer_text"] = [hit.text for hit in fused]
+                    full_rankings = dict(ranked)
+                    full_rankings.update(answer_texts)
+                    calibration_metrics = ranking_metrics(calibration, full_rankings)
+                    heldout_metrics = ranking_metrics(heldout, full_rankings)
+                    sweep.append({
+                        "candidate_profile": profile,
+                        "vector_candidate_depth": vector_depth,
+                        "graph_candidate_depth": graph_depth,
+                        "vector_weight": vector_weight,
+                        "graph_weight": round(1.0 - vector_weight, 2),
+                        "vector_only_control": vector_weight == 1.0,
+                        "graph_only_control": vector_weight == 0.0,
+                        "calibration": calibration_metrics,
+                        "heldout": heldout_metrics,
+                    })
 
     hybrid = [row for row in sweep if 0.0 < row["vector_weight"] < 1.0]
     best = max(
@@ -346,19 +349,26 @@ def evaluate_rankings(
             row["calibration"]["mrr@10"],
             row["calibration"]["ndcg@10"],
             row["vector_weight"],
-            -row["candidate_depth"],
+            -row["vector_candidate_depth"],
+            -row["graph_candidate_depth"],
             row["candidate_profile"] == "neo4j_enriched",
         ),
     )
 
-    def fuse_config(profile: str, depth: int, vector_weight: float, qids: list[str]) -> dict:
+    def fuse_config(
+        profile: str,
+        vector_depth: int,
+        graph_depth: int,
+        vector_weight: float,
+        qids: list[str],
+    ) -> dict:
         ranked: dict[str, list[str]] = {}
         answer_texts: dict[str, list[str]] = {}
         for qid in qids:
             fused = weighted_rrf(
                 {
-                    "vector": candidate_lists["vector"][qid][:depth],
-                    "graph": candidate_lists[profile].get(qid, [])[:depth],
+                    "vector": candidate_lists["vector"][qid][:vector_depth],
+                    "graph": candidate_lists[profile].get(qid, [])[:graph_depth],
                 },
                 {"vector": vector_weight, "graph": 1.0 - vector_weight},
                 k=60,
@@ -371,11 +381,17 @@ def evaluate_rankings(
 
     best_heldout = ranking_metrics(
         heldout,
-        fuse_config(best["candidate_profile"], best["candidate_depth"], best["vector_weight"], list(candidate_lists["vector"])),
+        fuse_config(
+            best["candidate_profile"],
+            best["vector_candidate_depth"],
+            best["graph_candidate_depth"],
+            best["vector_weight"],
+            list(candidate_lists["vector"]),
+        ),
     )
     vector_heldout = ranking_metrics(
         heldout,
-        fuse_config("neo4j", 100, 1.0, list(candidate_lists["vector"])),
+        fuse_config("neo4j", 100, 100, 1.0, list(candidate_lists["vector"])),
     )
     recall_delta = round(
         best_heldout["supporting_title_recall@10"] - vector_heldout["supporting_title_recall@10"], 6
@@ -407,7 +423,7 @@ def evaluate_rankings(
         acceptance["ndcg_not_materially_worse"],
     ))
     selected_sweep = {
-        "selection_rule": "Maximize calibration supporting-title recall@10, then all-supporting-titles@10, MRR@10 and nDCG@10; ties prefer more vector weight, shallower candidate pool, then the graph-enriched profile.",
+        "selection_rule": "Maximize calibration supporting-title recall@10, then all-supporting-titles@10, MRR@10 and nDCG@10; ties prefer more vector weight, shallower vector pool, shallower graph pool, then the graph-enriched profile.",
         "seed": 20261015,
         "calibration_queries": len(calibration),
         "heldout_queries": len(heldout),
@@ -595,7 +611,7 @@ def main():
         f"| Direct + vector-seeded graph-only | {enriched_graph['supporting_title_recall@10']:.4f} | {enriched_graph['hit@10']:.4f} | {enriched_graph['all_supporting_titles@10']:.4f} | {enriched_graph['mrr@10']:.4f} | {enriched_graph['ndcg@10']:.4f} | {enriched_graph['answer_text_present_in_top10']:.4f} |",
         f"| RRF selected on calibration | {heldout['supporting_title_recall@10']:.4f} | {heldout['hit@10']:.4f} | {heldout['all_supporting_titles@10']:.4f} | {heldout['mrr@10']:.4f} | {heldout['ndcg@10']:.4f} | {heldout['answer_text_present_in_top10']:.4f} |",
         "",
-        f"- Selected graph profile: {selected['candidate_profile']}; calibration weight: vector={selected['vector_weight']:.2f}, graph={selected['graph_weight']:.2f}; candidate depth={selected['candidate_depth']}.",
+        f"- Selected graph profile: {selected['candidate_profile']}; calibration weight: vector={selected['vector_weight']:.2f}, graph={selected['graph_weight']:.2f}; vector candidate depth={selected['vector_candidate_depth']}, graph candidate depth={selected['graph_candidate_depth']}.",
         f"- Held-out queries: {result['rrf_tuning']['heldout_queries']}; calibration queries: {result['rrf_tuning']['calibration_queries']}.",
         f"- Holdout delta vs vector-only: support recall {acceptance['supporting_title_recall_gain']:+.4f}; MRR {acceptance['mrr_delta']:+.4f}; nDCG {acceptance['ndcg_delta']:+.4f}; answer-string presence {acceptance['answer_text_presence_delta']:+.4f}.",
         f"- Clears predeclared retrieval gate: {acceptance['candidate_clears_retrieval_gate']} (support recall +1 pp; MRR/nDCG regressions limited to 0.02).",
