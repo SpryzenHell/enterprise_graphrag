@@ -394,3 +394,64 @@ def test_vector_seeded_expansion_penalizes_high_degree_entity_hubs():
         assert all(hit.doc_id != "hub-cross-tenant" for hit in hits)
     finally:
         store.close()
+
+
+@pytest.mark.integration
+def test_vector_seeded_expansion_uses_lowercase_content_bridges_without_cross_tenant_leaks():
+    uri = os.getenv("NEO4J_URI")
+    password = os.getenv("NEO4J_PASSWORD")
+    if not uri or not password:
+        pytest.skip("NEO4J_URI/NEO4J_PASSWORD not configured")
+
+    store = Neo4jTenantStore(
+        uri,
+        os.getenv("NEO4J_USER", "neo4j"),
+        password,
+        os.getenv("NEO4J_DATABASE", "neo4j"),
+    )
+    try:
+        for _ in range(30):
+            try:
+                store.verify()
+                break
+            except Exception:
+                time.sleep(1)
+        else:
+            pytest.fail("Neo4j did not become ready")
+
+        store.ensure_schema()
+        store.add_many(
+            "lowercase-bridge-acme",
+            [
+                {
+                    "doc_id": "lowercase-anchor",
+                    "title": "Orchard Device Summary",
+                    "text": "The maintenance notes describe the unusual xenobiotic molecule binding to kinase during recovery.",
+                },
+                {
+                    "doc_id": "lowercase-support",
+                    "title": "Unrelated Research Archive",
+                    "text": "A later sample shows the xenobiotic molecule affecting kinase expression and tissue repair.",
+                },
+            ],
+        )
+        store.add(
+            "lowercase-bridge-globex",
+            {
+                "doc_id": "lowercase-cross-tenant",
+                "title": "Foreign Research Archive",
+                "text": "The xenobiotic molecule changes kinase activity in Globex samples.",
+            },
+        )
+
+        hits = store.expand_from_anchors("lowercase-bridge-acme", ["lowercase-anchor"], 10)
+        by_id = {hit.doc_id: hit for hit in hits}
+        assert "lowercase-support" in by_id, [
+            (hit.doc_id, hit.metadata.get("bridge_entities")) for hit in hits
+        ]
+        assert by_id["lowercase-support"].metadata["retrieval_path"] == "vector_seeded_two_hop"
+        assert any(str(key).startswith("term:") for key in by_id["lowercase-support"].metadata["bridge_entities"])
+        assert all(hit.tenant_id == "lowercase-bridge-acme" for hit in hits)
+        assert "lowercase-cross-tenant" not in by_id
+    finally:
+        store.close()
