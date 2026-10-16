@@ -137,13 +137,14 @@ class Neo4jTenantStore:
         anchor_doc_ids: list[str],
         limit: int,
     ) -> list[Hit]:
-        """Expand tenant-scoped graph neighbors from semantically ranked FAISS hits.
+        """Expand tenant-scoped neighbors, preferring rare entity bridges.
 
-        Instead of asking graph full-text retrieval to independently rediscover
-        query anchors, this method starts from the caller's vector-ranked documents
-        and traverses Document -> Entity -> Document. It can surface supporting
-        passages that share an entity with a strong vector hit but do not repeat
-        the natural-language query terms themselves.
+        FAISS determines which documents are the semantic anchors. Neo4j then
+        retrieves linked supporting passages. A common entity can connect hundreds
+        of unrelated documents, so score each anchor->entity->candidate path with
+        an inverse-square-root entity-degree weight and the rank of its vector
+        anchor. This reduces hub dominance while still rewarding evidence linked
+        to multiple strong anchors.
         """
         if limit < 1 or not anchor_doc_ids:
             return []
@@ -160,21 +161,37 @@ class Neo4jTenantStore:
         MATCH (anchor)-[:MENTIONS]->(bridge:Entity {tenant_id:$tenant})
         MATCH (bridge)<-[:MENTIONS]-(candidate:Document {tenant_id:$tenant})
         WHERE candidate.doc_id <> anchor.doc_id
+        WITH DISTINCT candidate, anchor, seed, bridge,
+             size([
+                 (bridge)<-[:MENTIONS]-(neighbor:Document {tenant_id:$tenant})
+                 | neighbor.doc_id
+             ]) AS bridge_degree
         WITH candidate,
              collect(DISTINCT anchor.doc_id) AS anchor_docs,
              collect(DISTINCT bridge.key) AS bridge_keys,
-             min(seed.rank) AS best_anchor_rank
-        WITH candidate, anchor_docs, bridge_keys, best_anchor_rank,
-             (1.0 / (10.0 + best_anchor_rank)
-              + 0.10 * size(anchor_docs)
-              + 0.05 * size(bridge_keys)) AS expansion_score
+             min(seed.rank) AS best_anchor_rank,
+             sum(
+                 (1.0 / sqrt(toFloat(bridge_degree)))
+                 / sqrt(toFloat(seed.rank))
+             ) AS rarity_seed_score
+        WITH candidate,
+             anchor_docs,
+             bridge_keys,
+             best_anchor_rank,
+             rarity_seed_score,
+             (
+                 rarity_seed_score
+                 + 0.08 * size(anchor_docs)
+                 + 0.03 * size(bridge_keys)
+             ) AS expansion_score
         RETURN candidate.doc_id AS doc_id,
                candidate.title AS title,
                candidate.text AS text,
                expansion_score AS score,
                anchor_docs AS anchor_docs,
                bridge_keys AS bridge_keys,
-               best_anchor_rank AS best_anchor_rank
+               best_anchor_rank AS best_anchor_rank,
+               rarity_seed_score AS rarity_seed_score
         ORDER BY score DESC, doc_id
         LIMIT $limit
         """
@@ -205,7 +222,9 @@ class Neo4jTenantStore:
                     "anchor_docs": list(row["anchor_docs"] or []),
                     "bridge_entities": list(row["bridge_keys"] or []),
                     "best_anchor_rank": int(row["best_anchor_rank"]),
+                    "bridge_rarity_score": float(row["rarity_seed_score"]),
                     "retrieval_path": "vector_seeded_two_hop",
+                    "bridge_scoring": "inverse_sqrt_degree_x_inverse_sqrt_anchor_rank",
                 },
             )
             for row in rows
