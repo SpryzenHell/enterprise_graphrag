@@ -912,7 +912,7 @@ def main():
             "fpr": fp / negatives if negatives else None,
         }
 
-    thresholds = [round(value, 2) for value in [0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95]]
+    thresholds = [round(value, 2) for value in [0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95, 0.96, 0.97, 0.98, 0.99]]
     orbench_indices = [
         i for i, row in enumerate(val_rows)
         if str(row.get("source", "")).startswith("bench-llm/or-bench:or-bench-80k-train")
